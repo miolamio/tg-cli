@@ -98,53 +98,53 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| AUTH-06 | — | Pending |
-| AUTH-07 | — | Pending |
-| CHAT-01 | — | Pending |
-| CHAT-02 | — | Pending |
-| CHAT-03 | — | Pending |
-| CHAT-04 | — | Pending |
-| CHAT-05 | — | Pending |
-| CHAT-06 | — | Pending |
-| CHAT-07 | — | Pending |
-| READ-01 | — | Pending |
-| READ-02 | — | Pending |
-| READ-03 | — | Pending |
-| READ-04 | — | Pending |
-| READ-05 | — | Pending |
-| READ-06 | — | Pending |
-| READ-07 | — | Pending |
-| WRITE-01 | — | Pending |
-| WRITE-02 | — | Pending |
-| WRITE-03 | — | Pending |
-| WRITE-04 | — | Pending |
-| WRITE-05 | — | Pending |
-| WRITE-06 | — | Pending |
-| WRITE-07 | — | Pending |
-| WRITE-08 | — | Pending |
-| OUT-01 | — | Pending |
-| OUT-02 | — | Pending |
-| OUT-03 | — | Pending |
-| OUT-04 | — | Pending |
-| OUT-05 | — | Pending |
-| OUT-06 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Pending |
+| AUTH-07 | Phase 1 | Pending |
+| CHAT-01 | Phase 2 | Pending |
+| CHAT-02 | Phase 2 | Pending |
+| CHAT-03 | Phase 2 | Pending |
+| CHAT-04 | Phase 2 | Pending |
+| CHAT-05 | Phase 2 | Pending |
+| CHAT-06 | Phase 2 | Pending |
+| CHAT-07 | Phase 2 | Pending |
+| READ-01 | Phase 2 | Pending |
+| READ-02 | Phase 2 | Pending |
+| READ-03 | Phase 2 | Pending |
+| READ-04 | Phase 2 | Pending |
+| READ-05 | Phase 4 | Pending |
+| READ-06 | Phase 5 | Pending |
+| READ-07 | Phase 4 | Pending |
+| WRITE-01 | Phase 3 | Pending |
+| WRITE-02 | Phase 3 | Pending |
+| WRITE-03 | Phase 3 | Pending |
+| WRITE-04 | Phase 4 | Pending |
+| WRITE-05 | Phase 3 | Pending |
+| WRITE-06 | Phase 5 | Pending |
+| WRITE-07 | Phase 5 | Pending |
+| WRITE-08 | Phase 5 | Pending |
+| OUT-01 | Phase 1 | Pending |
+| OUT-02 | Phase 1 | Pending |
+| OUT-03 | Phase 3 | Pending |
+| OUT-04 | Phase 5 | Pending |
+| OUT-05 | Phase 5 | Pending |
+| OUT-06 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 40 total
-- Mapped to phases: 0
-- Unmapped: 40 ⚠️
+- v1 requirements: 41 total
+- Mapped to phases: 41
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after initial definition*
+*Last updated: 2026-03-10 after roadmap creation*
