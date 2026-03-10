@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can export a session string, use it on another machine via import, and be authenticated there
   4. User can run `tg auth status` to check login state and `tg auth logout` to destroy the session
   5. Every command returns JSON on stdout with `{ ok, data, error? }` envelope, errors/progress on stderr
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — Project scaffolding, build infrastructure, and core library modules (types, output, errors, config, prompt)
+- [ ] 01-02-PLAN.md — Session store with locking, client lifecycle wrapper, rate limiting, and auth commands (login, status, logout)
+- [ ] 01-03-PLAN.md — Session commands (export, import), CLI entry point wiring, build, and end-to-end verification
 
 ### Phase 2: Chat Discovery & Message Reading
 **Goal**: Users can discover their chats, get detailed chat info, join/leave groups, resolve peers, and read/search message history -- delivering the core agent use case of finding and extracting information from Telegram
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Auth | 0/3 | Not started | - |
+| 1. Foundation & Auth | 0/3 | Planning complete | - |
 | 2. Chat Discovery & Message Reading | 0/2 | Not started | - |
 | 3. Messaging & Interaction | 0/1 | Not started | - |
 | 4. Media & Files | 0/1 | Not started | - |
