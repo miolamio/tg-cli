@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-chat-discovery-message-reading
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md]
 started: 2026-03-11T13:00:00Z
-updated: 2026-03-11T22:10:00Z
+updated: 2026-03-11T22:15:00Z
 ---
 
 ## Current Test
@@ -86,9 +86,12 @@ skipped: 2
   reason: "ignoreMigrated:true in chatListAction causes gramjs getDialogs to return empty array. Without flag, all 83 dialogs return correctly."
   severity: blocker
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "gramjs v2.26.21 getDialogs with ignoreMigrated:true filters ALL dialogs to empty array. Bug in gramjs migration detection — likely checks entity.migratedTo which exists on most channels. Fix: remove ignoreMigrated:true from getDialogs call."
+  artifacts:
+    - path: "src/commands/chat/list.ts"
+      issue: "Line 37: ignoreMigrated: true causes empty results"
+  missing:
+    - "Remove ignoreMigrated: true from getDialogs options"
   debug_session: ""
 
 - truth: "Chat list type filter restricts output to matching dialog types"
@@ -96,9 +99,12 @@ skipped: 2
   reason: "Same root cause as gap 1 — ignoreMigrated empties input before filter runs"
   severity: blocker
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Dependent on gap 1 fix. Filter logic at line 48-50 is correct — will work once dialogs are returned."
+  artifacts:
+    - path: "src/commands/chat/list.ts"
+      issue: "Filter logic correct but receives empty input due to ignoreMigrated"
+  missing:
+    - "Fix gap 1 (remove ignoreMigrated) to unblock"
   debug_session: ""
 
 - truth: "Chat list pagination returns subset via --limit and --offset"
@@ -106,9 +112,12 @@ skipped: 2
   reason: "Same root cause as gap 1 — zero dialogs means pagination has nothing to paginate"
   severity: blocker
   test: 3
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Dependent on gap 1 fix. Pagination logic (slice offset, offset+limit) is correct — will work once dialogs are returned."
+  artifacts:
+    - path: "src/commands/chat/list.ts"
+      issue: "Pagination logic correct but receives empty input due to ignoreMigrated"
+  missing:
+    - "Fix gap 1 (remove ignoreMigrated) to unblock"
   debug_session: ""
 
 - truth: "Message search -q shorthand works for specifying search query"
@@ -116,9 +125,14 @@ skipped: 2
   reason: "-q conflicts with global --quiet flag. Commander resolves -q to --quiet, leaving --query unspecified. --query long form works correctly."
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Commander.js option resolution: global -q/--quiet (defined in src/bin/tg.ts) shadows the local -q/--query (defined in src/commands/message/index.ts:30). Commander resolves short flags to the nearest global match. Fix: remove -q shorthand from search's --query option, or use a different letter."
+  artifacts:
+    - path: "src/commands/message/index.ts"
+      issue: "Line 30: .requiredOption('-q, --query <text>') — -q conflicts with global --quiet"
+    - path: "src/bin/tg.ts"
+      issue: "Global -q, --quiet option shadows subcommand -q"
+  missing:
+    - "Change search's requiredOption to '--query <text>' (drop -q shorthand) or use a different letter like -s"
   debug_session: ""
 
 - truth: "Global message search chatTitle shows resolved chat name for all chat types"
@@ -126,7 +140,10 @@ skipped: 2
   reason: "chatTitle falls back to chatId string for DM chats where msg.chat?.title is undefined, instead of resolving to contact name"
   severity: minor
   test: 11
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "In src/commands/message/search.ts, chatTitle uses msg.chat?.title with fallback to chatId. For User entities (DMs), .title is undefined — users have firstName/lastName instead. Fix: check if msg.chat is a User and use firstName/lastName, else use .title."
+  artifacts:
+    - path: "src/commands/message/search.ts"
+      issue: "chatTitle extraction doesn't handle User entities (DMs)"
+  missing:
+    - "Add User entity check: use firstName + lastName for DM chats, title for groups/channels"
   debug_session: ""
