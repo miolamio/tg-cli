@@ -14,9 +14,15 @@ describe('SessionStore', () => {
     store = new SessionStore(tmpDir);
   });
 
-  afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
+  afterEach(async () => {
+    // Small delay to let any proper-lockfile cleanup finish
+    await new Promise((r) => setTimeout(r, 50));
+    try {
+      if (existsSync(tmpDir)) {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
+    } catch {
+      // Ignore cleanup errors
     }
   });
 
@@ -64,13 +70,10 @@ describe('SessionStore', () => {
     expect(v2).toBe('session2');
   });
 
-  it('filePath returns correct path', () => {
-    // Access via save then check file exists at expected path
+  it('filePath returns correct path', async () => {
     const expectedPath = join(tmpDir, 'sessions', 'myprofile.session');
-    // We test indirectly by saving and checking the file
-    store.save('myprofile', 'data').then(() => {
-      expect(existsSync(expectedPath)).toBe(true);
-      expect(readFileSync(expectedPath, 'utf-8')).toBe('data');
-    });
+    await store.save('myprofile', 'data');
+    expect(existsSync(expectedPath)).toBe(true);
+    expect(readFileSync(expectedPath, 'utf-8')).toBe('data');
   });
 });

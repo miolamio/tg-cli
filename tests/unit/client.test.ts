@@ -1,42 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the telegram module before importing our code
-const mockConnect = vi.fn().mockResolvedValue(undefined);
-const mockDestroy = vi.fn().mockResolvedValue(undefined);
-const mockClient = {
-  connect: mockConnect,
-  destroy: mockDestroy,
-};
+// vi.hoisted lets us define variables that are accessible inside vi.mock factories
+const { mockConnect, mockDestroy, mockClient } = vi.hoisted(() => {
+  const mockConnect = vi.fn().mockResolvedValue(undefined);
+  const mockDestroy = vi.fn().mockResolvedValue(undefined);
+  const mockClient = {
+    connect: mockConnect,
+    destroy: mockDestroy,
+  };
+  return { mockConnect, mockDestroy, mockClient };
+});
 
 vi.mock('telegram', () => ({
   TelegramClient: vi.fn().mockImplementation(() => mockClient),
-}));
-
-vi.mock('telegram/sessions', () => ({
-  StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
+  sessions: {
+    StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
+  },
 }));
 
 import { withClient, createClientForAuth } from '../../src/lib/client.js';
 
 describe('withClient', () => {
+  const opts = { apiId: 123, apiHash: 'abc', sessionString: 'sess' };
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
   });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  const opts = { apiId: 123, apiHash: 'abc', sessionString: 'sess' };
 
   it('calls connect then runs callback then destroys', async () => {
     const fn = vi.fn().mockResolvedValue('result');
-
-    const resultPromise = withClient(opts, fn);
-    // Advance past any pending microtasks
-    await vi.advanceTimersByTimeAsync(0);
-    const result = await resultPromise;
+    const result = await withClient(opts, fn);
 
     expect(mockConnect).toHaveBeenCalledOnce();
     expect(fn).toHaveBeenCalledWith(mockClient);
@@ -47,10 +41,7 @@ describe('withClient', () => {
   it('calls destroy even when callback throws', async () => {
     const fn = vi.fn().mockRejectedValue(new Error('oops'));
 
-    const resultPromise = withClient(opts, fn);
-    await vi.advanceTimersByTimeAsync(0);
-    await expect(resultPromise).rejects.toThrow('oops');
-
+    await expect(withClient(opts, fn)).rejects.toThrow('oops');
     expect(mockDestroy).toHaveBeenCalledOnce();
   });
 
@@ -59,14 +50,15 @@ describe('withClient', () => {
     const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
     const fn = vi.fn().mockResolvedValue('ok');
 
-    const resultPromise = withClient(opts, fn);
-    await vi.advanceTimersByTimeAsync(0);
-    await resultPromise;
+    await withClient(opts, fn);
 
     // setTimeout should have been called with 30_000
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
     // clearTimeout should have been called
     expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
   });
 });
 
