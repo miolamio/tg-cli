@@ -50,21 +50,21 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Output & Integration
 
-- [ ] **OUT-01**: Every command supports `--json` flag for structured JSON output
-- [ ] **OUT-02**: JSON output uses a consistent envelope: `{ ok: bool, data: {...}, error?: string }`
+- [x] **OUT-01**: Every command supports `--json` flag for structured JSON output
+- [x] **OUT-02**: JSON output uses a consistent envelope: `{ ok: bool, data: {...}, error?: string }`
 - [ ] **OUT-03**: JSON is the default output mode; human-readable is available via `--human` or `--no-json`
 - [ ] **OUT-04**: User can select specific output fields with `--fields id,text,date,sender`
 - [ ] **OUT-05**: Commands returning lists support `--jsonl` for streaming one JSON object per line
-- [ ] **OUT-06**: stderr is used for progress/status/errors; stdout contains only data
+- [x] **OUT-06**: stderr is used for progress/status/errors; stdout contains only data
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Package installable via `npm install -g telegram-cli` and runnable via `npx telegram-cli`
+- [x] **INFRA-01**: Package installable via `npm install -g telegram-cli` and runnable via `npx telegram-cli`
 - [ ] **INFRA-02**: Built-in rate limiting wrapper to handle Telegram FloodWait errors automatically
 - [ ] **INFRA-03**: Session file locking to prevent AUTH_KEY_DUPLICATED from concurrent access
-- [ ] **INFRA-04**: User supplies their own Telegram API credentials (api_id, api_hash) via config or env vars
+- [x] **INFRA-04**: User supplies their own Telegram API credentials (api_id, api_hash) via config or env vars
 - [ ] **INFRA-05**: Graceful connection lifecycle management (connect, disconnect, error recovery)
-- [ ] **INFRA-06**: Configuration file for persistent settings (`~/.config/telegram-cli/config.json`)
+- [x] **INFRA-06**: Configuration file for persistent settings (`~/.config/telegram-cli/config.json`)
 
 ## v2 Requirements
 
@@ -127,18 +127,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRITE-06 | Phase 5 | Pending |
 | WRITE-07 | Phase 5 | Pending |
 | WRITE-08 | Phase 5 | Pending |
-| OUT-01 | Phase 1 | Pending |
-| OUT-02 | Phase 1 | Pending |
+| OUT-01 | Phase 1 | Complete |
+| OUT-02 | Phase 1 | Complete |
 | OUT-03 | Phase 3 | Pending |
 | OUT-04 | Phase 5 | Pending |
 | OUT-05 | Phase 5 | Pending |
-| OUT-06 | Phase 1 | Pending |
-| INFRA-01 | Phase 1 | Pending |
+| OUT-06 | Phase 1 | Complete |
+| INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 41 total
