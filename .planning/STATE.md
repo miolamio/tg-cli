@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-11T20:23:44Z"
-last_activity: 2026-03-11 — Plan 03-01 complete (send, forward, react write commands with TDD).
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-11T20:31:01Z"
+last_activity: 2026-03-11 — Plan 03-02 complete (human-readable output with formatters, mode-aware output, --no-json flag).
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 3 in progress. Write commands complete (send, forward, react). Human-readable output next.
+**Current focus:** Phase 3 complete. All write commands and human-readable output done. Ready for Phase 4.
 
 ## Current Position
 
-Phase: 3 of 5 (Messaging & Interaction)
-Plan: 1 of 2 in current phase (03-01 write commands complete)
-Status: Phase 3 plan 1 complete, plan 2 (human-readable output) remaining
-Last activity: 2026-03-11 — Plan 03-01 complete (send, forward, react write commands with TDD).
+Phase: 3 of 5 (Messaging & Interaction) -- COMPLETE
+Plan: 2 of 2 in current phase (03-02 human-readable output complete)
+Status: Phase 3 complete (both plans done), ready for Phase 4
+Last activity: 2026-03-11 — Plan 03-02 complete (human-readable output with formatters, mode-aware output, --no-json flag).
 
-Progress: [████████░░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 5.0min
-- Total execution time: 0.68 hours
+- Total plans completed: 9
+- Average duration: 4.9min
+- Total execution time: 0.75 hours
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [████████░░] 89%
 |-------|-------|-------|----------|
 | 01-foundation-auth | 3 | 16min | 5.3min |
 | 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
-| 03-messaging-interaction | 1 | 5min | 5.0min |
+| 03-messaging-interaction | 2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 7min, 8min, 3min, 2min, 5min
+- Last 5 plans: 8min, 3min, 2min, 5min, 4min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -89,6 +89,10 @@ Recent decisions affecting current work:
 - 03-01: Reactions use Api.ReactionEmoji wrapper objects, not plain strings (avoids getBytes error)
 - 03-01: Forward always passes fromPeer to handle integer message IDs correctly
 - 03-01: Stdin piping checks process.stdin.isTTY before reading to prevent hangs
+- 03-02: preAction hook sets output mode globally -- no individual command handler changes needed
+- 03-02: formatData auto-detects data shapes (messages, chats, members, search results, chat info) for smart formatting
+- 03-02: Human-mode errors go to stderr with colored prefix; JSON-mode errors go to stdout as before
+- 03-02: Commands without specific formatters fall through to formatGeneric (pretty JSON)
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T20:23:44Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-messaging-interaction/03-01-SUMMARY.md
+Last session: 2026-03-11T20:31:01Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: .planning/phases/03-messaging-interaction/03-02-SUMMARY.md

@@ -52,7 +52,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **OUT-01**: Every command supports `--json` flag for structured JSON output
 - [x] **OUT-02**: JSON output uses a consistent envelope: `{ ok: bool, data: {...}, error?: string }`
-- [ ] **OUT-03**: JSON is the default output mode; human-readable is available via `--human` or `--no-json`
+- [x] **OUT-03**: JSON is the default output mode; human-readable is available via `--human` or `--no-json`
 - [ ] **OUT-04**: User can select specific output fields with `--fields id,text,date,sender`
 - [ ] **OUT-05**: Commands returning lists support `--jsonl` for streaming one JSON object per line
 - [x] **OUT-06**: stderr is used for progress/status/errors; stdout contains only data
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WRITE-08 | Phase 5 | Pending |
 | OUT-01 | Phase 1 | Complete |
 | OUT-02 | Phase 1 | Complete |
-| OUT-03 | Phase 3 | Pending |
+| OUT-03 | Phase 3 | Complete |
 | OUT-04 | Phase 5 | Pending |
 | OUT-05 | Phase 5 | Pending |
 | OUT-06 | Phase 1 | Complete |
