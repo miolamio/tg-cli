@@ -47,11 +47,12 @@ Plans:
   3. User can join a group by username or invite link, and leave any group they belong to
   4. User can read message history from any chat with pagination and date range filtering
   5. User can search messages by keyword within a specific chat or globally across all chats
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Shared foundation: types, serialization, peer resolution, entity-to-markdown, withClient timeout fix
+- [ ] 02-02-PLAN.md — Chat commands (list, info, join, leave, resolve, invite-info, members) and CLI wiring
+- [ ] 02-03-PLAN.md — Message commands (history with date filtering, search per-chat and global) and CLI wiring
 
 ### Phase 3: Messaging & Interaction
 **Goal**: Users can send text messages, reply to specific messages, forward messages between chats, react with emoji, and switch between JSON and human-readable output
@@ -102,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Auth | 3/3 | Complete   | 2026-03-11 |
-| 2. Chat Discovery & Message Reading | 0/2 | Not started | - |
+| 2. Chat Discovery & Message Reading | 0/3 | Not started | - |
 | 3. Messaging & Interaction | 0/1 | Not started | - |
 | 4. Media & Files | 0/1 | Not started | - |
 | 5. Advanced Features & Polish | 0/1 | Not started | - |
