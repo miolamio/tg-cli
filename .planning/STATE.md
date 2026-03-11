@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-11T12:52:51.933Z"
-last_activity: 2026-03-11 — Plan 02-03 complete (message history + search commands, Phase 2 fully complete).
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-11T19:21:50Z"
+last_activity: 2026-03-11 — Plan 02-04 complete (UAT gap closure, 5 fixes for chat list and message search).
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 75
+  total_plans: 7
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -21,33 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 2 complete. Ready for Phase 3: Write & Interact
+**Current focus:** Phase 2 complete (including UAT gap closure). Ready for Phase 3: Write & Interact
 
 ## Current Position
 
 Phase: 2 of 5 (Chat Discovery & Message Reading) -- COMPLETE
-Plan: 3 of 3 in current phase (02-03 complete, phase done)
-Status: Phase 2 complete, ready for Phase 3
-Last activity: 2026-03-11 — Plan 02-03 complete (message history + search commands, Phase 2 fully complete).
+Plan: 4 of 4 in current phase (02-04 UAT gap closure complete)
+Status: Phase 2 complete, all UAT gaps resolved, ready for Phase 3
+Last activity: 2026-03-11 — Plan 02-04 complete (UAT gap closure, 5 fixes for chat list and message search).
 
-Progress: [███████▓░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 5.5min
-- Total execution time: 0.55 hours
+- Total plans completed: 7
+- Average duration: 5.0min
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-auth | 3 | 16min | 5.3min |
-| 02-chat-discovery-message-reading | 3 | 18min | 6.0min |
+| 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 7min, 7min, 8min, 3min
+- Last 5 plans: 7min, 7min, 8min, 3min, 2min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -81,6 +81,9 @@ Recent decisions affecting current work:
 - 02-03: Post-filter strategy for --since; server-side offsetDate for --until
 - 02-03: Global search passes undefined entity to getMessages for cross-chat search
 - 02-03: Commander requiredOption for --query plus action-level validation for better error messages
+- 02-04: Removed ignoreMigrated:true from getDialogs -- caused empty results
+- 02-04: Removed -q shorthand from search --query to avoid global --quiet conflict
+- 02-04: DM chat name resolution uses firstName/lastName fallback for User entities
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:47:37Z
-Stopped at: Completed 02-03-PLAN.md
-Resume file: .planning/phases/02-chat-discovery-message-reading/02-03-SUMMARY.md
+Last session: 2026-03-11T19:19:57Z
+Stopped at: Completed 02-04-PLAN.md
+Resume file: .planning/phases/02-chat-discovery-message-reading/02-04-SUMMARY.md
