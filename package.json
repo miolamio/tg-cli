@@ -1,0 +1,44 @@
+{
+  "name": "@miolamio/tg-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Telegram CLI client for Claude Code agents and power users",
+  "bin": {
+    "tg": "./dist/bin/tg.js",
+    "telegram-cli": "./dist/bin/tg.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "telegram",
+    "cli",
+    "mtproto",
+    "gramjs"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "conf": "^15.1.0",
+    "picocolors": "^1.1.1",
+    "proper-lockfile": "^4.1.2",
+    "telegram": "^2.26.22",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@types/proper-lockfile": "^4.1.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
