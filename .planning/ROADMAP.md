@@ -64,10 +64,11 @@ Plans:
   2. User can reply to a specific message by ID and forward messages between chats
   3. User can add an emoji reaction to any message
   4. User can pass `--human` or `--no-json` to get human-readable output instead of JSON
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Write commands: send (with reply and stdin pipe), forward (batch), react (with remove), types, tests
+- [ ] 03-02-PLAN.md — Human-readable output: format.ts formatters, mode-aware output.ts, --no-json flag, retrofit all existing commands
 
 ### Phase 4: Media & Files
 **Goal**: Users can download media/files from messages and upload files to chats, and can filter search results by media type (photos, videos, documents, etc.)
@@ -105,6 +106,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation & Auth | 3/3 | Complete   | 2026-03-11 |
 | 2. Chat Discovery & Message Reading | 3/4 | In progress | - |
-| 3. Messaging & Interaction | 0/1 | Not started | - |
+| 3. Messaging & Interaction | 0/2 | Not started | - |
 | 4. Media & Files | 0/1 | Not started | - |
 | 5. Advanced Features & Polish | 0/1 | Not started | - |
