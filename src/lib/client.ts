@@ -1,4 +1,5 @@
 import { TelegramClient, sessions } from 'telegram';
+import { TgError } from './errors.js';
 
 const { StringSession } = sessions;
 
@@ -12,21 +13,34 @@ export interface ClientOptions {
 }
 
 /**
+ * Options for withClient behavior.
+ */
+export interface WithClientOptions {
+  /** Timeout in milliseconds. Defaults to 120_000 (2 minutes). */
+  timeout?: number;
+}
+
+/**
  * Execute a function with a connected TelegramClient, ensuring proper cleanup.
  *
  * - Creates the client with the given session string
- * - Sets a 30-second safety timeout that forces process exit if cleanup hangs
+ * - Sets a configurable safety timeout (default 120s) that rejects with a structured TgError
  * - Connects, runs the callback, and destroys the client in a finally block
  * - Uses destroy() (not disconnect()) to avoid zombie _updateLoop
  *
  * @param opts - Client connection options
  * @param fn - Async function to execute with the connected client
+ * @param options - Optional behavior config (timeout)
  * @returns The result of the callback function
  */
 export async function withClient<T>(
   opts: ClientOptions,
   fn: (client: TelegramClient) => Promise<T>,
+  options?: WithClientOptions,
 ): Promise<T> {
+  const timeoutMs = options?.timeout ?? 120_000;
+  const timeoutSeconds = Math.round(timeoutMs / 1000);
+
   const session = new StringSession(opts.sessionString);
   const client = new TelegramClient(session, opts.apiId, opts.apiHash, {
     connectionRetries: 3,
@@ -34,18 +48,28 @@ export async function withClient<T>(
     floodSleepThreshold: 60,
   });
 
-  // Safety timeout: force exit if cleanup hangs (gramjs can take up to 30s)
-  const timeout = setTimeout(() => {
-    client.destroy().catch(() => {});
-    process.exit(1);
-  }, 30_000);
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      client.destroy().catch(() => {});
+      reject(new TgError(`Client operation timed out after ${timeoutSeconds} seconds`, 'TIMEOUT'));
+    }, timeoutMs);
+  });
+
+  // Prevent unhandled rejection if timeout fires during microtask gap
+  // (Promise.race handles this, but detection can race in some runtimes)
+  timeoutPromise.catch(() => {});
 
   try {
-    await client.connect();
-    const result = await fn(client);
-    return result;
+    return await Promise.race([
+      (async () => {
+        await client.connect();
+        return await fn(client);
+      })(),
+      timeoutPromise,
+    ]);
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timeoutId!);
     // Use destroy() NOT disconnect() -- avoids zombie _updateLoop
     await client.destroy().catch(() => {});
   }
