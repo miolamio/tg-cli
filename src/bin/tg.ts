@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { createAuthCommand } from '../commands/auth/index.js';
 import { createSessionCommand } from '../commands/session/index.js';
 import { createChatCommand } from '../commands/chat/index.js';
+import { createMessageCommand } from '../commands/message/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,6 +59,10 @@ program.addCommand(sessionCmd);
 const chatCmd = createChatCommand();
 chatCmd.helpGroup('Chat');
 program.addCommand(chatCmd);
+
+const messageCmd = createMessageCommand();
+messageCmd.helpGroup('Message');
+program.addCommand(messageCmd);
 
 // Aliases (Phase 2+): tg ls -> chat list, tg s -> message search
 
