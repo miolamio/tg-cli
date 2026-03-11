@@ -35,7 +35,6 @@ export async function chatListAction(this: Command): Promise<void> {
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const dialogs = await client.getDialogs({
           limit: offset + limit,
-          ignoreMigrated: true,
         });
 
         // Slice from offset and take limit items

@@ -173,7 +173,7 @@ describe('chatListAction', () => {
 
     // Should fetch offset+limit=15 dialogs
     expect(mockGetDialogs).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 15, ignoreMigrated: true }),
+      expect.objectContaining({ limit: 15 }),
     );
 
     const data = mockOutputSuccess.mock.calls[0][0];
