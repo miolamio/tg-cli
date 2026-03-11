@@ -39,11 +39,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Messaging — Write
 
-- [ ] **WRITE-01**: User can send a text message to any chat
-- [ ] **WRITE-02**: User can reply to a specific message by ID
-- [ ] **WRITE-03**: User can forward messages between chats
+- [x] **WRITE-01**: User can send a text message to any chat
+- [x] **WRITE-02**: User can reply to a specific message by ID
+- [x] **WRITE-03**: User can forward messages between chats
 - [ ] **WRITE-04**: User can upload and send files (photos, videos, documents) from local path
-- [ ] **WRITE-05**: User can react to a message with an emoji
+- [x] **WRITE-05**: User can react to a message with an emoji
 - [ ] **WRITE-06**: User can list forum topics in a supergroup
 - [ ] **WRITE-07**: User can read messages from a specific forum topic
 - [ ] **WRITE-08**: User can send messages to a specific forum topic
@@ -119,11 +119,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | READ-05 | Phase 4 | Pending |
 | READ-06 | Phase 5 | Pending |
 | READ-07 | Phase 4 | Pending |
-| WRITE-01 | Phase 3 | Pending |
-| WRITE-02 | Phase 3 | Pending |
-| WRITE-03 | Phase 3 | Pending |
+| WRITE-01 | Phase 3 | Complete |
+| WRITE-02 | Phase 3 | Complete |
+| WRITE-03 | Phase 3 | Complete |
 | WRITE-04 | Phase 4 | Pending |
-| WRITE-05 | Phase 3 | Pending |
+| WRITE-05 | Phase 3 | Complete |
 | WRITE-06 | Phase 5 | Pending |
 | WRITE-07 | Phase 5 | Pending |
 | WRITE-08 | Phase 5 | Pending |
