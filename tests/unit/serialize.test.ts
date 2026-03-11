@@ -49,31 +49,34 @@ import {
 
 // Helper to create a mock Dialog
 function mockDialog(overrides: any = {}) {
-  return {
-    id: overrides.id ?? { toString: () => '12345' },
-    title: overrides.title ?? 'Test Chat',
-    name: overrides.name ?? 'Test Chat',
-    unreadCount: overrides.unreadCount ?? 0,
-    isUser: overrides.isUser ?? false,
-    isGroup: overrides.isGroup ?? false,
-    isChannel: overrides.isChannel ?? false,
-    entity: overrides.entity ?? {},
+  const defaults: any = {
+    id: { toString: () => '12345' },
+    title: 'Test Chat',
+    name: 'Test Chat',
+    unreadCount: 0,
+    isUser: false,
+    isGroup: false,
+    isChannel: false,
+    entity: {},
   };
+  // Use Object.assign so explicit undefined values override defaults
+  return { ...defaults, ...overrides };
 }
 
 // Helper to create a mock Message
 function mockMessage(overrides: any = {}) {
-  return {
-    id: overrides.id ?? 1,
-    message: overrides.message ?? 'Hello',
-    date: overrides.date ?? 1710150900, // 2024-03-11T09:15:00Z
-    entities: overrides.entities ?? undefined,
-    media: overrides.media ?? null,
-    action: overrides.action ?? null,
-    senderId: overrides.senderId ?? { toString: () => '99999' },
-    replyTo: overrides.replyTo ?? null,
-    fwdFrom: overrides.fwdFrom ?? null,
+  const defaults: any = {
+    id: 1,
+    message: 'Hello',
+    date: 1710150900,
+    entities: undefined,
+    media: null,
+    action: null,
+    senderId: { toString: () => '99999' },
+    replyTo: null,
+    fwdFrom: null,
   };
+  return { ...defaults, ...overrides };
 }
 
 describe('serializeDialog', () => {
@@ -159,9 +162,10 @@ describe('serializeMessage', () => {
   });
 
   it('converts date to ISO 8601 UTC string', () => {
+    // 1710150900 = 2024-03-11T09:55:00.000Z
     const msg = mockMessage({ date: 1710150900 });
     const result = serializeMessage(msg as any);
-    expect(result.date).toBe('2024-03-11T09:15:00.000Z');
+    expect(result.date).toBe('2024-03-11T09:55:00.000Z');
   });
 
   it('converts message entities to Markdown', () => {
