@@ -18,27 +18,39 @@ vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
 }));
 
-// Hoisted mock state for telegram client
+// Hoisted mock state for telegram client + Api classes
 const {
   mockConnect,
   mockDestroy,
   mockGetParticipants,
-} = vi.hoisted(() => ({
-  mockConnect: vi.fn().mockResolvedValue(undefined),
-  mockDestroy: vi.fn().mockResolvedValue(undefined),
-  mockGetParticipants: vi.fn().mockResolvedValue([]),
-}));
+  MockChannel,
+  MockUser,
+} = vi.hoisted(() => {
+  const _MockChannel = class Channel {
+    id: any; title: string;
+    constructor(args: any = {}) { this.id = args.id ?? BigInt(100); this.title = args.title ?? 'Test Channel'; }
+  };
+  const _MockUser = class User {
+    id: any; username: string | null; firstName: string | null; lastName: string | null; bot: boolean; status: any;
+    constructor(args: any = {}) {
+      this.id = args.id ?? BigInt(1); this.username = args.username ?? null;
+      this.firstName = args.firstName ?? null; this.lastName = args.lastName ?? null;
+      this.bot = args.bot ?? false; this.status = args.status ?? null;
+    }
+  };
+  return {
+    mockConnect: vi.fn().mockResolvedValue(undefined),
+    mockDestroy: vi.fn().mockResolvedValue(undefined),
+    mockGetParticipants: vi.fn().mockResolvedValue([]),
+    MockChannel: _MockChannel,
+    MockUser: _MockUser,
+  };
+});
 
 const mockClientInstance = {
   connect: mockConnect,
   destroy: mockDestroy,
   getParticipants: mockGetParticipants,
-};
-
-// Mock telegram Api classes
-const MockChannel = class Channel {
-  id: any; title: string;
-  constructor(args: any = {}) { this.id = args.id ?? BigInt(100); this.title = args.title ?? 'Test Channel'; }
 };
 
 vi.mock('telegram', () => ({
@@ -48,14 +60,7 @@ vi.mock('telegram', () => ({
   },
   Api: {
     Channel: MockChannel,
-    User: class User {
-      id: any; username: string | null; firstName: string | null; lastName: string | null; bot: boolean; status: any;
-      constructor(args: any = {}) {
-        this.id = args.id ?? BigInt(1); this.username = args.username ?? null;
-        this.firstName = args.firstName ?? null; this.lastName = args.lastName ?? null;
-        this.bot = args.bot ?? false; this.status = args.status ?? null;
-      }
-    },
+    User: MockUser,
   },
 }));
 

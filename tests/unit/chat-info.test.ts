@@ -18,46 +18,52 @@ vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
 }));
 
-// Hoisted mock state for telegram client
+// Hoisted mock state for telegram client + Api classes
 const {
   mockConnect,
   mockDestroy,
   mockInvoke,
-} = vi.hoisted(() => ({
-  mockConnect: vi.fn().mockResolvedValue(undefined),
-  mockDestroy: vi.fn().mockResolvedValue(undefined),
-  mockInvoke: vi.fn().mockResolvedValue({}),
-}));
+  MockChannel,
+  MockChat,
+  MockUser,
+} = vi.hoisted(() => {
+  const _MockChannel = class Channel {
+    id: any; title: string; username: string | null; megagroup: boolean; date: number; photo: any;
+    constructor(args: any = {}) {
+      this.id = args.id ?? BigInt(100); this.title = args.title ?? 'Test Channel';
+      this.username = args.username ?? null; this.megagroup = args.megagroup ?? false;
+      this.date = args.date ?? 1700000000; this.photo = args.photo ?? null;
+    }
+  };
+  const _MockChat = class Chat {
+    id: any; title: string; date: number; photo: any;
+    constructor(args: any = {}) {
+      this.id = args.id ?? BigInt(200); this.title = args.title ?? 'Test Group';
+      this.date = args.date ?? 1700000000; this.photo = args.photo ?? null;
+    }
+  };
+  const _MockUser = class User {
+    id: any; firstName: string; lastName: string | null; username: string | null; phone: string | null;
+    constructor(args: any = {}) {
+      this.id = args.id ?? BigInt(300); this.firstName = args.firstName ?? 'Test';
+      this.lastName = args.lastName ?? null; this.username = args.username ?? null;
+      this.phone = args.phone ?? null;
+    }
+  };
+  return {
+    mockConnect: vi.fn().mockResolvedValue(undefined),
+    mockDestroy: vi.fn().mockResolvedValue(undefined),
+    mockInvoke: vi.fn().mockResolvedValue({}),
+    MockChannel: _MockChannel,
+    MockChat: _MockChat,
+    MockUser: _MockUser,
+  };
+});
 
 const mockClientInstance = {
   connect: mockConnect,
   destroy: mockDestroy,
   invoke: mockInvoke,
-};
-
-// Mock telegram Api classes with instanceof support
-const MockChannel = class Channel {
-  id: any; title: string; username: string | null; megagroup: boolean; date: number; photo: any;
-  constructor(args: any = {}) {
-    this.id = args.id ?? BigInt(100); this.title = args.title ?? 'Test Channel';
-    this.username = args.username ?? null; this.megagroup = args.megagroup ?? false;
-    this.date = args.date ?? 1700000000; this.photo = args.photo ?? null;
-  }
-};
-const MockChat = class Chat {
-  id: any; title: string; date: number; photo: any;
-  constructor(args: any = {}) {
-    this.id = args.id ?? BigInt(200); this.title = args.title ?? 'Test Group';
-    this.date = args.date ?? 1700000000; this.photo = args.photo ?? null;
-  }
-};
-const MockUser = class User {
-  id: any; firstName: string; lastName: string | null; username: string | null; phone: string | null;
-  constructor(args: any = {}) {
-    this.id = args.id ?? BigInt(300); this.firstName = args.firstName ?? 'Test';
-    this.lastName = args.lastName ?? null; this.username = args.username ?? null;
-    this.phone = args.phone ?? null;
-  }
 };
 
 vi.mock('telegram', () => ({
