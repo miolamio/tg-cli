@@ -43,8 +43,7 @@ program
   .option('--profile <name>', 'Named profile', 'default')
   .option('--config <path>', 'Config file path');
 
-// Enable positional options so subcommands can have their own options
-program.enablePositionalOptions();
+// Global options are parsed at any position in the command line
 
 // Wire command groups with help group headings
 const authCmd = createAuthCommand();
