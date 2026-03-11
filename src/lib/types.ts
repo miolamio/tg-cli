@@ -167,3 +167,24 @@ export interface MessageSearchOptions {
   since?: string;
   until?: string;
 }
+
+// ---- Phase 3: Messaging & Interaction types ----
+
+export interface SendOptions {
+  chat: string;
+  text: string;
+  replyTo?: number;
+}
+
+export interface ForwardOptions {
+  fromChat: string;
+  messageIds: number[];
+  toChat: string;
+}
+
+export interface ReactOptions {
+  chat: string;
+  messageId: number;
+  emoji: string;
+  remove: boolean;
+}
