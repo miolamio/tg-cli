@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-11T05:41:15Z"
-last_activity: 2026-03-11 — Plan 01-01 complete (project scaffolding + core libs)
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-11T05:49:51Z"
+last_activity: 2026-03-11 — Plan 01-02 complete (session store, client wrapper, auth commands)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 1
-  percent: 12
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 1 of 5 (Foundation & Auth)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-11 — Plan 01-01 complete (project scaffolding + core libs)
+Last activity: 2026-03-11 — Plan 01-02 complete (session store, client wrapper, auth commands)
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4min
-- Total execution time: 0.07 hours
+- Total plans completed: 2
+- Average duration: 4.5min
+- Total execution time: 0.15 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-auth | 1 | 4min | 4min |
+| 01-foundation-auth | 2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 4min
-- Trend: Starting
+- Last 5 plans: 4min, 5min
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - 01-01: telegram kept external in tsup to avoid bundle bloat
 - 01-01: readline/promises prompts write to stderr to keep stdout clean for JSON data
 - 01-01: JSON envelope pattern established: outputSuccess/outputError to stdout, logStatus to stderr
+- 01-02: Import sessions from main telegram namespace to fix Node16 module resolution
+- 01-02: RateLimitError re-exported from FloodWaitError for cleaner consumer API
+- 01-02: Config path derived from Conf.path for SessionStore directory co-location
 
 ### Pending Todos
 
@@ -70,13 +73,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research flagged gramjs connection lifecycle bugs (disconnect not cleaning up, zombie processes) -- needs investigation in Phase 1
-- FloodWait rate limiting must be built into client wrapper from day one (Phase 1)
-- Session file locking needed to prevent AUTH_KEY_DUPLICATED from concurrent access (Phase 1)
+- ~~Research flagged gramjs connection lifecycle bugs (disconnect not cleaning up, zombie processes)~~ -- RESOLVED: withClient uses destroy() with 30s safety timeout
+- ~~FloodWait rate limiting must be built into client wrapper from day one~~ -- RESOLVED: withRateLimit wrapper implemented
+- ~~Session file locking needed to prevent AUTH_KEY_DUPLICATED from concurrent access~~ -- RESOLVED: proper-lockfile on every read/write
 - gramjs forum topic support level unverified -- may affect Phase 5 scope
 
 ## Session Continuity
 
-Last session: 2026-03-11T05:41:15Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation-auth/01-01-SUMMARY.md
+Last session: 2026-03-11T05:49:51Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-foundation-auth/01-02-SUMMARY.md

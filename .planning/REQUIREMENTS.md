@@ -9,13 +9,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can log in with phone number and SMS/Telegram code
-- [ ] **AUTH-02**: User can complete 2FA password prompt during login
-- [ ] **AUTH-03**: User session persists to disk and is reused across CLI invocations
+- [x] **AUTH-01**: User can log in with phone number and SMS/Telegram code
+- [x] **AUTH-02**: User can complete 2FA password prompt during login
+- [x] **AUTH-03**: User session persists to disk and is reused across CLI invocations
 - [ ] **AUTH-04**: User can export session as a portable string (`tg session export`)
 - [ ] **AUTH-05**: User can import a session string to restore auth (`tg session import <string>`)
-- [ ] **AUTH-06**: User can check current auth status (`tg auth status`)
-- [ ] **AUTH-07**: User can log out and destroy session (`tg auth logout`)
+- [x] **AUTH-06**: User can check current auth status (`tg auth status`)
+- [x] **AUTH-07**: User can log out and destroy session (`tg auth logout`)
 
 ### Chat Management
 
@@ -60,10 +60,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Infrastructure
 
 - [x] **INFRA-01**: Package installable via `npm install -g telegram-cli` and runnable via `npx telegram-cli`
-- [ ] **INFRA-02**: Built-in rate limiting wrapper to handle Telegram FloodWait errors automatically
-- [ ] **INFRA-03**: Session file locking to prevent AUTH_KEY_DUPLICATED from concurrent access
+- [x] **INFRA-02**: Built-in rate limiting wrapper to handle Telegram FloodWait errors automatically
+- [x] **INFRA-03**: Session file locking to prevent AUTH_KEY_DUPLICATED from concurrent access
 - [x] **INFRA-04**: User supplies their own Telegram API credentials (api_id, api_hash) via config or env vars
-- [ ] **INFRA-05**: Graceful connection lifecycle management (connect, disconnect, error recovery)
+- [x] **INFRA-05**: Graceful connection lifecycle management (connect, disconnect, error recovery)
 - [x] **INFRA-06**: Configuration file for persistent settings (`~/.config/telegram-cli/config.json`)
 
 ## v2 Requirements
@@ -98,13 +98,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Pending |
 | AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1 | Pending |
-| AUTH-07 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Complete |
+| AUTH-07 | Phase 1 | Complete |
 | CHAT-01 | Phase 2 | Pending |
 | CHAT-02 | Phase 2 | Pending |
 | CHAT-03 | Phase 2 | Pending |
@@ -134,10 +134,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-05 | Phase 5 | Pending |
 | OUT-06 | Phase 1 | Complete |
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
-| INFRA-05 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
 
 **Coverage:**
