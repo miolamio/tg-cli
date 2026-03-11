@@ -12,7 +12,7 @@ import type { GlobalOptions } from '../../lib/types.js';
  * Action handler for `tg message search`.
  *
  * Searches messages by keyword within a specific chat (--chat) or globally.
- * Options: -q/--query (required), --chat <chat>, --limit (default 50), --offset (default 0)
+ * Options: --query (required), --chat <chat>, --limit (default 50), --offset (default 0)
  *
  * Per-chat search (--chat provided): resolves entity, passes search param to getMessages.
  * Global search (no --chat): passes undefined entity for cross-chat search, results include chatId/chatTitle.
@@ -29,7 +29,7 @@ export async function messageSearchAction(this: Command): Promise<void> {
   // Validate --query is provided
   if (!opts.query) {
     outputError(
-      '--query (-q) is required for search. Use `tg message history` to browse without a query.',
+      '--query is required for search. Use `tg message history` to browse without a query.',
       'MISSING_QUERY',
     );
     return;
@@ -79,8 +79,15 @@ export async function messageSearchAction(this: Command): Promise<void> {
             const chatId = bigIntToString(
               peerId?.channelId || peerId?.chatId || peerId?.userId,
             );
-            const chatTitle =
-              msg.chat?.title || (msg as any)._chat?.title || chatId;
+            const chat = msg.chat || (msg as any)._chat;
+            let chatTitle: string;
+            if (chat?.firstName) {
+              // User entity (DM): use firstName + lastName
+              const last = chat.lastName ? ` ${chat.lastName}` : '';
+              chatTitle = `${chat.firstName}${last}`;
+            } else {
+              chatTitle = chat?.title || chatId;
+            }
 
             return serializeSearchResult(msg, chatId, chatTitle);
           });

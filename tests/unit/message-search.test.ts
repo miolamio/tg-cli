@@ -226,6 +226,45 @@ describe('messageSearchAction', () => {
     );
   });
 
+  it('global search resolves DM chat names from firstName/lastName', async () => {
+    const messages = [
+      createMockMessage({
+        id: 30,
+        message: 'DM result',
+        peerId: { channelId: null, chatId: null, userId: BigInt(400) },
+        chat: { firstName: 'John', lastName: 'Doe', title: undefined },
+      }),
+    ];
+    (messages as any).total = 1;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ query: 'keyword' });
+    await messageSearchAction.call(ctx as any);
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.messages[0].chatTitle).toBe('John Doe');
+    expect(data.messages[0].chatId).toBe('400');
+  });
+
+  it('global search resolves DM chat names with firstName only', async () => {
+    const messages = [
+      createMockMessage({
+        id: 31,
+        message: 'DM result 2',
+        peerId: { channelId: null, chatId: null, userId: BigInt(500) },
+        chat: { firstName: 'Alice', lastName: undefined, title: undefined },
+      }),
+    ];
+    (messages as any).total = 1;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ query: 'keyword' });
+    await messageSearchAction.call(ctx as any);
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.messages[0].chatTitle).toBe('Alice');
+  });
+
   it('outputs error when not logged in', async () => {
     mockStoreWithLock.mockImplementationOnce(async (_profile: string, fn: (s: string) => Promise<any>) => {
       return fn('');

@@ -27,7 +27,7 @@ export function createMessageCommand(): Command {
     .command('search')
     .description('Search messages by keyword')
     .option('--chat <chat>', 'Search in specific chat (omit for global search)')
-    .requiredOption('-q, --query <text>', 'Search query (required)')
+    .requiredOption('--query <text>', 'Search query (required)')
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
     .action(messageSearchAction);
