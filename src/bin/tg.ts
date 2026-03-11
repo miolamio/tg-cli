@@ -6,6 +6,7 @@ import { createAuthCommand } from '../commands/auth/index.js';
 import { createSessionCommand } from '../commands/session/index.js';
 import { createChatCommand } from '../commands/chat/index.js';
 import { createMessageCommand } from '../commands/message/index.js';
+import { setOutputMode } from '../lib/output.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,6 +40,7 @@ const program = new Command()
 // Global options available on all commands via optsWithGlobals()
 program
   .option('--json', 'JSON output (default)', true)
+  .option('--no-json', 'Human-readable output (alias for --human)')
   .option('--human', 'Human-readable output')
   .option('-v, --verbose', 'Show extra info')
   .option('-q, --quiet', 'Suppress stderr output')
@@ -46,6 +48,13 @@ program
   .option('--config <path>', 'Config file path');
 
 // Global options are parsed at any position in the command line
+
+// Set output mode before any action runs based on --human or --no-json flags
+program.hook('preAction', (thisCommand) => {
+  const opts = thisCommand.optsWithGlobals();
+  const isHuman = opts.human === true || opts.json === false;
+  setOutputMode(isHuman);
+});
 
 // Wire command groups with help group headings
 const authCmd = createAuthCommand();
