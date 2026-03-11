@@ -19,13 +19,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Chat Management
 
-- [ ] **CHAT-01**: User can list all dialogs/chats with type, name, unread count
-- [ ] **CHAT-02**: User can get detailed info for a chat (title, username, member count, description)
-- [ ] **CHAT-03**: User can join a group/channel by username or invite link
-- [ ] **CHAT-04**: User can leave a group/channel
+- [x] **CHAT-01**: User can list all dialogs/chats with type, name, unread count
+- [x] **CHAT-02**: User can get detailed info for a chat (title, username, member count, description)
+- [x] **CHAT-03**: User can join a group/channel by username or invite link
+- [x] **CHAT-04**: User can leave a group/channel
 - [x] **CHAT-05**: User can resolve a peer by username, phone number, or numeric ID
-- [ ] **CHAT-06**: User can resolve invite links (`t.me/+xxx`) to chat info before joining
-- [ ] **CHAT-07**: User can list members of a group/channel with pagination
+- [x] **CHAT-06**: User can resolve invite links (`t.me/+xxx`) to chat info before joining
+- [x] **CHAT-07**: User can list members of a group/channel with pagination
 
 ### Messaging — Read
 
@@ -105,13 +105,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Phase 1 | Complete |
 | AUTH-06 | Phase 1 | Complete |
 | AUTH-07 | Phase 1 | Complete |
-| CHAT-01 | Phase 2 | Pending |
-| CHAT-02 | Phase 2 | Pending |
-| CHAT-03 | Phase 2 | Pending |
-| CHAT-04 | Phase 2 | Pending |
+| CHAT-01 | Phase 2 | Complete |
+| CHAT-02 | Phase 2 | Complete |
+| CHAT-03 | Phase 2 | Complete |
+| CHAT-04 | Phase 2 | Complete |
 | CHAT-05 | Phase 2 | Complete |
-| CHAT-06 | Phase 2 | Pending |
-| CHAT-07 | Phase 2 | Pending |
+| CHAT-06 | Phase 2 | Complete |
+| CHAT-07 | Phase 2 | Complete |
 | READ-01 | Phase 2 | Pending |
 | READ-02 | Phase 2 | Pending |
 | READ-03 | Phase 2 | Pending |
