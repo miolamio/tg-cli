@@ -12,7 +12,7 @@ This roadmap delivers a full-featured Telegram CLI client from zero to a working
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Auth** - Project scaffolding, npm package, auth flow, session management, JSON output infrastructure, rate limiting
+- [x] **Phase 1: Foundation & Auth** - Project scaffolding, npm package, auth flow, session management, JSON output infrastructure, rate limiting (completed 2026-03-11)
 - [ ] **Phase 2: Chat Discovery & Message Reading** - List chats, chat info, join/leave groups, peer resolution, message history, search
 - [ ] **Phase 3: Messaging & Interaction** - Send messages, reply, forward, react, human-readable output mode
 - [ ] **Phase 4: Media & Files** - Download and upload media/files, search filters by media type
@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Project scaffolding, build infrastructure, and core library modules (types, output, errors, config, prompt)
-- [ ] 01-02-PLAN.md — Session store with locking, client lifecycle wrapper, rate limiting, and auth commands (login, status, logout)
-- [ ] 01-03-PLAN.md — Session commands (export, import), CLI entry point wiring, build, and end-to-end verification
+- [x] 01-01-PLAN.md — Project scaffolding, build infrastructure, and core library modules (types, output, errors, config, prompt)
+- [x] 01-02-PLAN.md — Session store with locking, client lifecycle wrapper, rate limiting, and auth commands (login, status, logout)
+- [x] 01-03-PLAN.md — Session commands (export, import), CLI entry point wiring, build, and end-to-end verification
 
 ### Phase 2: Chat Discovery & Message Reading
 **Goal**: Users can discover their chats, get detailed chat info, join/leave groups, resolve peers, and read/search message history -- delivering the core agent use case of finding and extracting information from Telegram
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Auth | 0/3 | Planning complete | - |
+| 1. Foundation & Auth | 3/3 | Complete   | 2026-03-11 |
 | 2. Chat Discovery & Message Reading | 0/2 | Not started | - |
 | 3. Messaging & Interaction | 0/1 | Not started | - |
 | 4. Media & Files | 0/1 | Not started | - |

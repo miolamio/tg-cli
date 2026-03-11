@@ -12,8 +12,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-01**: User can log in with phone number and SMS/Telegram code
 - [x] **AUTH-02**: User can complete 2FA password prompt during login
 - [x] **AUTH-03**: User session persists to disk and is reused across CLI invocations
-- [ ] **AUTH-04**: User can export session as a portable string (`tg session export`)
-- [ ] **AUTH-05**: User can import a session string to restore auth (`tg session import <string>`)
+- [x] **AUTH-04**: User can export session as a portable string (`tg session export`)
+- [x] **AUTH-05**: User can import a session string to restore auth (`tg session import <string>`)
 - [x] **AUTH-06**: User can check current auth status (`tg auth status`)
 - [x] **AUTH-07**: User can log out and destroy session (`tg auth logout`)
 
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
 | AUTH-06 | Phase 1 | Complete |
 | AUTH-07 | Phase 1 | Complete |
 | CHAT-01 | Phase 2 | Pending |
