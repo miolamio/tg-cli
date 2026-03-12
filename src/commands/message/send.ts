@@ -4,7 +4,7 @@ import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
-import { resolveEntity } from '../../lib/peer.js';
+import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
@@ -31,7 +31,7 @@ async function readStdin(): Promise<string> {
  * Returns the sent message as a serialized MessageItem.
  */
 export async function messageSendAction(this: Command, chat: string, text: string): Promise<void> {
-  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string };
+  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string };
   const { profile } = opts;
 
   // Handle stdin pipe via dash placeholder
@@ -46,6 +46,13 @@ export async function messageSendAction(this: Command, chat: string, text: strin
   // Validate non-empty text
   if (!text) {
     outputError('Message text is required', 'EMPTY_MESSAGE');
+    return;
+  }
+
+  // Parse --topic as integer
+  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
+  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
+    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
     return;
   }
 
@@ -71,10 +78,16 @@ export async function messageSendAction(this: Command, chat: string, text: strin
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const entity = await resolveEntity(client, chat);
 
+        // Forum guard: reject --topic on non-forum chats
+        await assertForum(entity, topicId);
+
+        // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
+        const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
+
         // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
         const sentMsg = await client.sendMessage(entity, {
           message: text,
-          replyTo,
+          replyTo: effectiveReplyTo,
         });
 
         const serialized = serializeMessage(sentMsg as any);

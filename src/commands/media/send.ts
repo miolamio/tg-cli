@@ -6,7 +6,7 @@ import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { TgError, formatError } from '../../lib/errors.js';
-import { resolveEntity } from '../../lib/peer.js';
+import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { detectFileType } from '../../lib/media-utils.js';
 import type { GlobalOptions } from '../../lib/types.js';
@@ -31,6 +31,7 @@ export async function mediaSendAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & {
     caption?: string;
     replyTo?: string;
+    topic?: string;
   };
   const { profile, quiet } = opts;
 
@@ -50,7 +51,22 @@ export async function mediaSendAction(this: Command): Promise<void> {
     }
   }
 
+  // Parse --topic as integer
+  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
+  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
+    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
+    return;
+  }
+
   const replyTo = opts.replyTo ? parseInt(opts.replyTo, 10) : undefined;
+  if (opts.replyTo && (replyTo === undefined || isNaN(replyTo))) {
+    outputError('Invalid reply-to message ID: must be a number', 'INVALID_REPLY_TO');
+    return;
+  }
+
+  // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
+  const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
+
   const isAlbum = files.length > 1;
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
@@ -67,13 +83,16 @@ export async function mediaSendAction(this: Command): Promise<void> {
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const entity = await resolveEntity(client, chat);
 
+        // Forum guard: reject --topic on non-forum chats
+        await assertForum(entity, topicId);
+
         // Build send params
         const sendParams: any = {
           file: isAlbum
             ? files.map(f => resolve(f))
             : resolve(files[0]),
           caption: opts.caption ?? '',
-          replyTo,
+          replyTo: effectiveReplyTo,
           progressCallback: (progress: number) => {
             logStatus(
               `Uploading: ${Math.round(progress * 100)}%`,
@@ -107,11 +126,19 @@ export async function mediaSendAction(this: Command): Promise<void> {
 
           if (validMsgs.length > 0) {
             const serialized = validMsgs.map(m => serializeMessage(m as any));
-            outputSuccess({ messages: serialized, sent: serialized.length });
+            const output: Record<string, any> = { messages: serialized, sent: serialized.length };
+            if (validMsgs.length < files.length) {
+              output.warning = `Only ${validMsgs.length} of ${files.length} album messages could be retrieved`;
+            }
+            outputSuccess(output);
           } else {
             // Fallback: return just the single result message
             const serialized = serializeMessage(result as any);
-            outputSuccess({ messages: [serialized], sent: 1 });
+            outputSuccess({
+              messages: [serialized],
+              sent: 1,
+              warning: `Only 1 of ${files.length} album messages could be retrieved`,
+            });
           }
         } else {
           // Single file: serialize and return

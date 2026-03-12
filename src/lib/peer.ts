@@ -2,6 +2,22 @@ import { TelegramClient, Api } from 'telegram';
 import { TgError } from './errors.js';
 
 /**
+ * Assert that an entity is a forum-enabled supergroup when topicId is provided.
+ * Used by commands that support --topic flag to reject non-forum chats early.
+ *
+ * @throws TgError with NOT_A_FORUM if entity is not a forum Channel
+ */
+export async function assertForum(entity: any, topicId: number | undefined): Promise<void> {
+  if (topicId === undefined) return;
+  if (!entity.className || entity.className !== 'Channel') {
+    throw new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM');
+  }
+  if (entity.forum === false) {
+    throw new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM');
+  }
+}
+
+/**
  * Regex to extract invite hash from Telegram invite link URLs.
  * Handles: t.me/+HASH, t.me/joinchat/HASH, telegram.me/+HASH, telegram.me/joinchat/HASH
  * With or without https:// prefix.

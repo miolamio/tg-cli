@@ -28,6 +28,7 @@ export function createMediaCommand(): Command {
     .description('Upload and send files to a chat')
     .option('--caption <text>', 'Caption for the media')
     .option('--reply-to <msgId>', 'Reply to message ID')
+    .option('--topic <topicId>', 'Forum topic ID')
     .action(mediaSendAction);
 
   return media;

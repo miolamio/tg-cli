@@ -66,8 +66,10 @@ vi.mock('../../src/lib/client.js', () => ({
 
 // Mock peer resolution
 const mockResolveEntity = vi.fn().mockResolvedValue({ id: BigInt(123), className: 'Channel' });
+const mockAssertForum = vi.fn().mockResolvedValue(undefined);
 vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
+  assertForum: (...args: any[]) => mockAssertForum(...args),
 }));
 
 // Helper to create mock message objects
@@ -212,5 +214,58 @@ describe('messageSendAction', () => {
       Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, configurable: true });
       (process.stdin as any)[Symbol.asyncIterator] = origStdin;
     }
+  });
+
+  // ---- Topic tests (Phase 5, Plan 03) ----
+
+  it('passes replyTo with topicId to sendMessage when --topic is provided', async () => {
+    const ctx = createMockCommandContext({ topic: '7' });
+    await messageSendAction.call(ctx as any, 'testchat', 'Hello topic');
+
+    expect(mockAssertForum).toHaveBeenCalledWith(
+      expect.objectContaining({ className: 'Channel' }),
+      7,
+    );
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'Hello topic', replyTo: 7 }),
+    );
+  });
+
+  it('--topic overrides --reply-to for replyTo value', async () => {
+    const ctx = createMockCommandContext({ topic: '7', replyTo: '99' });
+    await messageSendAction.call(ctx as any, 'testchat', 'Topic wins');
+
+    // topicId should win as the replyTo value
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ replyTo: 7 }),
+    );
+  });
+
+  it('outputs NOT_A_FORUM error when --topic is used on non-forum entity', async () => {
+    const { TgError } = await import('../../src/lib/errors.js');
+    mockAssertForum.mockRejectedValueOnce(
+      new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM'),
+    );
+
+    const ctx = createMockCommandContext({ topic: '7' });
+    await messageSendAction.call(ctx as any, 'testchat', 'Hello');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      'Chat is not a forum-enabled supergroup',
+      'NOT_A_FORUM',
+    );
+  });
+
+  it('outputs error for invalid topic ID on send', async () => {
+    const ctx = createMockCommandContext({ topic: 'notanumber' });
+    await messageSendAction.call(ctx as any, 'testchat', 'Hello');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      'Invalid topic ID: must be a number',
+      'INVALID_TOPIC_ID',
+    );
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,7 @@ import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
-import { resolveEntity } from '../../lib/peer.js';
+import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 
@@ -24,11 +24,19 @@ export async function messageHistoryAction(this: Command, chatInput: string): Pr
     offset: string;
     since?: string;
     until?: string;
+    topic?: string;
   };
   const { profile } = opts;
 
   const limit = parseInt(opts.limit, 10) || 50;
   const offset = parseInt(opts.offset, 10) || 0;
+
+  // Parse --topic as integer
+  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
+  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
+    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
+    return;
+  }
 
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
@@ -45,11 +53,19 @@ export async function messageHistoryAction(this: Command, chatInput: string): Pr
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const entity = await resolveEntity(client, chatInput);
 
+        // Forum guard: reject --topic on non-forum chats
+        await assertForum(entity, topicId);
+
         // Build getMessages parameters
         const params: Record<string, any> = {
           limit,
           addOffset: offset,
         };
+
+        // --topic: scope messages to a specific forum topic
+        if (topicId !== undefined) {
+          params.replyTo = topicId;
+        }
 
         // --until: server-side date filter via offsetDate
         if (opts.until) {

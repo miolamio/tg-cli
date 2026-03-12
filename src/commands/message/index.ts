@@ -27,6 +27,7 @@ export function createMessageCommand(): Command {
     .option('--offset <n>', 'Skip messages', '0')
     .option('--since <date>', 'Messages after this date (ISO 8601)')
     .option('--until <date>', 'Messages before this date (ISO 8601)')
+    .option('--topic <topicId>', 'Forum topic ID')
     .action(messageHistoryAction);
 
   message
@@ -34,10 +35,11 @@ export function createMessageCommand(): Command {
     .description('Search messages by keyword or media type')
     .option('--chat <chat>', 'Search in specific chat (omit for global search)')
     .option('--query <text>', 'Search query')
-    .option('--filter <type>', 'Filter by media type (photos|videos|documents|urls|voice|music|gifs|round)')
+    .option('--filter <type>', 'Filter by type (photos|videos|documents|urls|voice|music|gifs|round|photo_video|round_voice|chat_photos|phone_calls|mentions|geo|contacts|pinned)')
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
-    .addHelpText('after', '\nValid filters: photos, videos, documents, urls, voice, music, gifs, round')
+    .option('--topic <topicId>', 'Forum topic ID')
+    .addHelpText('after', '\nValid filters: photos, videos, photo_video, documents, urls, gifs, voice, music, round, round_voice, chat_photos, phone_calls, mentions, geo, contacts, pinned')
     .action(messageSearchAction);
 
   message
@@ -46,6 +48,7 @@ export function createMessageCommand(): Command {
     .argument('<text>', 'Message text (use - for stdin)')
     .description('Send a text message to a chat')
     .option('--reply-to <msgId>', 'Reply to message ID')
+    .option('--topic <topicId>', 'Forum topic ID')
     .action(messageSendAction);
 
   message
