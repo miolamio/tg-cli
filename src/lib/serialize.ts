@@ -3,6 +3,7 @@ import type { Dialog } from 'telegram/tl/custom/dialog.js';
 import { entitiesToMarkdown } from './entity-to-markdown.js';
 import type {
   ChatListItem,
+  MediaInfo,
   MessageItem,
   SearchResultItem,
   MemberItem,
@@ -54,7 +55,7 @@ export function serializeDialog(dialog: Dialog): ChatListItem {
  * Detect media type from a message's media object.
  * Returns the media type string and optional emoji for stickers.
  */
-function detectMedia(media: any): { mediaType: string | null; emoji?: string } {
+export function detectMedia(media: any): { mediaType: string | null; emoji?: string } {
   if (!media) return { mediaType: null };
 
   if (media instanceof Api.MessageMediaPhoto) {
@@ -86,6 +87,82 @@ function detectMedia(media: any): { mediaType: string | null; emoji?: string } {
 
   // Fallback for other media types
   return { mediaType: 'other' };
+}
+
+/**
+ * Extract detailed media metadata from a message's media object.
+ *
+ * Supports MessageMediaPhoto (extracts largest PhotoSize dimensions/size)
+ * and MessageMediaDocument (extracts doc attributes for filename, dimensions, duration).
+ * Returns null for unsupported media types or null/undefined input.
+ */
+export function extractMediaInfo(media: any): MediaInfo | null {
+  if (!media) return null;
+
+  if (media instanceof Api.MessageMediaPhoto) {
+    const photo = media.photo as any;
+    if (!photo || !photo.sizes) return null;
+
+    // Find largest PhotoSize with dimensions
+    let bestSize: any = null;
+    for (const s of photo.sizes) {
+      if (s.w != null && s.h != null) {
+        if (!bestSize || (s.w * s.h > bestSize.w * bestSize.h)) {
+          bestSize = s;
+        }
+      }
+    }
+
+    return {
+      filename: null,
+      fileSize: bestSize?.size != null ? Number(bestSize.size) : null,
+      mimeType: 'image/jpeg',
+      width: bestSize?.w ?? null,
+      height: bestSize?.h ?? null,
+      duration: null,
+    };
+  }
+
+  if (media instanceof Api.MessageMediaDocument) {
+    const doc = media.document as any;
+    if (!doc) return null;
+
+    let filename: string | null = null;
+    let width: number | null = null;
+    let height: number | null = null;
+    let duration: number | null = null;
+
+    if (doc.attributes) {
+      for (const attr of doc.attributes) {
+        if (attr instanceof Api.DocumentAttributeFilename) {
+          filename = attr.fileName;
+        }
+        if (attr instanceof Api.DocumentAttributeVideo) {
+          width = attr.w ?? null;
+          height = attr.h ?? null;
+          duration = attr.duration ?? null;
+        }
+        if (attr instanceof Api.DocumentAttributeAudio) {
+          duration = attr.duration ?? null;
+        }
+        if (attr instanceof Api.DocumentAttributeImageSize) {
+          width = attr.w ?? null;
+          height = attr.h ?? null;
+        }
+      }
+    }
+
+    return {
+      filename,
+      fileSize: doc.size != null ? Number(doc.size) : null,
+      mimeType: doc.mimeType ?? null,
+      width,
+      height,
+      duration,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -147,6 +224,14 @@ export function serializeMessage(
 
   if (emoji) {
     item.emoji = emoji;
+  }
+
+  // Populate media metadata when message has media
+  if (mediaType) {
+    const mediaInfo = extractMediaInfo((msg as any).media);
+    if (mediaInfo) {
+      item.media = mediaInfo;
+    }
   }
 
   return item;

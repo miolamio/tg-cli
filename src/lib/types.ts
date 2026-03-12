@@ -109,6 +109,7 @@ export interface MessageItem {
   type: 'message' | 'service';
   actionText?: string;
   emoji?: string;
+  media?: MediaInfo;  // Only present when mediaType is not null
 }
 
 /**
@@ -160,12 +161,58 @@ export interface MessageHistoryOptions {
  * Options for the message search command.
  */
 export interface MessageSearchOptions {
-  query: string;
+  query?: string;  // Now optional (required when no --filter)
+  filter?: string;
   chat?: string;
   limit: number;
   offset: number;
   since?: string;
   until?: string;
+}
+
+// ---- Phase 4: Media & Files types ----
+
+/** Metadata extracted from a message's media attachment. */
+export interface MediaInfo {
+  filename: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+}
+
+/** Result of downloading a single media file. */
+export interface DownloadResult {
+  path: string;
+  filename: string;
+  size: number;
+  mediaType: string;
+  messageId: number;
+}
+
+/** Result of uploading/sending a single file. */
+export interface UploadResult extends MessageItem {}
+
+/** Result of sending an album (multiple files). */
+export interface AlbumResult {
+  messages: MessageItem[];
+  sent: number;
+}
+
+/** Options for the media download command. */
+export interface MediaDownloadOptions {
+  chat: string;
+  messageIds: number[];
+  output?: string;
+}
+
+/** Options for the media send command. */
+export interface MediaSendOptions {
+  chat: string;
+  files: string[];
+  caption?: string;
+  replyTo?: number;
 }
 
 // ---- Phase 3: Messaging & Interaction types ----
