@@ -78,10 +78,11 @@ Plans:
   1. User can download any file or media attachment from a message to a local path
   2. User can upload and send a local file (photo, video, document) to any chat
   3. User can filter search results by media type using `--filter photos|videos|documents|urls|voice|...`
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Media types, utilities (filter map, auto-naming), metadata extraction in serialization, search filter integration (--filter on search), format updates for media annotations
+- [ ] 04-02-PLAN.md — Media download command (single + batch, auto-naming, -o override), media send command (single + album, caption, reply-to, voice detection), CLI wiring
 
 ### Phase 5: Advanced Features & Polish
 **Goal**: Users can interact with forum topics in supergroups, search across multiple specific chats in one command, select output fields, and stream results as JSONL
@@ -107,5 +108,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation & Auth | 3/3 | Complete   | 2026-03-11 |
 | 2. Chat Discovery & Message Reading | 3/4 | In progress | - |
 | 3. Messaging & Interaction | 0/2 | Not started | - |
-| 4. Media & Files | 0/1 | Not started | - |
+| 4. Media & Files | 0/2 | Not started | - |
 | 5. Advanced Features & Polish | 0/1 | Not started | - |
