@@ -29,12 +29,29 @@ const mockClientInstance = {
   getMessages: mockGetMessages,
 };
 
+// Hoisted mock filter classes for FILTER_MAP
+const {
+  MockInputMessagesFilterPhotos,
+} = vi.hoisted(() => {
+  class MockInputMessagesFilterPhotos {}
+  return { MockInputMessagesFilterPhotos };
+});
+
 vi.mock('telegram', () => ({
   TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
   sessions: {
     StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
   },
-  Api: {},
+  Api: {
+    InputMessagesFilterPhotos: MockInputMessagesFilterPhotos,
+    InputMessagesFilterVideo: class {},
+    InputMessagesFilterDocument: class {},
+    InputMessagesFilterUrl: class {},
+    InputMessagesFilterVoice: class {},
+    InputMessagesFilterMusic: class {},
+    InputMessagesFilterGif: class {},
+    InputMessagesFilterRoundVideo: class {},
+  },
 }));
 
 // Mock config
@@ -277,5 +294,86 @@ describe('messageSearchAction', () => {
       expect.stringContaining('Not logged in'),
       'NOT_AUTHENTICATED',
     );
+  });
+
+  // ---- Filter tests (Phase 4) ----
+
+  it('succeeds with --filter and no --query', async () => {
+    const messages: any[] = [];
+    (messages as any).total = 0;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ filter: 'photos', chat: 'mychat' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).not.toHaveBeenCalled();
+    expect(mockGetMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        search: '',
+        filter: expect.any(MockInputMessagesFilterPhotos),
+      }),
+    );
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('works with both --filter and --query together', async () => {
+    const messages: any[] = [];
+    (messages as any).total = 0;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ filter: 'photos', query: 'landscape', chat: 'mychat' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).not.toHaveBeenCalled();
+    expect(mockGetMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        search: 'landscape',
+        filter: expect.any(MockInputMessagesFilterPhotos),
+      }),
+    );
+  });
+
+  it('errors when neither --query nor --filter provided', async () => {
+    const ctx = createMockCommandContext({ query: undefined, filter: undefined });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--query'),
+      'MISSING_QUERY',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
+
+  it('errors with invalid filter name', async () => {
+    const ctx = createMockCommandContext({ filter: 'invalid_filter', chat: 'mychat' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown filter'),
+      'INVALID_FILTER',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
+
+  it('backward compatible: query-only search still works', async () => {
+    const messages = [
+      createMockMessage({ id: 50, message: 'old style search' }),
+    ];
+    (messages as any).total = 1;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ query: 'old', chat: 'mychat' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).not.toHaveBeenCalled();
+    expect(mockGetMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        search: 'old',
+      }),
+    );
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
   });
 });
