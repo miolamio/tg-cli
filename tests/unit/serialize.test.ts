@@ -8,16 +8,20 @@ const {
   MockAttrSticker,
   MockAttrVideo,
   MockAttrAudio,
+  MockAttrFilename,
+  MockAttrImageSize,
   MockActionChatCreate,
 } = vi.hoisted(() => {
   class MockBold { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockMediaPhoto {}
   class MockMediaDocument {}
   class MockAttrSticker { alt: string; constructor(a?: any) { this.alt = a?.alt ?? ''; } }
-  class MockAttrVideo {}
-  class MockAttrAudio { voice?: boolean; constructor(a?: any) { this.voice = a?.voice; } }
+  class MockAttrVideo { w?: number; h?: number; duration?: number; constructor(a?: any) { this.w = a?.w; this.h = a?.h; this.duration = a?.duration; } }
+  class MockAttrAudio { voice?: boolean; duration?: number; constructor(a?: any) { this.voice = a?.voice; this.duration = a?.duration; } }
+  class MockAttrFilename { fileName: string; constructor(a?: any) { this.fileName = a?.fileName ?? ''; } }
+  class MockAttrImageSize { w: number; h: number; constructor(a?: any) { this.w = a?.w ?? 0; this.h = a?.h ?? 0; } }
   class MockActionChatCreate {}
-  return { MockBold, MockMediaPhoto, MockMediaDocument, MockAttrSticker, MockAttrVideo, MockAttrAudio, MockActionChatCreate };
+  return { MockBold, MockMediaPhoto, MockMediaDocument, MockAttrSticker, MockAttrVideo, MockAttrAudio, MockAttrFilename, MockAttrImageSize, MockActionChatCreate };
 });
 
 vi.mock('telegram', () => ({
@@ -35,6 +39,8 @@ vi.mock('telegram', () => ({
     DocumentAttributeSticker: MockAttrSticker,
     DocumentAttributeVideo: MockAttrVideo,
     DocumentAttributeAudio: MockAttrAudio,
+    DocumentAttributeFilename: MockAttrFilename,
+    DocumentAttributeImageSize: MockAttrImageSize,
     MessageActionChatCreate: MockActionChatCreate,
   },
 }));
@@ -45,6 +51,7 @@ import {
   serializeSearchResult,
   serializeMember,
   bigIntToString,
+  extractMediaInfo,
 } from '../../src/lib/serialize.js';
 
 // Helper to create a mock Dialog
@@ -332,5 +339,114 @@ describe('bigIntToString', () => {
 
   it('converts numbers to string', () => {
     expect(bigIntToString(12345)).toBe('12345');
+  });
+});
+
+describe('extractMediaInfo', () => {
+  it('returns null for null/undefined media', () => {
+    expect(extractMediaInfo(null)).toBeNull();
+    expect(extractMediaInfo(undefined)).toBeNull();
+  });
+
+  it('extracts info from MessageMediaPhoto', () => {
+    const photo = new MockMediaPhoto();
+    // Simulate photo.photo with sizes array (largest size has w, h, size)
+    (photo as any).photo = {
+      sizes: [
+        { w: 320, h: 240, size: 5000, className: 'PhotoSize' },
+        { w: 1920, h: 1080, size: 245760, className: 'PhotoSize' },
+      ],
+    };
+    const info = extractMediaInfo(photo);
+    expect(info).not.toBeNull();
+    expect(info!.mimeType).toBe('image/jpeg');
+    expect(info!.filename).toBeNull();
+    expect(info!.width).toBe(1920);
+    expect(info!.height).toBe(1080);
+    expect(info!.fileSize).toBe(245760);
+    expect(info!.duration).toBeNull();
+  });
+
+  it('extracts info from MessageMediaDocument with video attributes', () => {
+    const media = new MockMediaDocument();
+    (media as any).document = {
+      size: BigInt(1234567),
+      mimeType: 'video/mp4',
+      attributes: [
+        new MockAttrVideo({ w: 1280, h: 720, duration: 32 }),
+        new MockAttrFilename({ fileName: 'clip.mp4' }),
+      ],
+    };
+    const info = extractMediaInfo(media);
+    expect(info).not.toBeNull();
+    expect(info!.mimeType).toBe('video/mp4');
+    expect(info!.filename).toBe('clip.mp4');
+    expect(info!.width).toBe(1280);
+    expect(info!.height).toBe(720);
+    expect(info!.duration).toBe(32);
+    expect(info!.fileSize).toBe(1234567);
+  });
+
+  it('extracts info from MessageMediaDocument with audio attributes', () => {
+    const media = new MockMediaDocument();
+    (media as any).document = {
+      size: BigInt(98765),
+      mimeType: 'audio/ogg',
+      attributes: [
+        new MockAttrAudio({ voice: true, duration: 15 }),
+      ],
+    };
+    const info = extractMediaInfo(media);
+    expect(info).not.toBeNull();
+    expect(info!.duration).toBe(15);
+    expect(info!.mimeType).toBe('audio/ogg');
+    expect(info!.fileSize).toBe(98765);
+  });
+
+  it('returns null for unsupported media types', () => {
+    const unknownMedia = { className: 'MessageMediaGeo' };
+    expect(extractMediaInfo(unknownMedia)).toBeNull();
+  });
+});
+
+describe('serializeMessage - media field', () => {
+  it('includes media field for photo messages', () => {
+    const media = new MockMediaPhoto();
+    (media as any).photo = {
+      sizes: [
+        { w: 800, h: 600, size: 50000, className: 'PhotoSize' },
+      ],
+    };
+    const msg = mockMessage({ media });
+    const result = serializeMessage(msg as any);
+    expect(result.mediaType).toBe('photo');
+    expect(result.media).toBeDefined();
+    expect(result.media!.mimeType).toBe('image/jpeg');
+    expect(result.media!.width).toBe(800);
+    expect(result.media!.height).toBe(600);
+  });
+
+  it('excludes media field for text-only messages (backward compatible)', () => {
+    const msg = mockMessage({ media: null });
+    const result = serializeMessage(msg as any);
+    expect(result.mediaType).toBeNull();
+    expect(result.media).toBeUndefined();
+  });
+
+  it('includes media field for document messages', () => {
+    const media = new MockMediaDocument();
+    (media as any).document = {
+      size: BigInt(5000),
+      mimeType: 'application/pdf',
+      attributes: [
+        new MockAttrFilename({ fileName: 'report.pdf' }),
+      ],
+    };
+    const msg = mockMessage({ media });
+    const result = serializeMessage(msg as any);
+    expect(result.mediaType).toBe('document');
+    expect(result.media).toBeDefined();
+    expect(result.media!.filename).toBe('report.pdf');
+    expect(result.media!.mimeType).toBe('application/pdf');
   });
 });
