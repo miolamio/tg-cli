@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { mediaDownloadAction } from './download.js';
+import { mediaSendAction } from './send.js';
 
 /**
  * Create the `media` command group with download and send subcommands.
@@ -20,7 +21,14 @@ export function createMediaCommand(): Command {
     .option('-o, --output <path>', 'Output path (file for single, directory for batch)')
     .action(mediaDownloadAction);
 
-  // send subcommand added in Task 2
+  media
+    .command('send')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<files...>', 'File path(s) to send (multiple = album)')
+    .description('Upload and send files to a chat')
+    .option('--caption <text>', 'Caption for the media')
+    .option('--reply-to <msgId>', 'Reply to message ID')
+    .action(mediaSendAction);
 
   return media;
 }
