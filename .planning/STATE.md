@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 5 in progress. Output enhancements (field selection, JSONL) delivered. Ready for plan 05-03.
+**Current focus:** Phase 5 in progress. Forum topics (05-01) and output enhancements (05-02) delivered. Ready for plan 05-03.
 
 ## Current Position
 
 Phase: 5 of 5 (Advanced Features & Polish)
-Plan: 2 of 3 in current phase (05-02 output enhancements complete)
-Status: Plan 05-02 complete, ready for 05-03
-Last activity: 2026-03-12 — Plan 05-02 complete (field selection and JSONL streaming output enhancements).
+Plan: 2 of 3 in current phase (05-01 forum topics and 05-02 output enhancements complete)
+Status: Plans 05-01 and 05-02 complete, ready for 05-03
+Last activity: 2026-03-12 — Plan 05-01 complete (forum topic listing command with TDD).
 
-Progress: [█████████▒] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 5.1min
-- Total execution time: 1.10 hours
+- Total plans completed: 14
+- Average duration: 5.0min
+- Total execution time: 1.17 hours
 
 **By Phase:**
 
@@ -47,10 +47,10 @@ Progress: [█████████▒] 93%
 | 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
 | 03-messaging-interaction | 2 | 9min | 4.5min |
 | 04-media-files | 2 | 15min | 7.5min |
-| 05-advanced-features-polish | 2 | 10min | 5.0min |
+| 05-advanced-features-polish | 3 | 14min | 4.7min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 8min, 7min, 6min, 4min
+- Last 5 plans: 8min, 7min, 6min, 4min, 4min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -104,6 +104,10 @@ Recent decisions affecting current work:
 - 04-02: File existence validated via fs.access before upload attempt for early error
 - 04-02: Voice note detection only on single file uploads (albums don't support voiceNote)
 - 04-02: forceDocument set for non-photo/video/voice single file uploads
+- 05-01: messageCount field mapped from gramjs topMessage (latest message ID, not true count) per user decision
+- 05-01: Forum guard checks className=Channel AND forum!==false; undefined/null forum proceeds to API
+- 05-01: Client-side offset slicing for simplicity (gramjs offsetTopic is cursor-based)
+- 05-01: ForumTopicDeleted filtered by className string comparison for mock compatibility
 - 05-02: setFieldSelection accepts null to reset, enabling clean test teardown
 - 05-02: JSONL non-list data falls through to normal JSON envelope (graceful degradation)
 - 05-02: JSONL errors go to stderr as plain text, no envelope wrapping
@@ -117,10 +121,10 @@ None yet.
 - ~~Research flagged gramjs connection lifecycle bugs (disconnect not cleaning up, zombie processes)~~ -- RESOLVED: withClient uses destroy() with configurable timeout (120s default)
 - ~~FloodWait rate limiting must be built into client wrapper from day one~~ -- RESOLVED: withRateLimit wrapper implemented
 - ~~Session file locking needed to prevent AUTH_KEY_DUPLICATED from concurrent access~~ -- RESOLVED: proper-lockfile on every read/write
-- gramjs forum topic support level unverified -- may affect Phase 5 scope
+- ~~gramjs forum topic support level unverified -- may affect Phase 5 scope~~ -- RESOLVED: GetForumTopics API works, topic listing implemented in 05-01
 
 ## Session Continuity
 
-Last session: 2026-03-12T10:57:06.000Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-03-12T10:57:19.000Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: .planning/phases/05-advanced-features-polish/05-03-PLAN.md
