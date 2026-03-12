@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-12T10:57:19.000Z"
-last_activity: 2026-03-12 — Plan 05-01 complete (forum topic listing command with TDD).
+status: completed
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-12T11:06:39Z"
+last_activity: 2026-03-12 — Plan 05-03 complete (topic scoping and multi-chat search).
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 5 in progress. Forum topics (05-01) and output enhancements (05-02) delivered. Ready for plan 05-03.
+**Current focus:** Phase 5 complete. All 3 plans delivered (forum topics, output enhancements, topic scoping + multi-chat search).
 
 ## Current Position
 
 Phase: 5 of 5 (Advanced Features & Polish)
-Plan: 2 of 3 in current phase (05-01 forum topics and 05-02 output enhancements complete)
-Status: Plans 05-01 and 05-02 complete, ready for 05-03
-Last activity: 2026-03-12 — Plan 05-01 complete (forum topic listing command with TDD).
+Plan: 3 of 3 in current phase (all plans complete)
+Status: Phase 5 complete, all v1 features delivered
+Last activity: 2026-03-12 — Plan 05-03 complete (topic scoping and multi-chat search).
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 5.0min
-- Total execution time: 1.17 hours
+- Total execution time: 1.25 hours
 
 **By Phase:**
 
@@ -47,10 +47,10 @@ Progress: [██████████] 100%
 | 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
 | 03-messaging-interaction | 2 | 9min | 4.5min |
 | 04-media-files | 2 | 15min | 7.5min |
-| 05-advanced-features-polish | 3 | 14min | 4.7min |
+| 05-advanced-features-polish | 3 | 19min | 6.3min |
 
 **Recent Trend:**
-- Last 5 plans: 8min, 7min, 6min, 4min, 4min
+- Last 5 plans: 8min, 7min, 6min, 4min, 5min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -111,6 +111,10 @@ Recent decisions affecting current work:
 - 05-02: setFieldSelection accepts null to reset, enabling clean test teardown
 - 05-02: JSONL non-list data falls through to normal JSON envelope (graceful degradation)
 - 05-02: JSONL errors go to stderr as plain text, no envelope wrapping
+- 05-03: assertForum helper centralized in peer.ts for reuse across topic-aware commands
+- 05-03: --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
+- 05-03: --topic + multi-chat search rejected as INVALID_OPTIONS (ambiguous)
+- 05-03: Multi-chat search fetches limit per chat, sorts merged results, truncates to total limit
 
 ### Pending Todos
 
@@ -125,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T10:57:19.000Z
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-advanced-features-polish/05-03-PLAN.md
+Last session: 2026-03-12T11:06:39Z
+Stopped at: Completed 05-03-PLAN.md
+Resume file: None -- all plans complete
