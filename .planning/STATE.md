@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: active
-stopped_at: null
-last_updated: "2026-03-12"
-last_activity: 2026-03-12 — Roadmap created for v1.1 (Phases 6-11)
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-03-12T19:13:53.165Z"
+last_activity: 2026-03-12 — Roadmap created for v1.1 (6 phases, 16 requirements)
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 11
+  completed_phases: 5
+  total_plans: 14
+  completed_plans: 14
   percent: 0
 ---
 
@@ -78,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12
-Stopped at: Roadmap created for v1.1 milestone
-Resume file: None — ready to plan Phase 6
+Last session: 2026-03-12T19:13:53.155Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-message-read-operations/06-CONTEXT.md
