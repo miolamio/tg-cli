@@ -1,534 +1,677 @@
 # Architecture Research
 
-**Domain:** Telegram CLI Client (MTProto user client via gramjs)
-**Researched:** 2026-03-10
+**Domain:** Telegram CLI v1.1 Feature Integration (user profiles, contacts, message management, block/unblock, TOON output, polls)
+**Researched:** 2026-03-12
 **Confidence:** HIGH
 
-## Standard Architecture
+## Existing Architecture Summary
 
-### System Overview
+The codebase follows a consistent layered pattern:
 
 ```
-+-----------------------------------------------------------------------+
-|                          CLI Layer                                     |
-|  +----------+  +-----------+  +----------+  +-----------+             |
-|  | Command  |  | Command   |  | Command  |  | Command   |             |
-|  | auth     |  | chats     |  | messages |  | media     |             |
-|  +----+-----+  +-----+-----+  +----+-----+  +-----+-----+            |
-|       |               |             |              |                  |
-+-------+---------------+-------------+--------------+------------------+
-        |               |             |              |
-+-------v---------------v-------------v--------------v------------------+
-|                       Output Formatter                                |
-|  +----------------+  +----------------+                               |
-|  | Human (table,  |  | JSON (struct,  |                               |
-|  | color, prose)  |  | machine-read)  |                               |
-|  +----------------+  +----------------+                               |
-+-----------------------------------+-----------------------------------+
-                                    |
-+-----------------------------------v-----------------------------------+
-|                       Service Layer                                   |
-|  +-----------+  +-----------+  +-----------+  +-----------+           |
-|  | Auth      |  | Chat      |  | Message   |  | Media     |          |
-|  | Service   |  | Service   |  | Service   |  | Service   |          |
-|  +-----------+  +-----------+  +-----------+  +-----------+           |
-|                                                                       |
-|  +-----------+  +-----------+                                         |
-|  | Search    |  | User      |                                         |
-|  | Service   |  | Service   |                                         |
-|  +-----------+  +-----------+                                         |
-+-----------------------------------+-----------------------------------+
-                                    |
-+-----------------------------------v-----------------------------------+
-|                       Client Wrapper                                  |
-|  +-----------------+  +------------------+  +------------------+      |
-|  | Connection      |  | Error Handler    |  | Entity Cache     |      |
-|  | Manager         |  | (FloodWait, DC   |  | (Users, Chats)   |      |
-|  | (reconnect,     |  |  migrate, retry) |  |                  |      |
-|  |  health check)  |  +------------------+  +------------------+      |
-|  +-----------------+                                                  |
-+-----------------------------------+-----------------------------------+
-                                    |
-+-----------------------------------v-----------------------------------+
-|                       gramjs (TelegramClient)                         |
-|  +-------+  +--------+  +--------+  +---------+  +--------+          |
-|  | auth  |  | msgs   |  | dialog |  | uploads  |  | d/loads |         |
-|  +-------+  +--------+  +--------+  +---------+  +--------+          |
-|  +-------+  +--------+  +--------+  +---------+                      |
-|  | 2fa   |  | users  |  | chats  |  | updates |                      |
-|  +-------+  +--------+  +--------+  +---------+                      |
-+-----------------------------------+-----------------------------------+
-                                    |
-+-----------------------------------v-----------------------------------+
-|                       Session Storage                                 |
-|  +------------------+  +------------------+                           |
-|  | StringSession    |  | File-based       |                           |
-|  | (portable,       |  | Session          |                           |
-|  |  export/import)  |  | (~/.telegram-cli)|                           |
-|  +------------------+  +------------------+                           |
-+-----------------------------------------------------------------------+
+CLI Entry (src/bin/tg.ts)
+    |
+    v
+Command Groups (src/commands/{auth,session,chat,message,media}/)
+    |  Each group: index.ts (Commander wiring) + action files (one per subcommand)
+    |
+    v
+Shared Libraries (src/lib/)
+    |  client.ts    -- withClient() connection lifecycle
+    |  peer.ts      -- resolveEntity() for username/ID/phone/invite resolution
+    |  serialize.ts -- gramjs objects -> lean JSON types
+    |  format.ts    -- formatData() auto-dispatch for human output
+    |  output.ts    -- outputSuccess/outputError (JSON/human/JSONL modes)
+    |  fields.ts    -- --fields selection, extractListItems() for JSONL
+    |  types.ts     -- all TypeScript interfaces (data shapes + option interfaces)
+    |  errors.ts    -- TgError hierarchy
+    |  config.ts    -- Conf-based config/credentials
+    |  session-store.ts -- file-locked session persistence
+    |
+    v
+gramjs TelegramClient (MTProto)
 ```
 
-### Component Responsibilities
+### Established Patterns (every command follows these)
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| CLI Layer (Commands) | Parse CLI args, validate input, invoke services, pass results to formatter | Commander.js command definitions, one file per command group |
-| Output Formatter | Transform service results into human-readable or JSON output | Dual-mode formatter gated by `--json` flag; human mode uses chalk + tables |
-| Service Layer | Business logic: orchestrate gramjs calls, transform Telegram objects into app-domain objects | Pure TypeScript classes, no CLI or formatting concerns |
-| Client Wrapper | Manage gramjs TelegramClient lifecycle: connect, reconnect, handle FloodWait/DC migration | Singleton wrapping gramjs TelegramClient with error handling middleware |
-| gramjs | MTProto protocol implementation: auth, messages, dialogs, uploads, downloads | npm `telegram` package, used as-is |
-| Session Storage | Persist authentication state so users do not re-authenticate every invocation | StringSession for portability, file-based for default persistence |
+1. **Action signature:** `async function xAction(this: Command, ...args): Promise<void>`
+2. **Options extraction:** `const opts = this.optsWithGlobals() as GlobalOptions & { ... }`
+3. **Session lifecycle:** `store.withLock(profile, async (sessionString) => { ... })`
+4. **Client lifecycle:** `withClient({ apiId, apiHash, sessionString }, async (client) => { ... })`
+5. **Entity resolution:** `const entity = await resolveEntity(client, chatInput)`
+6. **Serialization:** gramjs object -> typed interface via `serialize*.ts` functions
+7. **Output:** `outputSuccess(data)` / `outputError(message, code)`
+8. **Error handling:** try/catch with `formatError(err)` -> `outputError()`
 
-## Recommended Project Structure
+### Output Pipeline (critical for TOON integration)
+
+```
+Command produces data (typed interface)
+    |
+    v
+outputSuccess(data)
+    |
+    +-- JSONL mode? -> extractListItems() -> pickFields() -> stdout (one JSON/line)
+    |
+    +-- Human mode? -> formatData(data) auto-dispatch by shape detection -> stdout
+    |
+    +-- JSON mode?  -> applyFieldSelection() -> { ok: true, data } envelope -> stdout
+```
+
+Shape detection in `formatData()` uses duck-typing checks in priority order:
+- `.path + .filename + .size + .mediaType + .messageId` -> DownloadResult
+- `.files[] + .downloaded` -> batch download
+- `.messages[] + .sent` -> AlbumResult
+- `.id + .text + .date + .type` (no messages/chats) -> single MessageItem
+- `.messages[0].chatTitle` -> SearchResults
+- `.messages[0].text + .date` -> Messages
+- `.chats[0].type + .title` -> ChatList
+- `.title + .type + .memberCount` -> ChatInfo
+- `.topics[0].title + .isClosed` -> Topics
+- `.members[0].isBot` -> Members
+- Fallback -> `formatGeneric()` (JSON.stringify pretty-print)
+
+### Known List Keys (in fields.ts)
+
+```typescript
+const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files'] as const;
+```
+
+This array determines JSONL extraction. New list-shaped outputs need their key added here.
+
+## Integration Plan: New Components vs Modifications
+
+### New Command Group: `user`
+
+**Path:** `src/commands/user/`
+
+New top-level command group for user-centric operations that don't belong to `chat` (which is peer/dialog oriented).
+
+| Subcommand | gramjs API | Returns |
+|------------|-----------|---------|
+| `tg user profile <user>` | `users.GetFullUser` | `UserProfile` (new type) |
+| `tg user block <user>` | `contacts.Block` | `{ userId, action: 'blocked' }` |
+| `tg user unblock <user>` | `contacts.Unblock` | `{ userId, action: 'unblocked' }` |
+
+**Files to create:**
+- `src/commands/user/index.ts` -- Commander wiring (createUserCommand)
+- `src/commands/user/profile.ts` -- profile action
+- `src/commands/user/block.ts` -- block/unblock action
+
+**Registration:** Add to `src/bin/tg.ts`:
+```typescript
+import { createUserCommand } from '../commands/user/index.js';
+const userCmd = createUserCommand();
+userCmd.helpGroup('User');
+program.addCommand(userCmd);
+```
+
+### New Command Group: `contact`
+
+**Path:** `src/commands/contact/`
+
+Contacts are a distinct Telegram concept (not chats, not users). Warrants its own group.
+
+| Subcommand | gramjs API | Returns |
+|------------|-----------|---------|
+| `tg contact list` | `contacts.GetContacts` | `{ contacts: ContactItem[] }` |
+| `tg contact add <user>` | `contacts.AddContact` | `ContactItem` |
+| `tg contact delete <user-ids>` | `contacts.DeleteContacts` | `{ deleted: string[] }` |
+| `tg contact search <query>` | `contacts.Search` | `{ contacts: ContactItem[] }` |
+
+**Files to create:**
+- `src/commands/contact/index.ts` -- Commander wiring
+- `src/commands/contact/list.ts`
+- `src/commands/contact/add.ts`
+- `src/commands/contact/delete.ts`
+- `src/commands/contact/search.ts`
+
+### Extended Command Group: `message` (add subcommands)
+
+Existing `src/commands/message/` gains new subcommands. Pattern: add action file + wire in index.ts.
+
+| Subcommand | gramjs API | Returns |
+|------------|-----------|---------|
+| `tg message get <chat> <msg-ids>` | `client.getMessages(entity, { ids })` | `{ messages: MessageItem[] }` |
+| `tg message pinned <chat>` | `messages.Search` with `InputMessagesFilterPinned` | `{ messages: MessageItem[] }` |
+| `tg message edit <chat> <msg-id> <text>` | `client.editMessage(entity, { message, text })` | `MessageItem` |
+| `tg message delete <chat> <msg-ids>` | `client.deleteMessages(entity, ids, { revoke })` | `{ deleted: number[] }` |
+| `tg message pin <chat> <msg-id>` | `client.pinMessage(entity, msgId)` | `{ messageId, chatId, action: 'pinned' }` |
+| `tg message unpin <chat> <msg-id>` | `client.unpinMessage(entity, msgId)` | `{ messageId, chatId, action: 'unpinned' }` |
+| `tg message poll <chat> <question> <options>` | `messages.SendMedia` with `InputMediaPoll` | `MessageItem` (with poll data) |
+
+**Files to create:**
+- `src/commands/message/get.ts`
+- `src/commands/message/pinned.ts`
+- `src/commands/message/edit.ts`
+- `src/commands/message/delete.ts`
+- `src/commands/message/pin.ts`
+- `src/commands/message/poll.ts`
+
+**Files to modify:**
+- `src/commands/message/index.ts` -- wire new subcommands
+
+### Output Pipeline: TOON Format
+
+**What TOON is:** A token-optimized output format for LLM consumption. Strips noise, uses compact representations, minimizes token count while preserving semantic content. Example:
+
+```
+# Instead of full JSON:
+{"ok":true,"data":{"messages":[{"id":42,"text":"Hello","date":"2026-03-12T10:30:00.000Z","senderId":"123","senderName":"Alice","replyToMsgId":null,"forwardFrom":null,"mediaType":null,"type":"message","views":null,"forwards":null}],"total":1}}
+
+# TOON format:
+42|Alice|2026-03-12T10:30|Hello
+```
+
+**Integration point:** Output pipeline in `src/lib/output.ts`.
+
+TOON follows the same pattern as JSONL: a mode flag that intercepts before JSON/human dispatch.
+
+**Files to modify:**
+- `src/lib/output.ts` -- add `_toonMode` flag, `setToonMode()`, TOON branch in `outputSuccess()`
+- `src/bin/tg.ts` -- add `--toon` global option, parse in preAction hook, mutual exclusion with `--human` and `--jsonl`
+- `src/lib/types.ts` -- add `toon?: boolean` to `GlobalOptions`
+
+**New file to create:**
+- `src/lib/toon.ts` -- TOON formatting functions (one per data shape, analogous to format.ts)
+
+**TOON design principles:**
+1. Pipe-delimited fields (easy to parse, minimal tokens)
+2. Short date format (ISO without milliseconds/timezone)
+3. Omit null fields entirely
+4. One line per item for lists
+5. Header line with field names for discoverability
+6. No envelope (like JSONL, data only)
+
+**Pipeline with TOON:**
+```
+outputSuccess(data)
+    |
+    +-- TOON mode? -> toonFormat(data) auto-dispatch by shape -> stdout
+    |
+    +-- JSONL mode? -> ...
+    +-- Human mode? -> ...
+    +-- JSON mode?  -> ...
+```
+
+## New Types (additions to src/lib/types.ts)
+
+```typescript
+// ---- v1.1: User Profile types ----
+
+export interface UserProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  phone: string | null;
+  bio: string | null;
+  isBot: boolean;
+  isVerified: boolean;
+  isRestricted: boolean;
+  isPremium: boolean;
+  lastSeen: string | null;       // "recently", "lastWeek", ISO date, etc.
+  profilePhotos: number | null;  // count
+  commonChatsCount: number | null;
+}
+
+// ---- v1.1: Contact types ----
+
+export interface ContactItem {
+  id: string;
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  isMutualContact: boolean;
+}
+
+// ---- v1.1: Poll types ----
+
+export interface PollInfo {
+  question: string;
+  options: PollOption[];
+  isAnonymous: boolean;
+  isQuiz: boolean;
+  isClosed: boolean;
+  totalVoters: number;
+}
+
+export interface PollOption {
+  text: string;
+  voters: number;
+}
+```
+
+## New Serializers (additions to src/lib/serialize.ts)
+
+```typescript
+export function serializeUserProfile(
+  user: Api.User,
+  fullUser: Api.UserFull,
+): UserProfile { ... }
+
+export function serializeContact(user: Api.User): ContactItem { ... }
+```
+
+The `serializeMessage()` function already handles media types generically. For polls, the `MessageItem` already has `mediaType` (will be "poll") and `text` (poll question from message text). We need to extend `MessageItem` optionally:
+
+```typescript
+export interface MessageItem {
+  // ... existing fields ...
+  poll?: PollInfo;  // Only present when mediaType is 'poll'
+}
+```
+
+And extend `serializeMessage()` to detect `Api.MessageMediaPoll` and populate the `poll` field.
+
+## New Human Formatters (additions to src/lib/format.ts)
+
+Add functions and wire into `formatData()` auto-dispatch:
+
+| Function | Detects | Example Output |
+|----------|---------|----------------|
+| `formatUserProfile(profile)` | `.bio` + `.lastSeen` + `.firstName` | Key-value pairs like formatChatInfo |
+| `formatContacts(contacts)` | `.contacts[0].isMutualContact` | Table with name, username, phone |
+| `formatPoll(msg)` | `msg.poll` present | Question + bar chart of options |
+
+**Shape detection additions to `formatData()`:**
+```typescript
+// Before ChatInfo check:
+if ('bio' in obj && 'lastSeen' in obj && 'firstName' in obj) {
+  return formatUserProfile(obj as UserProfile);
+}
+
+// After existing messages checks:
+if (Array.isArray(obj.contacts)) {
+  return formatContacts(obj.contacts as ContactItem[]);
+}
+```
+
+## New LIST_KEYS Addition (src/lib/fields.ts)
+
+```typescript
+const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files', 'contacts'] as const;
+```
+
+Add `'contacts'` so JSONL mode works for `tg contact list` and `tg contact search`.
+
+## Data Flow: New Features
+
+### User Profile Flow
+
+```
+tg user profile @alice
+    |
+    v
+resolveEntity(client, "@alice") -> Api.User
+    |
+    v
+client.invoke(new Api.users.GetFullUser({ id: entity }))
+    |  Returns Api.users.UserFull with { fullUser, users[], chats[] }
+    v
+serializeUserProfile(user, fullUser.fullUser) -> UserProfile
+    |
+    v
+outputSuccess(profile)
+```
+
+### Contacts List Flow
+
+```
+tg contact list
+    |
+    v
+client.invoke(new Api.contacts.GetContacts({ hash: bigInt(0) }))
+    |  Returns Api.contacts.Contacts with { contacts[], users[] }
+    v
+Map contacts to users -> serializeContact(user) for each -> ContactItem[]
+    |
+    v
+outputSuccess({ contacts })
+```
+
+### Message Edit Flow
+
+```
+tg message edit @group 42 "new text"
+    |
+    v
+resolveEntity(client, "@group") -> entity
+    |
+    v
+client.editMessage(entity, { message: 42, text: "new text" })
+    |  Returns Api.Message (edited)
+    v
+serializeMessage(editedMsg) -> MessageItem
+    |
+    v
+outputSuccess(serialized)
+```
+
+### Message Delete Flow
+
+```
+tg message delete @group 42,43,44 --revoke
+    |
+    v
+resolveEntity(client, "@group") -> entity
+    |
+    v
+client.deleteMessages(entity, [42, 43, 44], { revoke: true })
+    |  Returns Api.messages.AffectedMessages[]
+    v
+outputSuccess({ deleted: [42, 43, 44], chat: chatId })
+```
+
+### Pin/Unpin Flow
+
+```
+tg message pin @group 42
+    |
+    v
+resolveEntity(client, "@group") -> entity
+    |
+    v
+client.pinMessage(entity, 42, { notify: false })
+    |
+    v
+outputSuccess({ messageId: 42, chatId, action: 'pinned' })
+```
+
+### Block/Unblock Flow
+
+```
+tg user block @spammer
+    |
+    v
+resolveEntity(client, "@spammer") -> entity (must be User)
+    |
+    v
+client.invoke(new Api.contacts.Block({ id: entity }))
+    |  Returns boolean
+    v
+outputSuccess({ userId: id, username, action: 'blocked' })
+```
+
+### Poll Creation Flow
+
+```
+tg message poll @group "Favorite color?" "Red,Green,Blue" --anonymous
+    |
+    v
+resolveEntity(client, "@group") -> entity
+    |
+    v
+Build Api.Poll({ question, answers: [...] })
+Build Api.InputMediaPoll({ poll })
+    |
+    v
+client.invoke(new Api.messages.SendMedia({ peer: entity, media: inputMediaPoll, message: '' }))
+    |  Returns Api.Updates with message
+    v
+serializeMessage(sentMsg) -> MessageItem (with poll field)
+    |
+    v
+outputSuccess(serialized)
+```
+
+### TOON Output Flow
+
+```
+tg message history @group --toon
+    |
+    v
+[normal command execution produces data]
+    |
+    v
+outputSuccess(data)
+    |-- _toonMode is true
+    v
+toonFormat(data) -- auto-detect shape, format as compact pipe-delimited
+    |
+    v
+stdout: "id|sender|date|text\n42|Alice|2026-03-12T10:30|Hello\n..."
+```
+
+## Recommended Project Structure (after v1.1)
 
 ```
 src/
-├── cli/                    # CLI layer: command definitions
-│   ├── index.ts            # Entry point, program setup, global options
-│   ├── auth.ts             # login, logout, session, whoami
-│   ├── chats.ts            # list, info, join, leave, members
-│   ├── messages.ts         # send, read, history, search
-│   ├── media.ts            # download, upload, send-media
-│   └── utils.ts            # shared CLI utilities (option builders)
-├── services/               # Business logic layer
-│   ├── auth.service.ts     # Authentication flow orchestration
-│   ├── chat.service.ts     # Chat/dialog operations
-│   ├── message.service.ts  # Message CRUD and search
-│   ├── media.service.ts    # File upload/download orchestration
-│   ├── search.service.ts   # Cross-chat search aggregation
-│   └── user.service.ts     # User/contact operations
-├── client/                 # gramjs wrapper layer
-│   ├── telegram.ts         # TelegramClient wrapper (singleton, lifecycle)
-│   ├── session.ts          # Session management (load, save, export, import)
-│   ├── errors.ts           # Error classification and handling
-│   └── entity-cache.ts     # Cache for resolved users/chats/channels
-├── formatters/             # Output formatting layer
-│   ├── index.ts            # Formatter factory (picks human vs JSON)
-│   ├── json.ts             # JSON output formatter
-│   ├── human.ts            # Human-readable formatter (tables, colors)
-│   └── types.ts            # Output shape interfaces
-├── types/                  # Shared type definitions
-│   ├── domain.ts           # App-domain types (Chat, Message, User, Media)
-│   ├── config.ts           # Configuration types
-│   └── errors.ts           # Error types
-├── config/                 # Configuration management
-│   ├── index.ts            # Config loader (env, file, defaults)
-│   └── paths.ts            # XDG-compliant path resolution
-└── index.ts                # Package entry point (exported API)
+├── bin/
+│   └── tg.ts                    # MODIFY: add --toon global option, register user + contact commands
+├── commands/
+│   ├── auth/                    # unchanged
+│   ├── session/                 # unchanged
+│   ├── chat/                    # unchanged
+│   ├── message/
+│   │   ├── index.ts             # MODIFY: wire get, pinned, edit, delete, pin, poll
+│   │   ├── history.ts           # unchanged
+│   │   ├── search.ts            # unchanged
+│   │   ├── send.ts              # unchanged
+│   │   ├── forward.ts           # unchanged
+│   │   ├── react.ts             # unchanged
+│   │   ├── replies.ts           # unchanged
+│   │   ├── get.ts               # NEW: get messages by ID
+│   │   ├── pinned.ts            # NEW: get pinned messages
+│   │   ├── edit.ts              # NEW: edit sent message
+│   │   ├── delete.ts            # NEW: delete messages
+│   │   ├── pin.ts               # NEW: pin/unpin messages
+│   │   └── poll.ts              # NEW: create and send poll
+│   ├── media/                   # unchanged
+│   ├── user/                    # NEW command group
+│   │   ├── index.ts             # Commander wiring
+│   │   ├── profile.ts           # detailed user profile
+│   │   └── block.ts             # block/unblock
+│   └── contact/                 # NEW command group
+│       ├── index.ts             # Commander wiring
+│       ├── list.ts              # list contacts
+│       ├── add.ts               # add contact
+│       ├── delete.ts            # delete contacts
+│       └── search.ts            # search contacts
+└── lib/
+    ├── client.ts                # unchanged
+    ├── peer.ts                  # unchanged
+    ├── serialize.ts             # MODIFY: add serializeUserProfile, serializeContact, extend serializeMessage for polls
+    ├── format.ts                # MODIFY: add formatUserProfile, formatContacts, formatPoll; add shape detections
+    ├── output.ts                # MODIFY: add TOON mode (toonMode flag, setToonMode, toon branch)
+    ├── toon.ts                  # NEW: TOON formatters (toonFormat auto-dispatch, per-shape formatters)
+    ├── fields.ts                # MODIFY: add 'contacts' to LIST_KEYS
+    ├── types.ts                 # MODIFY: add UserProfile, ContactItem, PollInfo, PollOption; extend GlobalOptions; extend MessageItem
+    ├── errors.ts                # unchanged
+    ├── config.ts                # unchanged
+    ├── session-store.ts         # unchanged
+    ├── media-utils.ts           # unchanged (may add poll to detectMedia)
+    ├── entity-to-markdown.ts    # unchanged
+    ├── rate-limit.ts            # unchanged
+    └── prompt.ts                # unchanged
 ```
-
-### Structure Rationale
-
-- **cli/:** One file per command group keeps commands discoverable and each file small. Commander.js commands are defined here but contain zero business logic -- they parse args and call services.
-- **services/:** Pure business logic separated from CLI concerns. This layer transforms gramjs's Telegram-native objects (Api.Message, Api.Dialog) into app-domain objects (Message, Chat). Services are independently testable without CLI involvement.
-- **client/:** Wraps gramjs in a single place. The entire codebase interacts with Telegram through this layer, never importing `telegram` directly in services. This makes the gramjs dependency swappable and centralizes connection lifecycle, error handling, and session management.
-- **formatters/:** Output formatting is a cross-cutting concern. The dual-output pattern (human vs JSON) is implemented here, selected by a global `--json` flag. Commands return domain objects; formatters decide how to render them.
-- **types/:** App-domain types that are independent of both gramjs types and CLI concerns. Services return these types, formatters consume them.
-- **config/:** Centralized configuration: API credentials, session paths, default behaviors. Uses XDG Base Directory spec for file locations (`~/.config/telegram-cli/`, `~/.local/share/telegram-cli/`).
 
 ## Architectural Patterns
 
-### Pattern 1: Dual-Output Formatter
+### Pattern 1: Consistent Action Handler Boilerplate
 
-**What:** Every command returns a typed domain object. A formatter layer inspects the global `--json` flag and renders either structured JSON (to stdout) or human-readable colored output.
+**What:** Every command action follows the same 7-step pattern (see "Established Patterns" above). New commands MUST follow this exactly.
 
-**When to use:** Every command. This is the core pattern that makes the CLI agent-friendly.
+**When to use:** Every new subcommand action.
 
-**Trade-offs:** Adds a layer of indirection but ensures every command is machine-readable without per-command effort. The domain types serve as the contract between services and formatters.
-
-**Example:**
+**Example (message get):**
 ```typescript
-// formatters/index.ts
-interface OutputFormatter {
-  message(msg: DomainMessage): void;
-  messages(msgs: DomainMessage[], total: number): void;
-  chat(chat: DomainChat): void;
-  chats(chats: DomainChat[]): void;
-  error(err: AppError): void;
-  success(msg: string, data?: Record<string, unknown>): void;
-}
+export async function messageGetAction(this: Command, chat: string, msgIds: string): Promise<void> {
+  const opts = this.optsWithGlobals() as GlobalOptions;
+  const { profile } = opts;
 
-function createFormatter(json: boolean): OutputFormatter {
-  return json ? new JsonFormatter() : new HumanFormatter();
-}
+  // Parse comma-separated IDs
+  const ids = msgIds.split(',').map(s => parseInt(s.trim(), 10));
+  // ... validate ...
 
-// json.ts
-class JsonFormatter implements OutputFormatter {
-  message(msg: DomainMessage) {
-    // stdout for data, stderr for errors -- critical for piping
-    process.stdout.write(JSON.stringify(msg) + '\n');
-  }
-}
+  const config = createConfig(opts.config);
+  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
-// human.ts
-class HumanFormatter implements OutputFormatter {
-  message(msg: DomainMessage) {
-    console.log(chalk.dim(msg.date) + ' ' + chalk.bold(msg.sender) + ': ' + msg.text);
-  }
-}
+  try {
+    await store.withLock(profile, async (sessionString) => {
+      if (!sessionString) { outputError('Not logged in...', 'NOT_AUTHENTICATED'); return; }
+      const { apiId, apiHash } = getCredentialsOrThrow(config);
 
-// Usage in a command:
-const messages = await messageService.getHistory(chatId, { limit });
-formatter.messages(messages, messages.total);
-```
-
-### Pattern 2: Client Wrapper with Lazy Connection
-
-**What:** A singleton wrapper around gramjs TelegramClient that lazily connects on first use, handles reconnection, and centralizes error handling. Commands never instantiate TelegramClient directly.
-
-**When to use:** Every service method that needs Telegram access.
-
-**Trade-offs:** Singleton means global state, but a CLI process is short-lived and single-user by nature, so this is appropriate. The alternative (dependency injection) adds complexity without benefit in a CLI context.
-
-**Example:**
-```typescript
-// client/telegram.ts
-class TelegramClientWrapper {
-  private client: TelegramClient | null = null;
-  private config: AppConfig;
-
-  async getClient(): Promise<TelegramClient> {
-    if (!this.client) {
-      const session = await loadSession(this.config);
-      this.client = new TelegramClient(session, this.config.apiId, this.config.apiHash, {
-        connectionRetries: 5,
-        retryDelay: 1000,
+      await withClient({ apiId, apiHash, sessionString }, async (client) => {
+        const entity = await resolveEntity(client, chat);
+        const result = await client.getMessages(entity, { ids });
+        const messages = result.filter(Boolean).map(m => serializeMessage(m));
+        outputSuccess({ messages, total: messages.length });
       });
-      await this.client.connect();
-    }
-    return this.client;
-  }
-
-  async invoke<T>(request: Api.Request<T>): Promise<T> {
-    const client = await this.getClient();
-    try {
-      return await client.invoke(request);
-    } catch (err) {
-      if (isFloodWait(err)) {
-        await this.handleFloodWait(err);
-        return this.invoke(request); // retry after wait
-      }
-      if (isDcMigration(err)) {
-        await this.handleDcMigration(err);
-        return this.invoke(request); // retry on new DC
-      }
-      throw this.classifyError(err);
-    }
-  }
-
-  async disconnect(): Promise<void> {
-    if (this.client) {
-      await this.client.disconnect();
-      this.client = null;
-    }
-  }
-}
-
-export const telegram = new TelegramClientWrapper();
-```
-
-### Pattern 3: Command-Service Separation
-
-**What:** CLI command handlers contain only argument parsing, validation, and output formatting calls. All business logic lives in services. Commands never import gramjs types directly.
-
-**When to use:** Every command definition.
-
-**Trade-offs:** More files, but each is simple and testable. Commands test that args parse correctly; services test that business logic works; formatters test that output renders correctly.
-
-**Example:**
-```typescript
-// cli/messages.ts
-program
-  .command('messages:search')
-  .description('Search messages across chats')
-  .argument('<query>', 'search query')
-  .option('--chat <chat>', 'limit to specific chat')
-  .option('--from <user>', 'filter by sender')
-  .option('--limit <n>', 'max results', '20')
-  .action(async (query, opts) => {
-    const results = await searchService.search({
-      query,
-      chatId: opts.chat,
-      fromUser: opts.from,
-      limit: parseInt(opts.limit),
     });
-    formatter.messages(results.messages, results.total);
-  });
-
-// services/search.service.ts
-class SearchService {
-  async search(params: SearchParams): Promise<SearchResult> {
-    const client = await telegram.getClient();
-    // Use client.iterMessages or invoke raw API
-    // Transform Api.Message[] into DomainMessage[]
-    // Handle pagination internally
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
   }
 }
 ```
 
-### Pattern 4: XDG-Compliant Configuration
+### Pattern 2: High-Level Client Methods vs Raw API Invoke
 
-**What:** Store session files, config, and cache in XDG Base Directory locations. Fall back to `~/.telegram-cli/` on non-compliant systems.
+**What:** gramjs provides high-level `client.editMessage()`, `client.deleteMessages()`, `client.pinMessage()`, `client.getMessages()` methods that handle entity resolution and edge cases internally. Use these when available. Fall back to `client.invoke(new Api.xxx.Yyy())` for operations without high-level wrappers.
 
-**When to use:** All persistent data (sessions, config, downloaded media cache).
+**When to use high-level:** edit, delete, pin, unpin, getMessages (by ID)
+**When to use raw invoke:** GetFullUser, contacts.*, contacts.Block/Unblock, messages.SendMedia (polls)
 
-**Trade-offs:** Slightly more complex path resolution, but follows platform conventions and prevents dotfile clutter in home directory.
+**Trade-offs:** High-level methods handle edge cases (channel vs chat distinction for delete, entity input normalization) but provide less control. Raw invoke gives full API access but requires understanding Telegram API nuances.
 
-**Paths:**
-```
-Config:  $XDG_CONFIG_HOME/telegram-cli/config.json  (~/.config/telegram-cli/)
-Data:    $XDG_DATA_HOME/telegram-cli/session.dat     (~/.local/share/telegram-cli/)
-Cache:   $XDG_CACHE_HOME/telegram-cli/media/          (~/.cache/telegram-cli/)
-```
+### Pattern 3: Shape-Based Format Dispatch
 
-## Data Flow
+**What:** `formatData()` in format.ts uses duck-typing to detect output shape and call the right formatter. New data shapes need new detection rules AND a fallback via `formatGeneric()`.
 
-### Authentication Flow
+**When to use:** Every new output type that needs human-readable formatting.
 
-```
-User runs `telegram-cli login`
-    |
-    v
-CLI parses command --> AuthService.login()
-    |
-    v
-Check existing session file --> Found?
-    |                             |
-    | No                          | Yes
-    v                             v
-Prompt phone number          Load session, connect, verify
-    |                             |
-    v                             | Valid?
-Telegram sends code              |
-    |                          Yes |   | No
-    v                             v    v
-Prompt code --> Submit       Connected  Clear session,
-    |                                   restart flow
-    v
-2FA enabled? --> Prompt password
-    |
-    v
-Save session to file
-    |
-    v
-formatter.success("Logged in as @username")
-```
+**Important ordering:** Detection rules are checked top-to-bottom. More specific shapes (e.g., UserProfile with `bio` + `lastSeen`) must come before generic ones (e.g., single object with `id`). The fallback `formatGeneric()` handles anything unmatched as pretty-printed JSON, so new features work immediately even without a custom formatter.
 
-### Message Retrieval Flow
+### Pattern 4: TOON as a Fourth Output Mode
 
-```
-User runs `telegram-cli messages:history <chat> --limit 50`
-    |
-    v
-CLI parses args --> MessageService.getHistory(chatId, { limit: 50 })
-    |
-    v
-ClientWrapper.getClient() --> Connect if needed
-    |
-    v
-Resolve chat entity (username/ID/phone --> InputPeer)
-    |
-    v
-client.getMessages(entity, { limit: 50 })
-    |
-    v
-Transform Api.Message[] --> DomainMessage[]
-  (extract text, sender name, date, media info, reply-to, reactions)
-    |
-    v
-Return to CLI command handler
-    |
-    v
-formatter.messages(messages, total)
-    |                    |
-    v                    v
-  --json?             Human mode:
-  JSON.stringify      Table with columns:
-  to stdout           [Date | Sender | Message | Media]
-```
+**What:** TOON joins JSON/human/JSONL as a parallel output mode. It follows the same module-level flag pattern (`_toonMode`, `setToonMode()`). Implementation lives in a dedicated `toon.ts` module to keep `output.ts` clean.
 
-### Media Download Flow
-
-```
-User runs `telegram-cli media:download <message-id> --chat <chat> --output ./file.jpg`
-    |
-    v
-CLI parses args --> MediaService.download(chatId, messageId, outputPath)
-    |
-    v
-Fetch message --> Extract media attachment
-    |
-    v
-Determine media type (photo, document, video, voice, sticker)
-    |
-    v
-client.downloadMedia(message, { outputFile: path })
-    |
-    v
-gramjs handles chunked download (offset, limit protocol)
-    |
-    v
-Write to disk (or stdout for piping)
-    |
-    v
-formatter.success("Downloaded 2.3MB to ./file.jpg")
-```
-
-### Search Flow (Primary Agent Use Case)
-
-```
-Agent runs `telegram-cli messages:search "deployment error" --limit 10 --json`
-    |
-    v
-CLI parses args --> SearchService.search({ query, limit })
-    |
-    v
-If --chat specified: search single chat
-If not: iterate recent dialogs, search each (with rate limiting)
-    |
-    v
-For each chat: client.iterMessages(entity, { search: query, limit })
-    |
-    v
-Aggregate results, sort by relevance/date
-    |
-    v
-Transform to DomainMessage[] with chat context
-    |
-    v
-JSON to stdout:
-[{ "chat": "DevOps", "sender": "alice", "date": "2026-03-09", "text": "..." }, ...]
-```
-
-### Key Data Flows
-
-1. **Command Input Flow:** CLI args --> Validated params --> Service method --> gramjs API call --> Domain object --> Formatter --> stdout/stderr
-2. **Session Lifecycle:** First run: interactive auth --> save session. Subsequent runs: load session --> connect --> verify --> use. Session export: load session --> encode as string --> output.
-3. **Error Propagation:** gramjs error --> ClientWrapper classifies (FloodWait / DCMigration / Auth / Network / API) --> handled internally or thrown as typed AppError --> CLI catches --> formatter.error() --> stderr (exit code 1)
-
-## Scaling Considerations
-
-This is a single-user CLI tool, not a server. "Scaling" means handling Telegram API rate limits and large data sets gracefully.
-
-| Concern | Approach |
-|---------|----------|
-| Rate limits (FloodWait) | Auto-sleep on FLOOD_WAIT_X errors < 60s; abort with message for longer waits |
-| Large message histories | Stream with iterMessages (generator), paginate internally, respect --limit |
-| Large file downloads | gramjs handles chunked transfers; show progress bar in human mode |
-| Many chats to search | Sequential with backoff; support --chat filter to narrow scope |
-| Session across environments | StringSession export/import for portability between machines |
-
-### Rate Limit Strategy
-
-1. **First priority:** Respect FLOOD_WAIT_X -- sleep for the specified duration automatically
-2. **Second priority:** Add voluntary delays between bulk operations (e.g., searching across 50 chats)
-3. **Third priority:** Cache entity resolutions to reduce redundant API calls
+**Trade-offs:** Adding another mode increases the output.ts branching complexity. However, the pattern is already established for JSONL (flag + mode check + early return), so TOON follows naturally. The `toon.ts` module mirrors `format.ts` structure (auto-dispatch + per-type formatters).
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Direct gramjs Imports in Commands
+### Anti-Pattern 1: Mixing Command Groups by Entity Type
 
-**What people do:** Import `TelegramClient` and `Api` directly in CLI command files, mixing protocol concerns with CLI concerns.
-**Why it's wrong:** Creates tight coupling. Every command becomes a mini-client. Testing requires mocking gramjs. Changing gramjs usage (e.g., error handling) requires touching every command file.
-**Do this instead:** Commands call services. Services call the client wrapper. Only the client wrapper imports gramjs.
+**What people do:** Put `block` under `chat` because blocking happens "in a chat context", or put `profile` under `chat info` because "a user is a chat type".
 
-### Anti-Pattern 2: Synchronous Session Management
+**Why it's wrong:** The existing `chat` group is about dialogs/peers. User identity operations (profile, block) and contacts (phone-book entries) are distinct Telegram concepts. Mixing them creates confusing UX (`tg chat block`? `tg chat profile`?).
 
-**What people do:** Load and verify the session at CLI startup for every command, even commands like `--help` or `--version`.
-**Why it's wrong:** Adds 500ms-2s latency to every invocation. Session verification requires a network round-trip.
-**Do this instead:** Lazy connection -- only connect to Telegram when a command actually needs it. Help, version, and config commands should run instantly.
+**Do this instead:** Create dedicated `user` and `contact` command groups. This matches Telegram's own API namespaces (`users.*`, `contacts.*`) and keeps the CLI taxonomy clean.
 
-### Anti-Pattern 3: Mixing stdout and stderr
+### Anti-Pattern 2: Duplicating Session/Client Boilerplate
 
-**What people do:** Print status messages, progress, and results all to stdout.
-**Why it's wrong:** Breaks piping and `--json` mode. When an agent parses `telegram-cli messages:search "x" --json`, stdout must contain only valid JSON. Progress messages or "Connecting..." text corrupts the JSON stream.
-**Do this instead:** Data goes to stdout. Everything else (progress, status, errors, warnings) goes to stderr. In JSON mode, stderr gets structured JSON errors; stdout gets the data payload.
+**What people do:** Copy-paste the config/store/withLock/withClient chain into every action, making slight modifications.
 
-### Anti-Pattern 4: Exposing Telegram Internal Types
+**Why it's wrong:** The boilerplate is ~12 lines of identical code in every action. Any change (e.g., adding a new global option) requires touching every file.
 
-**What people do:** Return gramjs `Api.Message` or `Api.Dialog` objects directly from services.
-**Why it's wrong:** These types contain protocol-level details (access_hash, pts, flags) that leak implementation. They also serialize poorly to JSON and change between gramjs versions.
-**Do this instead:** Define app-domain types (`DomainMessage`, `DomainChat`) and transform gramjs objects in the service layer. Domain types have clean, stable shapes that serialize naturally to JSON.
+**Do this instead:** For v1.1, keep the existing pattern for consistency (every existing command uses it). The boilerplate is repetitive but explicit and debuggable. A future refactor could extract a `withSession()` helper, but v1.1 should not introduce that abstraction mid-flight.
 
-### Anti-Pattern 5: Storing API Credentials in Config Files
+### Anti-Pattern 3: Forgetting to Update the Output Pipeline
 
-**What people do:** Save `api_id` and `api_hash` in a config file alongside the session.
-**Why it's wrong:** These are application-level secrets. If shared (e.g., in a dotfiles repo), they could be used to impersonate the application.
-**Do this instead:** Use environment variables (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`) as primary mechanism, with fallback to a config file that has restrictive permissions (0600). Provide built-in defaults for convenience (many Telegram clients ship with embedded credentials).
+**What people do:** Add a new command that returns a new data shape, forget to add a human formatter, forget to add the list key to LIST_KEYS.
+
+**Why it's wrong:** The command works in JSON mode but breaks in `--human` (falls through to `formatGeneric` which dumps raw JSON) or `--jsonl` (silently outputs nothing because the list key isn't recognized).
+
+**Do this instead:** For every new output shape:
+1. Add TypeScript interface to `types.ts`
+2. Add serializer to `serialize.ts`
+3. Add human formatter to `format.ts` AND add detection rule in `formatData()`
+4. Add TOON formatter to `toon.ts`
+5. If it's a list: add the key to `LIST_KEYS` in `fields.ts`
+
+### Anti-Pattern 4: Using Raw API When High-Level Exists
+
+**What people do:** Use `client.invoke(new Api.messages.DeleteMessages({ ... }))` instead of `client.deleteMessages()`.
+
+**Why it's wrong:** The high-level method handles important edge cases: channels need `channels.DeleteMessages` (not `messages.DeleteMessages`), the method figures out the right API call based on entity type. Using raw API means you have to handle channel vs chat yourself.
+
+**Do this instead:** Check if gramjs TelegramClient has a high-level method first (see `node_modules/telegram/client/messages.d.ts`). Use raw invoke only for APIs without high-level wrappers (GetFullUser, contacts.*, SendMedia for polls).
 
 ## Integration Points
 
-### External Services
+### gramjs API Methods Required
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Telegram MTProto (DCs 1-5) | gramjs TelegramClient, persistent TCP connections | gramjs handles DC selection, migration, reconnection internally |
-| Telegram CDN (media) | gramjs downloadMedia/uploadFile | Chunked transfer; gramjs manages the protocol. CLI handles file I/O |
-| my.telegram.org | Manual one-time setup by user | api_id and api_hash obtained once, stored in env/config |
+| Feature | gramjs Method | Type | Notes |
+|---------|--------------|------|-------|
+| User profile | `client.invoke(new Api.users.GetFullUser({ id }))` | Raw | Returns UserFull with bio, common chats count, photos count |
+| Get messages by ID | `client.getMessages(entity, { ids })` | High-level | Handles channel vs chat automatically |
+| Get pinned | `client.getMessages(entity, { filter: InputMessagesFilterPinned })` | High-level | Or use message search with pinned filter (already exists) |
+| Edit message | `client.editMessage(entity, { message, text })` | High-level | Returns edited Message, 48h time limit enforced by API |
+| Delete messages | `client.deleteMessages(entity, ids, { revoke })` | High-level | `revoke` = delete for everyone |
+| Pin message | `client.pinMessage(entity, msgId)` | High-level | notify defaults to false |
+| Unpin message | `client.unpinMessage(entity, msgId)` | High-level | undefined msgId = unpin all |
+| List contacts | `client.invoke(new Api.contacts.GetContacts({ hash: bigInt(0) }))` | Raw | hash=0 forces full list |
+| Add contact | `client.invoke(new Api.contacts.AddContact({ id, firstName, lastName, phone }))` | Raw | id is InputUser |
+| Delete contacts | `client.invoke(new Api.contacts.DeleteContacts({ id: [...] }))` | Raw | Takes array of InputUser |
+| Search contacts | `client.invoke(new Api.contacts.Search({ q, limit }))` | Raw | Returns Found with users + chats |
+| Block user | `client.invoke(new Api.contacts.Block({ id }))` | Raw | id is InputPeer |
+| Unblock user | `client.invoke(new Api.contacts.Unblock({ id }))` | Raw | id is InputPeer |
+| Send poll | `client.invoke(new Api.messages.SendMedia({ peer, media: InputMediaPoll, message }))` | Raw | Complex construction needed |
 
-### Internal Boundaries
+### Internal Module Boundaries
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| CLI <--> Services | Direct function calls, typed params/returns | Commands pass validated options; services return domain objects |
-| Services <--> Client Wrapper | Async method calls on singleton | Services never hold TelegramClient references directly |
-| Client Wrapper <--> gramjs | gramjs TelegramClient API | Only layer that imports from `telegram` package |
-| Commands <--> Formatters | Commands call formatter methods with domain objects | Formatter selected once at startup based on --json flag |
-| Config <--> All layers | Imported config object | Read-only after initialization; env vars > config file > defaults |
+| Boundary | Communication | Modifications |
+|----------|---------------|---------------|
+| tg.ts -> user/index.ts | `program.addCommand(createUserCommand())` | Add import + registration |
+| tg.ts -> contact/index.ts | `program.addCommand(createContactCommand())` | Add import + registration |
+| tg.ts -> output.ts | `setToonMode()` in preAction | Add TOON flag handling |
+| message/index.ts -> new actions | Import + Commander wiring | Add 6 new subcommand definitions |
+| output.ts -> toon.ts | `toonFormat(data)` call | New dependency |
+| serialize.ts -> types.ts | New interfaces | Add UserProfile, ContactItem, PollInfo |
+| format.ts -> types.ts | New interfaces for type assertions | Import new types |
+| fields.ts | LIST_KEYS constant | Add 'contacts' |
 
-## Build Order (Dependency Graph)
+## Build Order (dependency-aware)
 
-Components should be built in this order based on dependencies:
+The features have these dependencies:
 
 ```
-Phase 1: Foundation
-  types/          -- Domain types, no dependencies
-  config/         -- Config loading, no dependencies
-  client/session  -- Session load/save, depends on config
-
-Phase 2: Connection
-  client/telegram -- Client wrapper, depends on session + config
-  client/errors   -- Error classification, no external deps
-
-Phase 3: Core Services
-  services/auth   -- Depends on client wrapper + session
-  services/chat   -- Depends on client wrapper
-  services/message -- Depends on client wrapper
-
-Phase 4: CLI Shell
-  formatters/     -- Depends on types only
-  cli/index       -- Entry point, commander setup, global opts
-  cli/auth        -- Depends on auth service + formatter
-  cli/chats       -- Depends on chat service + formatter
-  cli/messages    -- Depends on message service + formatter
-
-Phase 5: Extended Features
-  services/media  -- Depends on client wrapper
-  services/search -- Depends on message service
-  cli/media       -- Depends on media service + formatter
-
-Phase 6: Polish
-  client/entity-cache -- Performance optimization
-  Progress indicators, shell completions, session export/import
+types.ts (new interfaces)
+    |
+    +-- serialize.ts (new serializers depend on types)
+    |       |
+    |       +-- All new commands (depend on serializers)
+    |
+    +-- format.ts (new formatters depend on types)
+    |
+    +-- toon.ts (depends on types, mirrors format.ts)
+    |       |
+    |       +-- output.ts (depends on toon.ts)
+    |               |
+    |               +-- tg.ts (depends on output.ts for new mode)
+    |
+    +-- fields.ts (trivial: add one key)
 ```
 
-**Rationale:** Types and config have zero dependencies, so they come first. The client wrapper is the critical integration point -- nothing works without it. Auth is next because you cannot test any other feature without being logged in. Core services (chat listing, message reading) validate the architecture end-to-end. Extended features (media, search) build on the proven foundation.
+**Recommended build order:**
+
+1. **Foundation types + serializers** -- types.ts additions, serialize.ts additions
+2. **Message get + pinned** -- simplest new commands, reuse existing MessageItem type and formatMessages
+3. **Message edit + delete + pin/unpin** -- next simplest, use high-level gramjs methods, minimal new types
+4. **User profile + block/unblock** -- new command group, new UserProfile type, new formatter
+5. **Contacts CRUD** -- new command group, new ContactItem type, new formatter
+6. **Poll creation** -- most complex gramjs construction (InputMediaPoll), extends MessageItem
+7. **TOON output format** -- cross-cutting concern, add last so all data shapes exist for testing
+8. **Output pipeline wiring** -- tg.ts --toon option, mutual exclusion, toon.ts formatters
 
 ## Sources
 
-- [gramjs GitHub repository](https://github.com/gram-js/gramjs) -- source code structure and module organization
-- [gramjs authentication documentation](https://gram.js.org/getting-started/authorization) -- auth flow, session types
-- [gramjs quick start](https://gram.js.org/) -- client initialization, basic usage
-- [Telegram MTProto protocol](https://core.telegram.org/mtproto) -- protocol architecture
-- [Telegram MTProto detailed description](https://core.telegram.org/mtproto/description) -- sessions, connections, auth keys
-- [Telegram file upload/download API](https://core.telegram.org/api/files) -- chunking, size limits, parallelism
-- [Telegram API error handling](https://core.telegram.org/api/errors) -- error codes, FloodWait, DC migration
-- [Telegram chat types](https://core.telegram.org/api/channel) -- groups, supergroups, channels, forums
-- [Telegram forums API](https://core.telegram.org/api/forum) -- forum topics
-- [Commander.js](https://github.com/tj/commander.js) -- CLI framework
-- [chalk](https://github.com/chalk/chalk) -- terminal styling
+- [gramjs users.GetFullUser docs](https://painor.gitbook.io/gramjs/working-with-other-users/users.getfulluser)
+- [gramjs contacts.GetContacts docs](https://painor.gitbook.io/gramjs/working-with-contacts-and-top-peers/contacts.getcontacts)
+- [gramjs contacts.AddContact docs](https://painor.gitbook.io/gramjs/working-with-contacts-and-top-peers/contacts.addcontact)
+- [gramjs contacts.Search docs](https://painor.gitbook.io/gramjs/working-with-contacts-and-top-peers/contacts.search)
+- [gramjs messages.EditMessage docs](https://painor.gitbook.io/gramjs/working-with-messages/messages.editmessage)
+- [gramjs messages.DeleteMessages docs](https://painor.gitbook.io/gramjs/working-with-messages/messages.deletemessages)
+- [gramjs messages.GetMessages docs](https://gram.js.org/tl/messages/GetMessages)
+- [gramjs InputMediaPoll class](https://gram.js.org/beta/classes/Api.InputMediaPoll.html)
+- [Telegram core API - contacts.Block](https://core.telegram.org/api/block)
+- [Telegram core API - Polls](https://core.telegram.org/api/poll)
+- [gramjs client messages.d.ts](local: node_modules/telegram/client/messages.d.ts) -- HIGH confidence, verified locally
+- [gramjs client users.d.ts](local: node_modules/telegram/client/users.d.ts) -- HIGH confidence, verified locally
+- Existing codebase patterns -- HIGH confidence, verified by reading all source files
 
 ---
-*Architecture research for: Telegram CLI Client (MTProto via gramjs)*
-*Researched: 2026-03-10*
+*Architecture research for: Telegram CLI v1.1 feature integration*
+*Researched: 2026-03-12*

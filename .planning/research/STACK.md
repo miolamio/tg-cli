@@ -1,202 +1,325 @@
 # Stack Research
 
-**Domain:** Telegram CLI client (MTProto user client, not Bot API)
-**Researched:** 2026-03-10
+**Domain:** Telegram CLI v1.1 -- new feature additions (user profiles, contacts, message management, block/unblock, TOON output, polls)
+**Researched:** 2026-03-12
 **Confidence:** HIGH
 
-## Recommended Stack
+**Scope:** This research covers ONLY the stack additions and changes needed for v1.1 features. The existing validated stack (gramjs, Commander, Conf, picocolors, Zod, tsup, vitest) is NOT re-evaluated -- it ships as-is.
 
-### Core Technologies
+## Recommended Stack Additions
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| TypeScript | ^5.9 | Language | Required by project constraints. gramjs ships TypeScript definitions; commander has built-in types. Type safety is critical for the complex Telegram API surface (hundreds of message types, media variants, etc.). |
-| Node.js | >=20 LTS | Runtime | gramjs targets Node.js. Node 20 is current LTS with stable ESM interop, native `crypto`, and `node:fs/promises`. Node 22 LTS also acceptable. |
-| `telegram` (gramjs) | ^2.26.22 | MTProto client | The only actively maintained, high-level MTProto library for JS/TS. 80K+ weekly npm downloads. Based on Python's Telethon (battle-tested protocol implementation). Provides StringSession for portable auth, full MTProto API coverage, media upload/download, and 2FA support. Last published Feb 2025 -- active community forks keep it current. |
-| Commander.js | ^14.0.3 | CLI framework | Zero dependencies. 500M+ weekly downloads. CJS module type (matches gramjs, avoids ESM interop issues). v14 supports deeply nested subcommands (ideal for `telegram-cli chat list`, `telegram-cli message search` patterns). TypeScript definitions included. Fastest startup (18ms vs 35ms yargs, 85ms oclif). For a CLI that Claude Code agents call thousands of times, startup time matters. |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `@inquirer/prompts` | ^8.3.0 | Interactive prompts | Auth flow only -- phone number, verification code, 2FA password input. Modern ESM rewrite of inquirer with tree-shakeable individual prompt imports. |
-| `zod` | ^4.3.6 | Schema validation | Validate config files, API responses, CLI option shapes. Critical for `--json` output contracts -- define schemas once, use for both validation and TypeScript types. |
-| `conf` | ^15.1.0 | Config management | Stores api_id, api_hash, default output format, session file paths. XDG-compliant config directory, atomic writes, schema validation support. |
-| `picocolors` | ^1.1.1 | Terminal colors | Human-readable output colorization (errors red, success green, etc.). Zero dependencies, 3x smaller than chalk, works in both CJS and ESM contexts. No ESM-only headaches. |
-| `ora` | ^9.3.0 | Loading spinners | Long-running operations (auth flow, media upload/download, large searches). ESM-only but fine since we build with tsup which handles interop. Only used in human-readable mode, never in `--json` mode. |
-| `socks` | ^2.8 | SOCKS proxy | Already a gramjs dependency. Exposes proxy support for users behind restrictive networks. No additional install needed. |
-
-### Database / Storage
+### New Runtime Dependency
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| File-based StringSession | (gramjs built-in) | Session persistence | gramjs StringSession.save() returns an encrypted string that can be written to `~/.config/telegram-cli/session`. No database needed. Portable -- can be exported/imported as a single string. |
-| Node.js `node:crypto` | (built-in) | Session encryption at rest | Encrypt session strings on disk with AES-256-GCM using a user-provided passphrase or machine-derived key. No native modules needed. |
-| `conf` | ^15.1.0 | Config storage | JSON config file at XDG config path. Handles api_id/api_hash, preferences, session metadata. |
+| `@toon-format/toon` | ^2.1.0 | TOON output format (`--toon` flag) | The official reference implementation of TOON (Token-Oriented Object Notation). Zero dependencies. Pure ESM with TypeScript declarations (`.d.mts`). Exports `encode(data)` and `decode(toon)` -- we only need `encode`. Achieves ~40% fewer tokens than JSON for structured data while maintaining 99%+ LLM parsing accuracy. Lossless round-trip: `decode(encode(x)) === x`. Particularly effective for this project because message lists and chat data are "uniform arrays of objects" -- TOON's sweet spot where it collapses field names into a schema header and streams row values CSV-style. |
 
-### Build & Development Tools
+### No Other New Dependencies Needed
 
-| Tool | Version | Purpose | Notes |
-|------|---------|---------|-------|
-| `tsup` | ^8.5.1 | Build/bundle | esbuild-based bundler. Outputs CJS for npm distribution with `"bin"` entry. Handles ESM dependencies (ora, conf) by bundling them. Tree-shakes unused code. Single config file. |
-| `tsx` | ^4.21.0 | Dev runner | TypeScript execution without compilation for development. Drop-in `node` replacement. |
-| `vitest` | ^4.0.18 | Testing | Fast, TypeScript-native test runner. Compatible with tsup build pipeline. Mock support for gramjs client in tests. |
-| `eslint` | ^10.0.3 | Linting | Flat config format (eslint.config.ts). With `typescript-eslint` ^8.57 for type-aware rules. |
-| `typescript-eslint` | ^8.57.0 | TS lint rules | Type-checked linting catches real bugs (no floating promises, no misused awaits). |
+Every other v1.1 feature is implemented using **existing gramjs API methods** and **existing project infrastructure**. This is the correct outcome -- gramjs already wraps the full MTProto API surface. Adding libraries for features that gramjs handles natively would be wrong.
+
+## gramjs API Methods for v1.1 Features
+
+All v1.1 features map directly to gramjs methods. No additional Telegram client library or wrapper is needed.
+
+### User Profiles
+
+| Operation | gramjs Method | Confidence |
+|-----------|--------------|------------|
+| Get full user info (bio, photo, common chats count) | `client.invoke(new Api.users.GetFullUser({ id }))` | HIGH |
+| Get common chats with a user | `client.invoke(new Api.messages.GetCommonChats({ userId, maxId: 0, limit: 100 }))` | HIGH |
+
+**Key return type:** `Api.users.UserFull` contains:
+- `about` (string) -- user bio
+- `commonChatsCount` (number) -- mutual chat count
+- `profilePhoto`, `personalPhoto`, `fallbackPhoto` -- profile pictures
+- `blocked` (boolean), `phoneCallsAvailable`, `videoCallsAvailable`
+- `pinnedMsgId`, `canPinMessage`
+- `premiumGifts`, `ttlPeriod`, `themeEmoticon`
+- `botInfo` (for bot users)
+
+**Integration point:** Create a `serializeUserFull()` function in `serialize.ts` alongside existing `serializeMessage()`, `serializeMember()`, etc. Reuse `bigIntToString()` for the user ID.
+
+### Contacts Management
+
+| Operation | gramjs Method | Confidence |
+|-----------|--------------|------------|
+| List contacts | `client.invoke(new Api.contacts.GetContacts({ hash: bigInt(0) }))` | HIGH |
+| Add contact | `client.invoke(new Api.contacts.AddContact({ id, firstName, lastName, phone }))` | HIGH |
+| Delete contacts | `client.invoke(new Api.contacts.DeleteContacts({ id: [userId] }))` | HIGH |
+| Search contacts | `client.invoke(new Api.contacts.Search({ q: query, limit }))` | HIGH |
+
+**Important:** `contacts.AddContact` cannot be used by bots and requires the user to already exist on Telegram -- it links an existing Telegram user to your contact list by their InputUser ID, not by phone number alone. For importing new contacts by phone, use `contacts.ImportContacts` instead. The project should support both patterns.
+
+### Message Management
+
+| Operation | gramjs Method | Confidence |
+|-----------|--------------|------------|
+| Get messages by ID | `client.getMessages(entity, { ids: [42, 43, 44] })` | HIGH |
+| Get pinned messages | `client.getMessages(entity, { filter: new Api.InputMessagesFilterPinned() })` | HIGH |
+| Edit message | `client.editMessage(entity, { message: msgId, text: newText })` | HIGH |
+| Delete messages | `client.deleteMessages(entity, [msgId1, msgId2], { revoke: true })` | HIGH |
+| Pin message | `client.pinMessage(entity, msgId, { notify: false })` | HIGH |
+| Unpin message | `client.unpinMessage(entity, msgId)` | HIGH |
+| Unpin all messages | `client.unpinMessage(entity)` (no msgId = unpin all) | HIGH |
+
+**High-level client methods** (`client.editMessage`, `client.deleteMessages`, `client.pinMessage`, `client.unpinMessage`, `client.getMessages`) are preferred over raw `client.invoke(new Api.messages.*)` calls because:
+1. They handle entity resolution internally
+2. They return properly typed `Message` objects
+3. They match the pattern already used in the codebase (`client.sendMessage` in `message/send.ts`)
+
+**Edit limitations to surface in CLI help:**
+- Only your own messages can be edited
+- Time limit applies (48 hours for regular users in non-channel chats)
+- Channel admins can edit channel posts indefinitely
+
+**Delete considerations:**
+- `revoke: true` deletes for everyone; `revoke: false` deletes only for you
+- Service messages cannot be deleted (error: MESSAGE_DELETE_FORBIDDEN)
+- gramjs processes deletes in chunks of 100 internally
+
+### Block/Unblock
+
+| Operation | gramjs Method | Confidence |
+|-----------|--------------|------------|
+| Block user | `client.invoke(new Api.contacts.Block({ id: inputUser }))` | HIGH |
+| Unblock user | `client.invoke(new Api.contacts.Unblock({ id: inputUser }))` | HIGH |
+| List blocked users | `client.invoke(new Api.contacts.GetBlocked({ offset, limit }))` | HIGH |
+
+**Note:** These are raw `Api.contacts.*` invoke calls -- there are no high-level client convenience methods for blocking. This matches the pattern used for `Api.users.GetFullUser` and `Api.contacts.GetContacts`.
+
+### Polls
+
+| Operation | gramjs Method | Confidence |
+|-----------|--------------|------------|
+| Send poll | `client.invoke(new Api.messages.SendMedia({ peer, media: inputMediaPoll }))` | HIGH |
+
+**Poll construction requires assembling three nested types:**
+
+```typescript
+const poll = new Api.InputMediaPoll({
+  poll: new Api.Poll({
+    id: bigInt(0),  // Server assigns actual ID
+    question: new Api.TextWithEntities({ text: "Question?", entities: [] }),
+    answers: [
+      new Api.PollAnswer({ text: new Api.TextWithEntities({ text: "Yes", entities: [] }), option: Buffer.from("0") }),
+      new Api.PollAnswer({ text: new Api.TextWithEntities({ text: "No", entities: [] }), option: Buffer.from("1") }),
+    ],
+    // Optional flags:
+    publicVoters: false,    // Anonymous voting (default)
+    multipleChoice: false,  // Single choice (default)
+    quiz: false,            // Regular poll, not quiz
+    closePeriod: 600,       // Auto-close after N seconds (5-600)
+  }),
+  // Quiz-only fields:
+  correctAnswers: [Buffer.from("0")],  // Only for quiz: true
+  solution: "Explanation text",         // Only for quiz: true
+});
+```
+
+**Limits (from Telegram API):**
+- 2-10 answer options (poll_answers_max config value, typically 10)
+- Question length: up to 255 characters
+- Answer text: up to 100 characters each
+- Solution text: up to 200 characters, max 2 line feeds
+- Close period: 5-600 seconds
+
+### TOON Output Format
+
+**Integration into existing output pipeline:**
+
+The TOON format plugs into the existing `output.ts` output mode system. Currently there are three modes: JSON (default), human-readable (`--human`), and JSONL (`--jsonl`). TOON becomes a fourth mode (`--toon`).
+
+```typescript
+// In output.ts -- add alongside existing modes:
+import { encode } from '@toon-format/toon';
+
+let _toonMode = false;
+
+export function setToonMode(enabled: boolean): void {
+  _toonMode = enabled;
+}
+
+// In outputSuccess():
+if (_toonMode) {
+  process.stdout.write(encode(data) + '\n');
+  return;
+}
+```
+
+**In tg.ts -- add the global option:**
+```typescript
+program.option('--toon', 'TOON output format (token-efficient for LLMs)');
+```
+
+**Mutual exclusivity:** `--toon` is mutually exclusive with `--human` and `--jsonl`. It is compatible with `--fields` (apply field selection before TOON encoding).
+
+**Why this works well:** TOON's `encode()` accepts any JSON-serializable value and returns a string. The existing `outputSuccess<T>(data: T)` pipeline already constructs plain objects before output -- TOON slots in without changing any command implementations.
+
+## No New Dependencies Needed (Verification)
+
+| Feature | Why No New Dep |
+|---------|---------------|
+| User profiles | gramjs `Api.users.GetFullUser` -- raw invoke, serialize response |
+| Contacts CRUD | gramjs `Api.contacts.*` namespace -- complete CRUD coverage |
+| Get messages by ID | gramjs `client.getMessages({ ids })` -- existing high-level method |
+| Get pinned messages | gramjs `client.getMessages({ filter: InputMessagesFilterPinned })` |
+| Edit messages | gramjs `client.editMessage()` -- existing high-level method |
+| Delete messages | gramjs `client.deleteMessages()` -- existing high-level method |
+| Pin/unpin | gramjs `client.pinMessage()` / `client.unpinMessage()` |
+| Block/unblock | gramjs `Api.contacts.Block` / `Api.contacts.Unblock` |
+| Polls | gramjs `Api.InputMediaPoll` + `Api.messages.SendMedia` |
+| TOON output | `@toon-format/toon` (single new dependency) |
 
 ## Installation
 
 ```bash
-# Core dependencies
-npm install telegram commander zod conf picocolors
-
-# Interactive prompts (for auth flow)
-npm install @inquirer/prompts
-
-# Spinner for human-readable output
-npm install ora
-
-# Dev dependencies
-npm install -D typescript tsup tsx vitest eslint @eslint/js typescript-eslint @types/node
+# Single new dependency for v1.1
+npm install @toon-format/toon
 ```
 
-## Module System Strategy
-
-**This is the single most important architectural decision for this stack.**
-
-gramjs (`telegram` package) is **CommonJS**. Several modern libraries (chalk 5, ora 9, conf 15, @inquirer/prompts 8) are **ESM-only**.
-
-**Solution: Build as ESM, bundle with tsup.**
-
-```jsonc
-// package.json
-{
-  "type": "module",
-  "bin": { "telegram-cli": "./dist/cli.js" },
-  "exports": { ".": "./dist/index.js" }
-}
-```
-
-```typescript
-// tsup.config.ts
-export default defineConfig({
-  entry: ["src/cli.ts"],
-  format: ["esm"],
-  target: "node20",
-  splitting: false,
-  clean: true,
-  // gramjs CJS gets transpiled to ESM by esbuild
-  // ESM-only deps (ora, conf) work natively
-});
-```
-
-tsup (esbuild under the hood) handles CJS-to-ESM conversion of gramjs seamlessly. This gives us clean ESM output and compatibility with all dependencies regardless of their module format.
-
-**Alternative considered:** Staying CJS and using dynamic `import()` for ESM deps. Rejected because it litters the codebase with async imports and creates confusing code paths.
+No new dev dependencies needed. Existing vitest, tsup, and TypeScript toolchain handles everything.
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| gramjs (`telegram`) | `mtproto-core` | Never for this project. mtproto-core is low-level -- you must construct every API call manually. gramjs provides high-level methods (sendMessage, getMessages, downloadMedia) that save months of work. mtproto-core last published Dec 2023. |
-| gramjs (`telegram`) | `mtproto-nodejs-client` | If you need minimal dependencies and are comfortable with low-level MTProto. Published Nov 2025 (v8.0.1), actively maintained, but lacks gramjs's high-level abstractions. You would need to implement message parsing, media handling, and session management yourself. |
-| gramjs (`telegram`) | `tgsnake` | If gramjs becomes truly abandoned. tgsnake is a newer MTProto framework but has much smaller community (fewer npm downloads, fewer GitHub stars). Higher risk of encountering undocumented edge cases. |
-| Commander.js | Yargs | If you need built-in shell completion and typo suggestions. Yargs has 7 dependencies (vs 0 for Commander) and 2x slower startup. The completion features are unnecessary for agent-consumed CLI tools. |
-| Commander.js | Oclif | If building a multi-package CLI framework with plugins. Oclif has ~30 dependencies, 85ms startup, and heavy scaffolding. Extreme overkill for a single-purpose CLI. |
-| Commander.js | `clipanion` | If building a Yarn-style tool where commands are class-based. Good TypeScript support but smaller ecosystem and less documentation than Commander. |
-| picocolors | chalk 5 | If you need 256-color/truecolor support or tagged template literals. chalk 5 is ESM-only (fine with our tsup setup) but 3x heavier. picocolors covers all the color needs of a CLI tool. |
-| picocolors | `ansis` | If you need chalk-like chaining API with CJS+ESM dual support. ansis (v4.2) is a good middle ground but picocolors is more widely adopted. |
-| `conf` | `cosmiconfig` | If you need to support multiple config file formats (YAML, TOML, etc.). Unnecessary complexity for this project -- JSON config is sufficient. |
-| File-based session | `keytar` (system keychain) | Never. keytar is archived (atom/node-keytar), requires native compilation (fails in many CI/container environments), and makes `npx` usage impossible due to prebuild requirements. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `@toon-format/toon` (official) | `@toon-format-cjs/toon` (CJS fork) | Project is already ESM. The official package is ESM with `.d.mts` types, which is exactly what we need. The CJS fork exists for legacy projects. |
+| `@toon-format/toon` (official) | `@byjohann/toon` (community fork) | Unofficial fork. Fewer downloads. No reason to use when the official package works and is actively maintained. |
+| `@toon-format/toon` (official) | Custom TOON implementation | TOON spec has 358+ test fixtures and edge cases. Implementing from scratch is error-prone and maintenance burden. The official package is zero-dep and small -- no reason to reinvent. |
+| `@toon-format/toon` | YAML output mode | YAML is not optimized for LLM token consumption. TOON achieves 40% fewer tokens than JSON; YAML typically saves only 10-15% and introduces ambiguity (string/number coercion, multiline surprises). TOON was purpose-built for this use case. |
+| gramjs high-level methods | Raw `Api.messages.*` invocations | Use high-level methods (`client.editMessage`, `client.deleteMessages`, `client.pinMessage`) when available because they handle entity resolution and return typed Message objects. Fall back to raw `client.invoke()` only for features without high-level wrappers (GetFullUser, contacts, block, polls). |
+| gramjs `Api.contacts.AddContact` | `Api.contacts.ImportContacts` | AddContact links an existing Telegram user by ID. ImportContacts imports contacts by phone number (creates them if the phone is on Telegram). Offer both: `tg contact add <user>` for by-ID and consider `--phone` flag for phone import. |
 
-## What NOT to Use
+## What NOT to Add
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `telegram-mtproto` | Last published October 2017. Completely abandoned. Will not work with current Telegram API. | gramjs (`telegram`) |
-| `telegram-mt-node` | Ancient, unmaintained, incomplete MTProto implementation. | gramjs (`telegram`) |
-| `chalk` 5.x directly | ESM-only, heavyweight for our needs. If bundling anyway, the ESM issue is moot, but picocolors is still smaller and faster. | `picocolors` for basic colors |
-| `keytar` | Archived. Requires native compilation. Breaks `npx` zero-install story. Pulls in node-gyp. | File-based encrypted session with `node:crypto` |
-| `inquirer` (legacy) | Old callback-based API, monolithic package. | `@inquirer/prompts` (modern, tree-shakeable) |
-| `vorpal` | Abandoned CLI framework, last published 2016. | Commander.js |
-| `caporal` | Abandoned CLI framework. | Commander.js |
-| Telegram Bot API (`node-telegram-bot-api`, `telegraf`, `grammy`) | These are Bot API wrappers. This project is a user client via MTProto. Bot API cannot: search messages across groups as a user, access message history, join channels as a user, etc. Fundamentally different protocol. | gramjs (`telegram`) for MTProto user client |
-| `oclif` | 30+ dependencies, 85ms startup, generates massive boilerplate. Designed for enterprise multi-plugin CLIs like Heroku/Salesforce. Absurd overkill for a single-purpose tool. | Commander.js |
-
-## Stack Patterns by Variant
-
-**If targeting `npx` zero-install (primary use case):**
-- Bundle everything with tsup into a single output file
-- No native dependencies (rules out keytar, better-sqlite3, etc.)
-- Session stored as encrypted file, not system keychain
-- `#!/usr/bin/env node` shebang in output
-
-**If adding a programmatic API later:**
-- Separate entry points: `src/cli.ts` (CLI) and `src/index.ts` (library)
-- tsup can output both with `entry: ["src/cli.ts", "src/index.ts"]`
-- Library export skips Commander, exposes typed functions directly
-
-**If `--json` output is the primary mode (agent consumption):**
-- All commands return typed objects; JSON serialization happens at the output layer only
-- Human-readable formatting (colors, tables, spinners) is opt-in, not default
-- Errors must also be JSON-structured: `{ "error": true, "code": "AUTH_FAILED", "message": "..." }`
-- Exit codes must be meaningful (0 success, 1 general error, 2 auth error, etc.)
+| Avoid | Why | Consequence if Added |
+|-------|-----|---------------------|
+| `grammy`, `telegraf`, `node-telegram-bot-api` | Bot API libraries. This is an MTProto user client. They use a completely different protocol. | Would not work for user authentication, message history access, or any user-level operations. |
+| Database (SQLite, LevelDB, etc.) | All new features are stateless API calls. No data persistence needed beyond existing session/config. | Unnecessary complexity, native compilation issues, breaks `npx` zero-install. |
+| Additional serialization libraries (protobuf, msgpack) | TOON covers the token-efficient output need. JSON remains the primary format. | Extra dependencies, output format fragmentation, confusing for consumers. |
+| `input-validator` or similar | Zod already handles all validation needs (existing dependency). | Duplicate validation logic, bigger bundle. |
+| Markdown rendering libraries | gramjs already has entity-to-markdown conversion (existing `entity-to-markdown.ts`). Edit messages use gramjs built-in MarkdownParser. | Unnecessary; gramjs handles Telegram-flavored markdown internally. |
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `telegram@^2.26` | Node.js 16+ | Uses `node-localstorage`, `websocket`, `socks`. All pure JS or have prebuilds. |
-| `commander@^14` | Node.js 18+ | v14 dropped Node 16 support. |
-| `@inquirer/prompts@^8` | Node.js 20+ | ESM-only. Requires modern Node. |
-| `conf@^15` | Node.js 20+ | ESM-only. Uses `env-paths` for XDG dirs. |
-| `ora@^9` | Node.js 20+ | ESM-only. |
-| `tsup@^8` | TypeScript 5.x | esbuild-based. Fast builds. |
-| `vitest@^4` | TypeScript 5.x, Node.js 20+ | Requires modern Node for ESM test files. |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `@toon-format/toon@^2.1.0` | Node.js 18+ | ESM-only (`.mjs`). Ships TypeScript declarations. Works with tsup bundling pipeline. |
+| `@toon-format/toon@^2.1.0` | TypeScript 5.x | Provides `.d.mts` type declarations. No `@types/` package needed. |
+| `telegram@^2.26.22` | All v1.1 API methods | GetFullUser, GetCommonChats, contacts.*, editMessage, deleteMessages, pinMessage, Block/Unblock, InputMediaPoll -- all available in v2.26.x. These are MTProto layer methods that have been stable for years. |
 
-**Minimum Node.js version: 20 LTS** -- dictated by ESM-only dependencies (@inquirer/prompts, conf, ora). This is fine; Node 20 LTS is supported until April 2026.
+## Integration Patterns for Existing Codebase
 
-## gramjs-Specific Notes
+### New serialize functions (in `serialize.ts`)
 
-### Session Types
-- **StringSession**: Recommended. Portable string you can save/load. Call `client.session.save()` after auth, store the result, pass it back to `new StringSession(savedString)` on next run.
-- **StoreSession**: Alpha quality per gramjs docs. Automatically persists to files via `node-localstorage`. Avoid -- we want explicit control over session file location and encryption.
-
-### Authentication Flow
 ```typescript
-await client.start({
-  phoneNumber: async () => /* prompt or read from config */,
-  phoneCode: async () => /* prompt for SMS/Telegram code */,
-  password: async () => /* prompt for 2FA password */,
-  onError: (err) => /* handle gracefully */,
-});
+// User profile serialization
+export function serializeUserProfile(fullUser: any, user: any): UserProfile { ... }
+
+// Contact serialization
+export function serializeContact(user: Api.User): ContactItem { ... }
+
+// Poll serialization (for sent poll result)
+export function serializePoll(msg: Api.Message): PollItem { ... }
 ```
-Each callback is async, allowing interactive prompts during `telegram-cli login`.
 
-### API Credentials
-Users must obtain `api_id` and `api_hash` from https://my.telegram.org. These are stored in the config file via `conf`. They are NOT secrets in the traditional sense (Telegram's docs say they are "not secret"), but should still be kept out of version control.
+### New types (in `types.ts`)
 
-### Known gramjs Quirks
-- The npm package name is `telegram`, not `gramjs` -- confusing but correct.
-- `StringSession("")` (empty string) starts a fresh session; `StringSession(saved)` restores one.
-- gramjs uses `big-integer` for Telegram's large numeric IDs. When serializing to JSON, these must be converted to strings to avoid JavaScript number precision loss.
-- Media download returns Buffer objects. For `--json` output, encode as base64 or return file paths.
-- gramjs has 284 open issues on GitHub. Most are edge cases. Core functionality (auth, messages, media) is stable.
+```typescript
+export interface UserProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  phone: string | null;
+  bio: string | null;
+  commonChatsCount: number;
+  isBot: boolean;
+  isPremium: boolean;
+  lastSeen: string | null;
+  profilePhoto: object | null;
+  blocked: boolean;
+  canPinMessage: boolean;
+}
+
+export interface ContactItem {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  phone: string | null;
+  isBot: boolean;
+  status: string | null;
+}
+
+export interface PollResult {
+  messageId: number;
+  question: string;
+  answers: { text: string; option: string }[];
+  isAnonymous: boolean;
+  isQuiz: boolean;
+  isMultipleChoice: boolean;
+  isClosed: boolean;
+}
+```
+
+### New format functions (in `format.ts`)
+
+Add `formatUserProfile()`, `formatContacts()`, and `formatPoll()` alongside existing formatters. Update `formatData()` auto-detection to recognize the new data shapes.
+
+### New command files
+
+```
+src/commands/user/index.ts         -- user command group
+src/commands/user/profile.ts       -- tg user profile <user>
+src/commands/user/common-chats.ts  -- tg user common-chats <user>
+src/commands/contact/index.ts      -- contact command group
+src/commands/contact/list.ts       -- tg contact list
+src/commands/contact/add.ts        -- tg contact add <user>
+src/commands/contact/delete.ts     -- tg contact delete <user>
+src/commands/contact/search.ts     -- tg contact search <query>
+src/commands/message/get.ts        -- tg message get <chat> <ids...>
+src/commands/message/pinned.ts     -- tg message pinned <chat>
+src/commands/message/edit.ts       -- tg message edit <chat> <id> <text>
+src/commands/message/delete.ts     -- tg message delete <chat> <ids...>
+src/commands/message/pin.ts        -- tg message pin <chat> <id>
+src/commands/message/unpin.ts      -- tg message unpin <chat> [id]
+src/commands/user/block.ts         -- tg user block <user>
+src/commands/user/unblock.ts       -- tg user unblock <user>
+src/commands/user/blocked.ts       -- tg user blocked (list blocked)
+src/commands/poll/index.ts         -- poll command group
+src/commands/poll/send.ts          -- tg poll send <chat> <question> <answers...>
+```
+
+### Global option addition (in `tg.ts`)
+
+```typescript
+program.option('--toon', 'TOON output (token-efficient for LLMs)');
+```
+
+Wire into `preAction` hook alongside existing `--human`, `--jsonl`, `--fields` handling.
 
 ## Sources
 
-- [gramjs GitHub](https://github.com/gram-js/gramjs) -- stars, issues, last commit, fork activity (HIGH confidence)
-- [gramjs npm `telegram`](https://www.npmjs.com/package/telegram) -- version 2.26.22, published Feb 2025, 80K+ weekly downloads (HIGH confidence)
-- [gramjs docs](https://gram.js.org/) -- authentication flow, session management, API usage (HIGH confidence)
-- [gramjs auth docs](https://gram.js.org/getting-started/authorization) -- StringSession, 2FA callback structure (HIGH confidence)
-- [Commander.js GitHub](https://github.com/tj/commander.js) -- v14.0.3, zero deps, CJS, subcommand support (HIGH confidence)
-- [npm registry](https://www.npmjs.com/) -- all version numbers verified via `npm view` on 2026-03-10 (HIGH confidence)
-- [Chalk ESM migration issue](https://github.com/chalk/chalk/issues/543) -- CJS alternatives discussion (MEDIUM confidence)
-- [mtproto-core](https://mtproto-core.js.org/) -- last published Dec 2023, low-level alternative (HIGH confidence)
-- [telegram-mtproto npm](https://www.npmjs.com/package/telegram-mtproto) -- last published Oct 2017, confirmed abandoned (HIGH confidence)
-- [mtproto-nodejs-client npm](https://www.npmjs.com/package/mtproto-nodejs-client) -- v8.0.1, Nov 2025, active but low-level (MEDIUM confidence)
-- [Grizzly Peak CLI comparison](https://www.grizzlypeaksoftware.com/library/cli-framework-comparison-commander-vs-yargs-vs-oclif-utxlf9v9) -- startup benchmarks, dependency counts (MEDIUM confidence)
+- [@toon-format/toon npm](https://www.npmjs.com/package/@toon-format/toon) -- v2.1.0, zero dependencies, ESM, verified via `npm view` (HIGH confidence)
+- [TOON Format Spec](https://github.com/toon-format/spec) -- SPEC v3.0, ABNF grammar, 358+ test fixtures (HIGH confidence)
+- [TOON Getting Started](https://toonformat.dev/guide/getting-started) -- `encode()`/`decode()` API, TypeScript examples (HIGH confidence)
+- [gramjs GetFullUser](https://gram.js.org/tl/users/GetFullUser) -- parameters, return type, TypeScript example (HIGH confidence)
+- [gramjs UserFull class](https://gram.js.org/beta/classes/Api.UserFull.html) -- all fields: about, commonChatsCount, blocked, profilePhoto, etc. (HIGH confidence)
+- [gramjs GetCommonChats](https://gram.js.org/tl/messages/GetCommonChats) -- parameters, return type (HIGH confidence)
+- [gramjs contacts namespace](https://gram.js.org/beta/modules/Api.contacts.html) -- full list of contact methods: AddContact, DeleteContacts, GetContacts, Search, Block, Unblock, GetBlocked (HIGH confidence)
+- [gramjs AddContact](https://gram.js.org/tl/contacts/AddContact) -- parameters: id, firstName, lastName, phone, addPhonePrivacyException (HIGH confidence)
+- [gramjs TelegramClient methods](https://gram.js.org/beta/classes/TelegramClient.html) -- editMessage, deleteMessages, pinMessage, unpinMessage, getMessages signatures (HIGH confidence)
+- [gramjs editMessage](https://painor.gitbook.io/gramjs/working-with-messages/messages.editmessage) -- parameters, limitations (ownership, time limit) (HIGH confidence)
+- [gramjs deleteMessages](https://painor.gitbook.io/gramjs/working-with-messages/messages.deletemessages) -- revoke parameter, AffectedMessages return (HIGH confidence)
+- [gramjs updatePinnedMessage](https://painor.gitbook.io/gramjs/working-with-messages/messages.updatepinnedmessage) -- silent, unpin, pm_oneside parameters (HIGH confidence)
+- [gramjs getMessages](https://painor.gitbook.io/gramjs/getting-started/available-methods/getmessages) -- ids parameter, filter parameter, IterMessagesParams (HIGH confidence)
+- [gramjs InputMediaPoll](https://gram.js.org/beta/classes/Api.InputMediaPoll.html) -- constructor: poll, correctAnswers, solution, solutionEntities (HIGH confidence)
+- [Telegram Poll API](https://core.telegram.org/api/poll) -- poll types (regular/quiz), limits (2-10 answers, 255 char question), close_period (HIGH confidence)
+- [gramjs Working with Polls](https://painor.gitbook.io/gramjs/working-with-polls) -- sendVote, getPollResults, getPollVotes (HIGH confidence)
+- [InfoQ TOON article](https://www.infoq.com/news/2025/11/toon-reduce-llm-cost-tokens/) -- 40% token reduction, 99.4% accuracy benchmarks (MEDIUM confidence)
 
 ---
-*Stack research for: Telegram CLI client (MTProto, TypeScript/Node.js)*
-*Researched: 2026-03-10*
+*Stack research for: Telegram CLI v1.1 feature additions*
+*Researched: 2026-03-12*
