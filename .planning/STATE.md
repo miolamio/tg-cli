@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: "Plan 04-01 complete"
-last_updated: "2026-03-12T08:06:32Z"
-last_activity: 2026-03-12 — Plan 04-01 complete (media metadata extraction, search filters, media-utils module).
+stopped_at: "Plan 04-02 complete"
+last_updated: "2026-03-12T08:18:00Z"
+last_activity: 2026-03-12 — Plan 04-02 complete (media download/send commands, CLI registration).
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 4 in progress. Media metadata and search filters done. Download/send commands next.
+**Current focus:** Phase 4 complete. All media capabilities delivered. Ready for Phase 5.
 
 ## Current Position
 
-Phase: 4 of 5 (Media & Files)
-Plan: 1 of 2 in current phase (04-01 media metadata & search filters complete)
-Status: Plan 04-01 complete, ready for Plan 04-02
-Last activity: 2026-03-12 — Plan 04-01 complete (media metadata extraction, search filters, media-utils module).
+Phase: 4 of 5 (Media & Files) -- COMPLETE
+Plan: 2 of 2 in current phase (04-02 media download/send commands complete)
+Status: Phase 4 complete, ready for Phase 5
+Last activity: 2026-03-12 — Plan 04-02 complete (media download/send commands, CLI registration).
 
-Progress: [█████████░] 91%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 5.2min
-- Total execution time: 0.87 hours
+- Total plans completed: 11
+- Average duration: 5.3min
+- Total execution time: 0.98 hours
 
 **By Phase:**
 
@@ -46,10 +46,10 @@ Progress: [█████████░] 91%
 | 01-foundation-auth | 3 | 16min | 5.3min |
 | 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
 | 03-messaging-interaction | 2 | 9min | 4.5min |
-| 04-media-files | 1 | 8min | 8.0min |
+| 04-media-files | 2 | 15min | 7.5min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 2min, 5min, 4min, 8min
+- Last 5 plans: 2min, 5min, 4min, 8min, 7min
 - Trend: Stable (TDD tasks take slightly longer)
 
 *Updated after each plan completion*
@@ -98,6 +98,11 @@ Recent decisions affecting current work:
 - 04-01: extractMediaInfo picks largest PhotoSize by pixel area for dimensions
 - 04-01: AlbumResult shape detected before generic messages[] in formatData to prevent false dispatch
 - 04-01: MessageItem.media field only present when mediaType is not null (backward compatible)
+- 04-02: Download progress throttled to max once per second to avoid stderr spam
+- 04-02: Album re-fetch uses sequential IDs (result.id - files.length + 1) to get all album messages
+- 04-02: File existence validated via fs.access before upload attempt for early error
+- 04-02: Voice note detection only on single file uploads (albums don't support voiceNote)
+- 04-02: forceDocument set for non-photo/video/voice single file uploads
 
 ### Pending Todos
 
@@ -112,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T08:06:32Z
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-media-files/04-01-SUMMARY.md
+Last session: 2026-03-12T08:18:00Z
+Stopped at: Completed 04-02-PLAN.md
+Resume file: .planning/phases/04-media-files/04-02-SUMMARY.md

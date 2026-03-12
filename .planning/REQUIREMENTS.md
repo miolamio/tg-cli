@@ -35,14 +35,14 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **READ-04**: User can search messages globally across all chats
 - [x] **READ-05**: User can filter search results using any of the 17 MTProto search filters (`--filter photos|videos|documents|urls|voice|...`)
 - [ ] **READ-06**: User can search across multiple specific chats in one command (`--chats chat1,chat2,chat3`)
-- [ ] **READ-07**: User can download files and media from messages to a local path
+- [x] **READ-07**: User can download files and media from messages to a local path
 
 ### Messaging — Write
 
 - [x] **WRITE-01**: User can send a text message to any chat
 - [x] **WRITE-02**: User can reply to a specific message by ID
 - [x] **WRITE-03**: User can forward messages between chats
-- [ ] **WRITE-04**: User can upload and send files (photos, videos, documents) from local path
+- [x] **WRITE-04**: User can upload and send files (photos, videos, documents) from local path
 - [x] **WRITE-05**: User can react to a message with an emoji
 - [ ] **WRITE-06**: User can list forum topics in a supergroup
 - [ ] **WRITE-07**: User can read messages from a specific forum topic
@@ -118,11 +118,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | READ-04 | Phase 2 | Complete |
 | READ-05 | Phase 4 | Complete |
 | READ-06 | Phase 5 | Pending |
-| READ-07 | Phase 4 | Pending |
+| READ-07 | Phase 4 | Complete |
 | WRITE-01 | Phase 3 | Complete |
 | WRITE-02 | Phase 3 | Complete |
 | WRITE-03 | Phase 3 | Complete |
-| WRITE-04 | Phase 4 | Pending |
+| WRITE-04 | Phase 4 | Complete |
 | WRITE-05 | Phase 3 | Complete |
 | WRITE-06 | Phase 5 | Pending |
 | WRITE-07 | Phase 5 | Pending |
