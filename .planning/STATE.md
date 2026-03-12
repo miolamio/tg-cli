@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-12T11:12:34.896Z"
-last_activity: 2026-03-12 — Plan 05-03 complete (topic scoping and multi-chat search).
+milestone: v1.1
+milestone_name: Новые дополнения
+status: active
+stopped_at: null
+last_updated: "2026-03-12"
+last_activity: 2026-03-12 — Milestone v1.1 started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-10)
+See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 5 complete. All 3 plans delivered (forum topics, output enhancements, topic scoping + multi-chat search).
+**Current focus:** Defining requirements for v1.1 — user profiles, contacts, message management, TOON output
 
 ## Current Position
 
-Phase: 5 of 5 (Advanced Features & Polish)
-Plan: 3 of 3 in current phase (all plans complete)
-Status: Phase 5 complete, all v1 features delivered
-Last activity: 2026-03-12 — Plan 05-03 complete (topic scoping and multi-chat search).
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v1.1 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
