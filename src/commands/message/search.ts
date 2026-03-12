@@ -2,20 +2,23 @@ import type { Command } from 'commander';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
-import { outputSuccess, outputError } from '../../lib/output.js';
+import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
-import { resolveEntity } from '../../lib/peer.js';
+import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage, serializeSearchResult, bigIntToString } from '../../lib/serialize.js';
 import { FILTER_MAP, VALID_FILTERS } from '../../lib/media-utils.js';
-import type { GlobalOptions } from '../../lib/types.js';
+import type { GlobalOptions, SearchResultItem } from '../../lib/types.js';
 
 /**
  * Action handler for `tg message search`.
  *
- * Searches messages by keyword within a specific chat (--chat) or globally.
- * Options: --query (required), --chat <chat>, --limit (default 50), --offset (default 0)
+ * Searches messages by keyword within a specific chat (--chat), across multiple
+ * chats (comma-separated --chat), or globally (no --chat).
  *
- * Per-chat search (--chat provided): resolves entity, passes search param to getMessages.
+ * Options: --query, --filter, --chat <chat>, --topic <topicId>, --limit (default 50), --offset (default 0)
+ *
+ * Single-chat search (--chat with one value): resolves entity, passes search param to getMessages.
+ * Multi-chat search (--chat with comma-separated values): resolves each, searches sequentially, merges results.
  * Global search (no --chat): passes undefined entity for cross-chat search, results include chatId/chatTitle.
  */
 export async function messageSearchAction(this: Command): Promise<void> {
@@ -23,10 +26,11 @@ export async function messageSearchAction(this: Command): Promise<void> {
     query?: string;
     filter?: string;
     chat?: string;
+    topic?: string;
     limit: string;
     offset: string;
   };
-  const { profile } = opts;
+  const { profile, quiet } = opts;
 
   // Validate: either --query or --filter (or both) must be provided
   if (!opts.query && !opts.filter) {
@@ -48,6 +52,13 @@ export async function messageSearchAction(this: Command): Promise<void> {
 
   const limit = parseInt(opts.limit, 10) || 50;
   const offset = parseInt(opts.offset, 10) || 0;
+
+  // Parse --topic as integer
+  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
+  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
+    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
+    return;
+  }
 
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
@@ -73,18 +84,65 @@ export async function messageSearchAction(this: Command): Promise<void> {
         }
 
         if (opts.chat) {
-          // Per-chat search (READ-03)
-          const entity = await resolveEntity(client, opts.chat);
-          const messages = await client.getMessages(entity, searchParams);
+          const chatIds = opts.chat.split(',').map(c => c.trim()).filter(Boolean);
 
-          const serialized = messages.map((msg: any) =>
-            serializeMessage(msg),
-          );
+          if (chatIds.length === 1) {
+            // Single-chat search (READ-03) with optional topic scoping
+            const entity = await resolveEntity(client, chatIds[0]);
 
-          outputSuccess({
-            messages: serialized,
-            total: (messages as any).total ?? 0,
-          });
+            if (topicId !== undefined) {
+              await assertForum(entity, topicId);
+              searchParams.replyTo = topicId;
+            }
+
+            const messages = await client.getMessages(entity, searchParams);
+
+            const serialized = messages.map((msg: any) =>
+              serializeMessage(msg),
+            );
+
+            outputSuccess({
+              messages: serialized,
+              total: (messages as any).total ?? 0,
+            });
+          } else {
+            // Multi-chat search (READ-06)
+            // Topic flag not supported on multi-chat search (ambiguous which chat)
+            if (topicId !== undefined) {
+              outputError('--topic cannot be used with multi-chat search', 'INVALID_OPTIONS');
+              return;
+            }
+
+            const allResults: SearchResultItem[] = [];
+            for (const chatId of chatIds) {
+              try {
+                const entity = await resolveEntity(client, chatId);
+                const messages = await client.getMessages(entity, { ...searchParams, limit });
+                for (const msg of messages) {
+                  const peerId = (msg as any).peerId;
+                  const msgChatId = bigIntToString(
+                    peerId?.channelId || peerId?.chatId || peerId?.userId,
+                  );
+                  const chat = (msg as any).chat || (msg as any)._chat;
+                  let chatTitle: string;
+                  if (chat?.firstName) {
+                    const last = chat.lastName ? ` ${chat.lastName}` : '';
+                    chatTitle = `${chat.firstName}${last}`;
+                  } else {
+                    chatTitle = chat?.title || msgChatId;
+                  }
+                  allResults.push(serializeSearchResult(msg as any, msgChatId, chatTitle));
+                }
+              } catch (err) {
+                logStatus(`Warning: failed to search ${chatId}: ${(err as Error).message}`, quiet);
+              }
+            }
+
+            // Sort newest first, truncate to total limit
+            allResults.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const limited = allResults.slice(0, limit);
+            outputSuccess({ messages: limited, total: limited.length });
+          }
         } else {
           // Global search (READ-04)
           const messages = await client.getMessages(undefined, searchParams);

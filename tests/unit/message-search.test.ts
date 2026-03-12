@@ -83,8 +83,10 @@ vi.mock('../../src/lib/client.js', () => ({
 
 // Mock peer resolution
 const mockResolveEntity = vi.fn().mockResolvedValue({ id: BigInt(123), className: 'Channel' });
+const mockAssertForum = vi.fn().mockResolvedValue(undefined);
 vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
+  assertForum: (...args: any[]) => mockAssertForum(...args),
 }));
 
 // Helper to create mock message objects
@@ -372,6 +374,167 @@ describe('messageSearchAction', () => {
       expect.anything(),
       expect.objectContaining({
         search: 'old',
+      }),
+    );
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+  });
+
+  // ---- Multi-chat search tests (Phase 5, Plan 03, READ-06) ----
+
+  it('multi-chat search resolves each chat and merges results', async () => {
+    // Chat A results
+    const msgsA = [
+      createMockMessage({
+        id: 10, message: 'A result', date: 1710300000,
+        peerId: { channelId: BigInt(100), chatId: null, userId: null },
+        chat: { title: 'Chat A' },
+      }),
+    ];
+    (msgsA as any).total = 1;
+
+    // Chat B results
+    const msgsB = [
+      createMockMessage({
+        id: 20, message: 'B result', date: 1710400000,
+        peerId: { channelId: BigInt(200), chatId: null, userId: null },
+        chat: { title: 'Chat B' },
+      }),
+    ];
+    (msgsB as any).total = 1;
+
+    mockResolveEntity
+      .mockResolvedValueOnce({ id: BigInt(100), className: 'Channel' })
+      .mockResolvedValueOnce({ id: BigInt(200), className: 'Channel' });
+    mockGetMessages
+      .mockResolvedValueOnce(msgsA)
+      .mockResolvedValueOnce(msgsB);
+
+    const ctx = createMockCommandContext({ chat: '@chatA,@chatB', query: 'test' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockResolveEntity).toHaveBeenCalledTimes(2);
+    expect(mockGetMessages).toHaveBeenCalledTimes(2);
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.messages).toHaveLength(2);
+    // Sorted newest first (B has later date)
+    expect(data.messages[0].chatTitle).toBe('Chat B');
+    expect(data.messages[1].chatTitle).toBe('Chat A');
+    // Each has chatId and chatTitle
+    expect(data.messages[0]).toHaveProperty('chatId');
+    expect(data.messages[0]).toHaveProperty('chatTitle');
+  });
+
+  it('multi-chat search truncates to --limit total', async () => {
+    const msgsA = [
+      createMockMessage({ id: 1, date: 1710100000, peerId: { channelId: BigInt(100), chatId: null, userId: null }, chat: { title: 'A' } }),
+      createMockMessage({ id: 2, date: 1710200000, peerId: { channelId: BigInt(100), chatId: null, userId: null }, chat: { title: 'A' } }),
+    ];
+    (msgsA as any).total = 2;
+
+    const msgsB = [
+      createMockMessage({ id: 3, date: 1710300000, peerId: { channelId: BigInt(200), chatId: null, userId: null }, chat: { title: 'B' } }),
+    ];
+    (msgsB as any).total = 1;
+
+    mockResolveEntity
+      .mockResolvedValueOnce({ id: BigInt(100), className: 'Channel' })
+      .mockResolvedValueOnce({ id: BigInt(200), className: 'Channel' });
+    mockGetMessages
+      .mockResolvedValueOnce(msgsA)
+      .mockResolvedValueOnce(msgsB);
+
+    const ctx = createMockCommandContext({ chat: '@chatA,@chatB', query: 'test', limit: '2' });
+    await messageSearchAction.call(ctx as any);
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.messages).toHaveLength(2);
+    expect(data.total).toBe(2);
+  });
+
+  it('multi-chat search logs warning on individual chat failure and continues', async () => {
+    const msgsB = [
+      createMockMessage({
+        id: 5, date: 1710100000,
+        peerId: { channelId: BigInt(200), chatId: null, userId: null },
+        chat: { title: 'Chat B' },
+      }),
+    ];
+    (msgsB as any).total = 1;
+
+    mockResolveEntity
+      .mockRejectedValueOnce(new Error('Chat A not found'))
+      .mockResolvedValueOnce({ id: BigInt(200), className: 'Channel' });
+    mockGetMessages.mockResolvedValueOnce(msgsB);
+
+    const ctx = createMockCommandContext({ chat: '@chatA,@chatB', query: 'test' });
+    await messageSearchAction.call(ctx as any);
+
+    // Warning logged to stderr
+    expect(mockLogStatus).toHaveBeenCalledWith(
+      expect.stringContaining('Warning'),
+      expect.anything(),
+    );
+    // Results from chat B still returned
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.messages).toHaveLength(1);
+    expect(data.messages[0].chatTitle).toBe('Chat B');
+  });
+
+  it('single-chat search with --topic passes replyTo to getMessages', async () => {
+    const messages: any[] = [];
+    (messages as any).total = 0;
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext({ chat: 'mychat', query: 'test', topic: '42' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockAssertForum).toHaveBeenCalledWith(
+      expect.objectContaining({ className: 'Channel' }),
+      42,
+    );
+    expect(mockGetMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ replyTo: 42 }),
+    );
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('--topic with multi-chat search returns INVALID_OPTIONS error', async () => {
+    const ctx = createMockCommandContext({ chat: '@a,@b', query: 'test', topic: '42' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      '--topic cannot be used with multi-chat search',
+      'INVALID_OPTIONS',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
+
+  it('all flags compose: multi-chat + filter + query + limit', async () => {
+    const msgs = [
+      createMockMessage({
+        id: 1, date: 1710100000,
+        peerId: { channelId: BigInt(100), chatId: null, userId: null },
+        chat: { title: 'Chat A' },
+      }),
+    ];
+    (msgs as any).total = 1;
+
+    mockResolveEntity.mockResolvedValueOnce({ id: BigInt(100), className: 'Channel' });
+    mockGetMessages.mockResolvedValueOnce(msgs);
+
+    const ctx = createMockCommandContext({ chat: '@chatA', query: 'sunset', filter: 'photos', limit: '20' });
+    await messageSearchAction.call(ctx as any);
+
+    expect(mockGetMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        search: 'sunset',
+        limit: 20,
+        filter: expect.any(MockInputMessagesFilterPhotos),
       }),
     );
     expect(mockOutputSuccess).toHaveBeenCalledOnce();

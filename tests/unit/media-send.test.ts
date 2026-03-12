@@ -78,8 +78,10 @@ vi.mock('../../src/lib/client.js', () => ({
 
 // Mock peer resolution
 const mockResolveEntity = vi.fn().mockResolvedValue({ id: BigInt(123), className: 'Channel' });
+const mockAssertForum = vi.fn().mockResolvedValue(undefined);
 vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
+  assertForum: (...args: any[]) => mockAssertForum(...args),
 }));
 
 // Mock serialize
@@ -266,6 +268,42 @@ describe('mediaSendAction', () => {
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('maximum of 10'),
       'ALBUM_TOO_LARGE',
+    );
+    expect(mockSendFile).not.toHaveBeenCalled();
+  });
+
+  it('includes warning when album re-fetch returns partial results', async () => {
+    mockSendFile.mockResolvedValueOnce({
+      id: 103,
+      message: '',
+      date: 1710150900,
+      media: { _type: 'photo' },
+    });
+
+    // Only 2 of 3 messages returned (one gap)
+    const albumMsgs = [
+      { id: 101, message: '', date: 1710150900, media: {} },
+      null,
+      { id: 103, message: '', date: 1710150900, media: {} },
+    ];
+    mockGetMessages.mockResolvedValueOnce(albumMsgs);
+
+    const ctx = createMockCommandContext(['testchat', 'a.jpg', 'b.jpg', 'c.jpg']);
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    const result = mockOutputSuccess.mock.calls[0][0];
+    expect(result.sent).toBe(2);
+    expect(result.warning).toMatch(/Only 2 of 3/);
+  });
+
+  it('returns INVALID_REPLY_TO error for non-numeric --reply-to', async () => {
+    const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { replyTo: 'abc' });
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid reply-to message ID'),
+      'INVALID_REPLY_TO',
     );
     expect(mockSendFile).not.toHaveBeenCalled();
   });
