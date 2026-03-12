@@ -109,9 +109,18 @@ export interface MessageItem {
   forwardFrom: string | null;
   mediaType: string | null;
   type: 'message' | 'service';
+  views?: number | null;
+  forwards?: number | null;
+  reactions?: ReactionCount[];
   actionText?: string;
   emoji?: string;
   media?: MediaInfo;  // Only present when mediaType is not null
+}
+
+/** Reaction count for a message. */
+export interface ReactionCount {
+  emoji: string;
+  count: number;
 }
 
 /**

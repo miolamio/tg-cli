@@ -5,6 +5,7 @@ import type {
   ChatListItem,
   MediaInfo,
   MessageItem,
+  ReactionCount,
   SearchResultItem,
   MemberItem,
   TopicItem,
@@ -179,6 +180,19 @@ export function extractMediaInfo(media: any): MediaInfo | null {
 }
 
 /**
+ * Extract reaction counts from a message's reactions object.
+ */
+function extractReactions(reactions: any): ReactionCount[] {
+  if (!reactions?.results) return [];
+  return reactions.results
+    .filter((r: any) => r.count > 0)
+    .map((r: any) => ({
+      emoji: r.reaction?.emoticon ?? r.reaction?.documentId?.toString() ?? '?',
+      count: r.count,
+    }));
+}
+
+/**
  * Build sender display name from a User/Chat/Channel entity.
  */
 function senderName(entity: any): string | null {
@@ -216,6 +230,9 @@ export function serializeMessage(
     (msg as any).entities,
   );
 
+  // Extract reaction counts
+  const reactions = extractReactions((msg as any).reactions);
+
   const item: MessageItem = {
     id: msg.id,
     text,
@@ -226,6 +243,9 @@ export function serializeMessage(
     forwardFrom: forwardFromName((msg as any).fwdFrom),
     mediaType,
     type: isService ? 'service' : 'message',
+    views: (msg as any).views ?? null,
+    forwards: (msg as any).forwards ?? null,
+    ...(reactions.length > 0 && { reactions }),
   };
 
   if (isService) {

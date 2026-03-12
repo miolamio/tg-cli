@@ -4,6 +4,7 @@ import { messageSearchAction } from './search.js';
 import { messageSendAction } from './send.js';
 import { messageForwardAction } from './forward.js';
 import { messageReactAction } from './react.js';
+import { messageRepliesAction } from './replies.js';
 
 /**
  * Create the `message` command group with history, search, send, forward, and react subcommands.
@@ -14,6 +15,7 @@ import { messageReactAction } from './react.js';
  *   tg message send <chat> <text>            - Send a text message
  *   tg message forward <from> <ids> <to>     - Forward messages between chats
  *   tg message react <chat> <id> <emoji>     - React to a message
+ *   tg message replies <channel> <msg-ids>   - Read replies/comments on channel posts (comma-separated)
  */
 export function createMessageCommand(): Command {
   const message = new Command('message')
@@ -67,6 +69,15 @@ export function createMessageCommand(): Command {
     .description('React to a message with an emoji')
     .option('--remove', 'Remove reaction')
     .action(messageReactAction);
+
+  message
+    .command('replies')
+    .argument('<channel>', 'Channel ID, username, or @username')
+    .argument('<msg-ids>', 'Post message IDs (comma-separated for batch)')
+    .description('Read replies/comments on channel posts')
+    .option('--limit <n>', 'Max replies per post', '50')
+    .option('--offset <n>', 'Skip replies', '0')
+    .action(messageRepliesAction);
 
   return message;
 }

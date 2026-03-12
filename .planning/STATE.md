@@ -116,6 +116,10 @@ Recent decisions affecting current work:
 - 05-03: --topic + multi-chat search rejected as INVALID_OPTIONS (ambiguous)
 - 05-03: Multi-chat search fetches limit per chat, sorts merged results, truncates to total limit
 
+### Roadmap Evolution
+
+- Phase 6 added: Add channel post replies/comments command (message.getReplies)
+
 ### Pending Todos
 
 None yet.

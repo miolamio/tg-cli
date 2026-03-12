@@ -112,3 +112,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Messaging & Interaction | 0/2 | Not started | - |
 | 4. Media & Files | 0/2 | Not started | - |
 | 5. Advanced Features & Polish | 0/3 | Not started | - |
+
+### Phase 6: Add channel post replies/comments command (message.getReplies)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
