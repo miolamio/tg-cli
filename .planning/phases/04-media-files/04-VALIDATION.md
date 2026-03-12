@@ -38,15 +38,10 @@ created: 2026-03-12
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 04-01-01 | 01 | 0 | READ-07 | unit | `npx vitest run tests/unit/media-download.test.ts -x` | ❌ W0 | ⬜ pending |
-| 04-01-02 | 01 | 0 | WRITE-04 | unit | `npx vitest run tests/unit/media-send.test.ts -x` | ❌ W0 | ⬜ pending |
-| 04-01-03 | 01 | 0 | ALL | unit | `npx vitest run tests/unit/media-utils.test.ts -x` | ❌ W0 | ⬜ pending |
-| 04-02-01 | 02 | 1 | READ-07 | unit | `npx vitest run tests/unit/media-download.test.ts -x` | ❌ W0 | ⬜ pending |
-| 04-02-02 | 02 | 1 | ALL | unit | `npx vitest run tests/unit/serialize.test.ts -x` | ✅ | ⬜ pending |
-| 04-03-01 | 03 | 1 | WRITE-04 | unit | `npx vitest run tests/unit/media-send.test.ts -x` | ❌ W0 | ⬜ pending |
-| 04-04-01 | 04 | 2 | READ-05 | unit | `npx vitest run tests/unit/message-search.test.ts -x` | ✅ | ⬜ pending |
-| 04-05-01 | 05 | 2 | ALL | unit | `npx vitest run tests/unit/format.test.ts -x` | ✅ | ⬜ pending |
-| 04-05-02 | 05 | 2 | ALL | integration | `npx vitest run tests/integration/cli-entry.test.ts -x` | ✅ | ⬜ pending |
+| 04-01-T1 | 01 | 1 | READ-05, ALL | unit | `npx vitest run tests/unit/media-utils.test.ts tests/unit/serialize.test.ts -x` | ❌ TDD | ⬜ pending |
+| 04-01-T2 | 01 | 1 | READ-05 | unit | `npx vitest run tests/unit/message-search.test.ts tests/unit/format.test.ts -x` | ✅ extend | ⬜ pending |
+| 04-02-T1 | 02 | 2 | READ-07 | unit | `npx vitest run tests/unit/media-download.test.ts tests/integration/cli-entry.test.ts -x` | ❌ TDD | ⬜ pending |
+| 04-02-T2 | 02 | 2 | WRITE-04 | unit | `npx vitest run tests/unit/media-send.test.ts -x` | ❌ TDD | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -54,11 +49,7 @@ created: 2026-03-12
 
 ## Wave 0 Requirements
 
-- [ ] `tests/unit/media-download.test.ts` — stubs for READ-07 (download action handler)
-- [ ] `tests/unit/media-send.test.ts` — stubs for WRITE-04 (upload/send action handler)
-- [ ] `tests/unit/media-utils.test.ts` — stubs for filter mapping, auto-naming, file type detection
-
-*Existing infrastructure (vitest, test fixtures) covers remaining phase requirements.*
+*No separate Wave 0 — all plans use TDD (tdd="true"). Test files are created as the first step of each task, then implementation follows. Existing infrastructure (vitest, test fixtures) is sufficient.*
 
 ---
 
