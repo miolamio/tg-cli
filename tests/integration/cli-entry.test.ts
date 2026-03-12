@@ -80,7 +80,7 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('members');
   });
 
-  it('message --help shows history and search subcommands', () => {
+  it('message --help shows all subcommands: history, search, send, forward, react', () => {
     const output = execSync(`node ${BINARY} message --help`, {
       cwd: ROOT,
       encoding: 'utf-8',
@@ -88,6 +88,9 @@ describe('CLI entry point (built binary)', () => {
 
     expect(output).toContain('history');
     expect(output).toContain('search');
+    expect(output).toContain('send');
+    expect(output).toContain('forward');
+    expect(output).toContain('react');
   });
 
   it('--help shows all 4 command groups: Auth, Session, Chat, Message', () => {
@@ -100,6 +103,16 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('Session');
     expect(output).toContain('Chat');
     expect(output).toContain('Message');
+  });
+
+  it('--help shows --no-json and --human global options', () => {
+    const output = execSync(`node ${BINARY} --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('--no-json');
+    expect(output).toContain('--human');
   });
 
   it('session import --skip-verify with empty string returns NO_INPUT error', () => {

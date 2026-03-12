@@ -326,6 +326,35 @@ describe('formatData', () => {
     expect(result).toContain('found');
   });
 
+  it('auto-detects single MessageItem at top level', () => {
+    const data: MessageItem = {
+      id: 99, text: 'Sent!', date: '2026-03-12T06:00:00.000Z',
+      senderId: '123', senderName: 'Alice', replyToMsgId: null,
+      forwardFrom: null, mediaType: null, type: 'message',
+    };
+    const result = formatData(data);
+    expect(result).toContain('Alice');
+    expect(result).toContain('Sent!');
+    expect(result).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
+    // Should NOT be JSON
+    expect(result).not.toContain('"id"');
+  });
+
+  it('returns empty-state string for empty messages array', () => {
+    const result = formatData({ messages: [], total: 0 });
+    expect(result).toBe('No messages.');
+  });
+
+  it('returns empty-state string for empty chats array', () => {
+    const result = formatData({ chats: [], total: 0 });
+    expect(result).toBe('No chats.');
+  });
+
+  it('returns empty-state string for empty members array', () => {
+    const result = formatData({ members: [], total: 0 });
+    expect(result).toBe('No members.');
+  });
+
   it('falls back to formatGeneric for unknown shapes', () => {
     const data = { loggedIn: true, phone: '+1234' };
     const result = formatData(data);

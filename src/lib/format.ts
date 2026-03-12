@@ -169,21 +169,26 @@ export function formatData(data: unknown): string {
 
   const obj = data as Record<string, any>;
 
+  // Check for single MessageItem at top level (e.g. from send command)
+  if ('id' in obj && 'text' in obj && 'date' in obj && 'type' in obj && !('messages' in obj) && !('chats' in obj)) {
+    return formatMessages([obj as MessageItem]);
+  }
+
   // Check for messages array
-  if (Array.isArray(obj.messages) && obj.messages.length > 0) {
+  if (Array.isArray(obj.messages)) {
+    if (obj.messages.length === 0) return 'No messages.';
     const first = obj.messages[0];
-    // Search results have chatTitle
     if ('chatTitle' in first) {
       return formatSearchResults(obj.messages as SearchResultItem[]);
     }
-    // Regular messages have text and date
     if ('text' in first && 'date' in first) {
       return formatMessages(obj.messages as MessageItem[]);
     }
   }
 
   // Check for chats array
-  if (Array.isArray(obj.chats) && obj.chats.length > 0) {
+  if (Array.isArray(obj.chats)) {
+    if (obj.chats.length === 0) return 'No chats.';
     const first = obj.chats[0];
     if ('type' in first && 'title' in first) {
       return formatChatList(obj.chats as ChatListItem[]);
@@ -196,7 +201,8 @@ export function formatData(data: unknown): string {
   }
 
   // Check for members array
-  if (Array.isArray(obj.members) && obj.members.length > 0) {
+  if (Array.isArray(obj.members)) {
+    if (obj.members.length === 0) return 'No members.';
     const first = obj.members[0];
     if ('isBot' in first) {
       return formatMembers(obj.members as MemberItem[]);
