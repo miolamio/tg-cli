@@ -31,11 +31,13 @@ export function createMessageCommand(): Command {
 
   message
     .command('search')
-    .description('Search messages by keyword')
+    .description('Search messages by keyword or media type')
     .option('--chat <chat>', 'Search in specific chat (omit for global search)')
-    .requiredOption('--query <text>', 'Search query (required)')
+    .option('--query <text>', 'Search query')
+    .option('--filter <type>', 'Filter by media type (photos|videos|documents|urls|voice|music|gifs|round)')
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
+    .addHelpText('after', '\nValid filters: photos, videos, documents, urls, voice, music, gifs, round')
     .action(messageSearchAction);
 
   message

@@ -5,7 +5,10 @@ import type {
   ChatInfo,
   MemberItem,
   SearchResultItem,
+  DownloadResult,
+  AlbumResult,
 } from './types.js';
+import { formatBytes } from './media-utils.js';
 
 /**
  * Format a date string to local "YYYY-MM-DD HH:MM" display.
@@ -21,16 +24,49 @@ function formatTimestamp(dateStr: string): string {
 }
 
 /**
+ * Build a rich media annotation string from a message's media metadata.
+ *
+ * With media metadata: [photo 1920x1080 240KB], [video 1280x720 0:32 1.2MB], [document report.pdf 3.4MB]
+ * Without metadata but with mediaType: [photo] (existing behavior for messages without full metadata)
+ * Neither: empty string
+ */
+function formatMediaAnnotation(m: MessageItem): string {
+  if (m.media) {
+    const parts: string[] = [m.mediaType ?? 'file'];
+    if (m.media.width != null && m.media.height != null) {
+      parts.push(`${m.media.width}x${m.media.height}`);
+    }
+    if (m.media.duration != null) {
+      const mins = Math.floor(m.media.duration / 60);
+      const secs = String(m.media.duration % 60).padStart(2, '0');
+      parts.push(`${mins}:${secs}`);
+    }
+    if (m.media.fileSize != null) {
+      parts.push(formatBytes(m.media.fileSize));
+    }
+    if (m.media.filename != null) {
+      parts.push(m.media.filename);
+    }
+    return `[${parts.join(' ')}]`;
+  }
+  if (m.mediaType) {
+    return `[${m.mediaType}]`;
+  }
+  return '';
+}
+
+/**
  * Format a single message line in conversational style.
  * [2026-03-11 12:30] Alice: Hello world
  * [2026-03-11 12:31] Bob (reply to 42): Thanks!
- * [2026-03-11 12:32] Alice: [photo] Check this out
+ * [2026-03-11 12:32] Alice: [photo 1920x1080 240KB] Check this out
  */
 function formatSingleMessage(m: MessageItem): string {
   const ts = pc.dim(`[${formatTimestamp(m.date)}]`);
   const sender = pc.bold(m.senderName ?? 'Unknown');
   const reply = m.replyToMsgId != null ? pc.dim(` (reply to ${m.replyToMsgId})`) : '';
-  const media = m.mediaType ? pc.yellow(`[${m.mediaType}] `) : '';
+  const annotation = formatMediaAnnotation(m);
+  const media = annotation ? pc.yellow(annotation) + ' ' : '';
   return `${ts} ${sender}${reply}: ${media}${m.text}`;
 }
 
@@ -144,6 +180,35 @@ export function formatSearchResults(results: SearchResultItem[]): string {
 }
 
 /**
+ * Format a download result with path, filename, size, and type.
+ */
+export function formatDownloadResult(result: DownloadResult): string {
+  const lines = [
+    `${pc.bold('Downloaded:')} ${result.filename}`,
+    `${pc.bold('Path:')} ${pc.green(result.path)}`,
+    `${pc.bold('Size:')} ${formatBytes(result.size)}`,
+    `${pc.bold('Type:')} ${result.mediaType}`,
+  ];
+  return lines.join('\n');
+}
+
+/**
+ * Format an upload/send result.
+ * Handles both single MessageItem (delegates to formatSingleMessage) and
+ * AlbumResult (header + each message formatted).
+ */
+export function formatUploadResult(result: any): string {
+  // AlbumResult shape
+  if (Array.isArray(result.messages) && typeof result.sent === 'number') {
+    const header = pc.bold(`Sent ${result.sent} files`);
+    const msgs = (result.messages as MessageItem[]).map(formatSingleMessage).join('\n');
+    return `${header}\n${msgs}`;
+  }
+  // Single MessageItem
+  return formatSingleMessage(result as MessageItem);
+}
+
+/**
  * Fallback formatter: pretty-prints any data as indented JSON.
  * Used for auth status, session export/import, join/leave confirmations, etc.
  */
@@ -168,6 +233,23 @@ export function formatData(data: unknown): string {
   }
 
   const obj = data as Record<string, any>;
+
+  // Check for DownloadResult shape (has path + filename + size + mediaType + messageId)
+  if ('path' in obj && 'filename' in obj && 'size' in obj && 'mediaType' in obj && 'messageId' in obj) {
+    return formatDownloadResult(obj as DownloadResult);
+  }
+
+  // Check for batch download shape (has files[] + downloaded count)
+  if (Array.isArray(obj.files) && 'downloaded' in obj) {
+    const header = pc.bold(`Downloaded ${obj.downloaded} files`);
+    const items = (obj.files as DownloadResult[]).map(f => formatDownloadResult(f)).join('\n\n');
+    return `${header}\n\n${items}`;
+  }
+
+  // Check for AlbumResult shape (messages[] + sent number) - before generic messages check
+  if (Array.isArray(obj.messages) && typeof obj.sent === 'number') {
+    return formatUploadResult(obj);
+  }
 
   // Check for single MessageItem at top level (e.g. from send command)
   if ('id' in obj && 'text' in obj && 'date' in obj && 'type' in obj && !('messages' in obj) && !('chats' in obj)) {

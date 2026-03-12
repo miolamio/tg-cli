@@ -6,6 +6,7 @@ import { outputSuccess, outputError } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage, serializeSearchResult, bigIntToString } from '../../lib/serialize.js';
+import { FILTER_MAP, VALID_FILTERS } from '../../lib/media-utils.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -20,17 +21,27 @@ import type { GlobalOptions } from '../../lib/types.js';
 export async function messageSearchAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & {
     query?: string;
+    filter?: string;
     chat?: string;
     limit: string;
     offset: string;
   };
   const { profile } = opts;
 
-  // Validate --query is provided
-  if (!opts.query) {
+  // Validate: either --query or --filter (or both) must be provided
+  if (!opts.query && !opts.filter) {
     outputError(
-      '--query is required for search. Use `tg message history` to browse without a query.',
+      'Either --query or --filter is required. Use --filter to browse by media type.',
       'MISSING_QUERY',
+    );
+    return;
+  }
+
+  // Validate filter name if provided
+  if (opts.filter && !FILTER_MAP[opts.filter]) {
+    outputError(
+      `Unknown filter: ${opts.filter}. Valid: ${VALID_FILTERS.join(', ')}`,
+      'INVALID_FILTER',
     );
     return;
   }
@@ -52,10 +63,14 @@ export async function messageSearchAction(this: Command): Promise<void> {
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const searchParams: Record<string, any> = {
-          search: opts.query,
+          search: opts.query || '',
           limit,
           addOffset: offset,
         };
+
+        if (opts.filter) {
+          searchParams.filter = FILTER_MAP[opts.filter]();
+        }
 
         if (opts.chat) {
           // Per-chat search (READ-03)
