@@ -5,13 +5,17 @@ import { messageSendAction } from './send.js';
 import { messageForwardAction } from './forward.js';
 import { messageReactAction } from './react.js';
 import { messageRepliesAction } from './replies.js';
+import { messageGetAction } from './get.js';
+import { messagePinnedAction } from './pinned.js';
 
 /**
- * Create the `message` command group with history, search, send, forward, and react subcommands.
+ * Create the `message` command group with history, search, get, pinned, send, forward, react, and replies subcommands.
  *
  * Usage:
  *   tg message history <chat>               - Read message history from a chat
  *   tg message search                        - Search messages by keyword
+ *   tg message get <chat> <ids>             - Get specific messages by ID (comma-separated, max 100)
+ *   tg message pinned <chat>                - Get pinned messages from a chat
  *   tg message send <chat> <text>            - Send a text message
  *   tg message forward <from> <ids> <to>     - Forward messages between chats
  *   tg message react <chat> <id> <emoji>     - React to a message
@@ -43,6 +47,21 @@ export function createMessageCommand(): Command {
     .option('--topic <topicId>', 'Forum topic ID (single --chat only)')
     .addHelpText('after', '\nValid filters: photos, videos, photo_video, documents, urls, gifs, voice, music, round, round_voice, chat_photos, phone_calls, mentions, geo, contacts, pinned')
     .action(messageSearchAction);
+
+  message
+    .command('get')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<ids>', 'Message IDs (comma-separated, max 100)')
+    .description('Get specific messages by ID')
+    .action(messageGetAction);
+
+  message
+    .command('pinned')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .description('Get pinned messages from a chat')
+    .option('--limit <n>', 'Max messages', '50')
+    .option('--offset <n>', 'Skip messages', '0')
+    .action(messagePinnedAction);
 
   message
     .command('send')

@@ -237,6 +237,26 @@ export function formatTopics(topics: TopicItem[]): string {
 }
 
 /**
+ * Format a get-by-ID result with messages and a not-found footer.
+ * Renders found messages with formatMessages, appends dim "Not found: ..." line.
+ */
+export function formatGetResult(data: { messages: MessageItem[]; notFound: number[] }): string {
+  const parts: string[] = [];
+
+  if (data.messages.length > 0) {
+    parts.push(formatMessages(data.messages));
+  } else {
+    parts.push('No messages found.');
+  }
+
+  if (data.notFound.length > 0) {
+    parts.push(pc.dim('Not found: ' + data.notFound.join(', ')));
+  }
+
+  return parts.join('\n');
+}
+
+/**
  * Fallback formatter: pretty-prints any data as indented JSON.
  * Used for auth status, session export/import, join/leave confirmations, etc.
  */
@@ -282,6 +302,12 @@ export function formatData(data: unknown): string {
   // Check for single MessageItem at top level (e.g. from send command)
   if ('id' in obj && 'text' in obj && 'date' in obj && 'type' in obj && !('messages' in obj) && !('chats' in obj)) {
     return formatMessages([obj as MessageItem]);
+  }
+
+  // Check for get-by-ID result shape (messages[] + notFound[]) — BEFORE generic messages check
+  // to avoid notFound being silently dropped
+  if (Array.isArray(obj.messages) && Array.isArray(obj.notFound)) {
+    return formatGetResult(obj as { messages: MessageItem[]; notFound: number[] });
   }
 
   // Check for messages array
