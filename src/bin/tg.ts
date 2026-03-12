@@ -6,6 +6,7 @@ import { createAuthCommand } from '../commands/auth/index.js';
 import { createSessionCommand } from '../commands/session/index.js';
 import { createChatCommand } from '../commands/chat/index.js';
 import { createMessageCommand } from '../commands/message/index.js';
+import { createMediaCommand } from '../commands/media/index.js';
 import { setOutputMode } from '../lib/output.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +73,10 @@ program.addCommand(chatCmd);
 const messageCmd = createMessageCommand();
 messageCmd.helpGroup('Message');
 program.addCommand(messageCmd);
+
+const mediaCmd = createMediaCommand();
+mediaCmd.helpGroup('Media');
+program.addCommand(mediaCmd);
 
 // Aliases (Phase 2+): tg ls -> chat list, tg s -> message search
 

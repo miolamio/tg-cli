@@ -93,7 +93,7 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('react');
   });
 
-  it('--help shows all 4 command groups: Auth, Session, Chat, Message', () => {
+  it('--help shows all 5 command groups: Auth, Session, Chat, Message, Media', () => {
     const output = execSync(`node ${BINARY} --help`, {
       cwd: ROOT,
       encoding: 'utf-8',
@@ -103,6 +103,7 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('Session');
     expect(output).toContain('Chat');
     expect(output).toContain('Message');
+    expect(output).toContain('Media');
   });
 
   it('--help shows --no-json and --human global options', () => {
@@ -113,6 +114,24 @@ describe('CLI entry point (built binary)', () => {
 
     expect(output).toContain('--no-json');
     expect(output).toContain('--human');
+  });
+
+  it('media --help exits 0 and shows download subcommand', () => {
+    const output = execSync(`node ${BINARY} media --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('download');
+  });
+
+  it('media download --help exits 0 and shows msg-ids argument', () => {
+    const output = execSync(`node ${BINARY} media download --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('msg-ids');
   });
 
   it('session import --skip-verify with empty string returns NO_INPUT error', () => {
