@@ -72,8 +72,8 @@ Requirements for v1.1 milestone "Новые дополнения". Each maps to 
 
 ### Messaging — Read (extended)
 
-- [ ] **READ-08**: User can get specific messages by ID (`tg message get <chat> <ids>`) with batch support
-- [ ] **READ-09**: User can get pinned messages from a chat (`tg message pinned <chat>`)
+- [x] **READ-08**: User can get specific messages by ID (`tg message get <chat> <ids>`) with batch support
+- [x] **READ-09**: User can get pinned messages from a chat (`tg message pinned <chat>`)
 
 ### Messaging — Write (extended)
 
@@ -185,8 +185,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| READ-08 | Phase 6 | Pending |
-| READ-09 | Phase 6 | Pending |
+| READ-08 | Phase 6 | Complete |
+| READ-09 | Phase 6 | Complete |
 | WRITE-09 | Phase 7 | Pending |
 | WRITE-10 | Phase 7 | Pending |
 | WRITE-11 | Phase 7 | Pending |
