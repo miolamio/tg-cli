@@ -7,6 +7,7 @@ import type {
   MessageItem,
   SearchResultItem,
   MemberItem,
+  TopicItem,
 } from './types.js';
 
 /**
@@ -90,6 +91,18 @@ export function detectMedia(media: any): { mediaType: string | null; emoji?: str
 }
 
 /**
+ * Safely convert a gramjs numeric value (possibly BigInteger) to a JS number.
+ * gramjs uses big-integer for some fields like file sizes.
+ */
+function toSafeNumber(val: any): number | null {
+  if (val == null) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val.toJSNumber === 'function') return val.toJSNumber();
+  const n = Number(val);
+  return isNaN(n) ? null : n;
+}
+
+/**
  * Extract detailed media metadata from a message's media object.
  *
  * Supports MessageMediaPhoto (extracts largest PhotoSize dimensions/size)
@@ -115,7 +128,7 @@ export function extractMediaInfo(media: any): MediaInfo | null {
 
     return {
       filename: null,
-      fileSize: bestSize?.size != null ? Number(bestSize.size) : null,
+      fileSize: toSafeNumber(bestSize?.size),
       mimeType: 'image/jpeg',
       width: bestSize?.w ?? null,
       height: bestSize?.h ?? null,
@@ -154,7 +167,7 @@ export function extractMediaInfo(media: any): MediaInfo | null {
 
     return {
       filename,
-      fileSize: doc.size != null ? Number(doc.size) : null,
+      fileSize: toSafeNumber(doc.size),
       mimeType: doc.mimeType ?? null,
       width,
       height,
@@ -250,6 +263,34 @@ export function serializeSearchResult(
     ...serializeMessage(msg, senderEntity),
     chatId,
     chatTitle,
+  };
+}
+
+/**
+ * Extract the peer ID from a gramjs fromId peer object.
+ * Handles PeerUser (userId), PeerChannel (channelId), and PeerChat (chatId).
+ */
+function extractPeerId(fromId: any): string {
+  if (!fromId) return '';
+  return bigIntToString(fromId.userId ?? fromId.channelId ?? fromId.chatId ?? '');
+}
+
+/**
+ * Serialize a gramjs ForumTopic to a TopicItem for JSON output.
+ *
+ * Maps gramjs fields: topMessage -> messageCount, closed -> isClosed, pinned -> isPinned.
+ * iconEmojiId is converted to string representation if present, null otherwise.
+ */
+export function serializeTopic(topic: any): TopicItem {
+  return {
+    id: topic.id,
+    title: topic.title ?? '',
+    iconEmoji: topic.iconEmojiId != null ? topic.iconEmojiId.toString() : null,
+    creationDate: topic.date ? new Date(topic.date * 1000).toISOString() : new Date().toISOString(),
+    creatorId: extractPeerId(topic.fromId),
+    messageCount: topic.topMessage ?? 0,
+    isClosed: !!topic.closed,
+    isPinned: !!topic.pinned,
   };
 }
 

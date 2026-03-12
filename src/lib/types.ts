@@ -8,6 +8,8 @@ export interface GlobalOptions {
   quiet: boolean;
   profile: string;
   config?: string;
+  fields?: string;
+  jsonl?: boolean;
 }
 
 /**
@@ -213,6 +215,32 @@ export interface MediaSendOptions {
   files: string[];
   caption?: string;
   replyTo?: number;
+}
+
+// ---- Phase 5: Advanced Features types ----
+
+/**
+ * Serialized forum topic item for topic listing output.
+ */
+export interface TopicItem {
+  id: number;
+  title: string;
+  iconEmoji: string | null;
+  creationDate: string;
+  creatorId: string;
+  /** Mapped from gramjs topMessage (latest message ID, not a true count) */
+  messageCount: number;
+  isClosed: boolean;
+  isPinned: boolean;
+}
+
+/**
+ * Options for the chat topics command.
+ */
+export interface TopicListOptions {
+  chat: string;
+  limit: number;
+  offset: number;
 }
 
 // ---- Phase 3: Messaging & Interaction types ----

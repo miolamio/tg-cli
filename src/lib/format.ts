@@ -7,6 +7,7 @@ import type {
   SearchResultItem,
   DownloadResult,
   AlbumResult,
+  TopicItem,
 } from './types.js';
 import { formatBytes } from './media-utils.js';
 
@@ -197,15 +198,42 @@ export function formatDownloadResult(result: DownloadResult): string {
  * Handles both single MessageItem (delegates to formatSingleMessage) and
  * AlbumResult (header + each message formatted).
  */
-export function formatUploadResult(result: any): string {
+export function formatUploadResult(result: AlbumResult | MessageItem): string {
   // AlbumResult shape
-  if (Array.isArray(result.messages) && typeof result.sent === 'number') {
-    const header = pc.bold(`Sent ${result.sent} files`);
-    const msgs = (result.messages as MessageItem[]).map(formatSingleMessage).join('\n');
+  if ('messages' in result && 'sent' in result) {
+    const album = result as AlbumResult;
+    const header = pc.bold(`Sent ${album.sent} files`);
+    const msgs = album.messages.map(formatSingleMessage).join('\n');
     return `${header}\n${msgs}`;
   }
   // Single MessageItem
-  return formatSingleMessage(result as MessageItem);
+  return formatSingleMessage(result);
+}
+
+/**
+ * Format forum topics as a human-readable list.
+ * Each topic shows its ID, title, and optional pinned/closed indicators.
+ * Example:
+ *   42  General Discussion [pinned]
+ *   43  Off Topic [closed]
+ *   44  Normal Topic
+ */
+export function formatTopics(topics: TopicItem[]): string {
+  if (topics.length === 0) return '';
+
+  // Determine max ID width for alignment
+  const maxIdLen = Math.max(...topics.map(t => String(t.id).length));
+
+  return topics.map(t => {
+    const idStr = String(t.id).padStart(maxIdLen);
+    const id = pc.dim(idStr);
+    const title = pc.bold(t.title);
+    const indicators: string[] = [];
+    if (t.isPinned) indicators.push(pc.cyan('[pinned]'));
+    if (t.isClosed) indicators.push(pc.yellow('[closed]'));
+    const suffix = indicators.length > 0 ? ' ' + indicators.join(' ') : '';
+    return `  ${id}  ${title}${suffix}`;
+  }).join('\n');
 }
 
 /**
@@ -248,7 +276,7 @@ export function formatData(data: unknown): string {
 
   // Check for AlbumResult shape (messages[] + sent number) - before generic messages check
   if (Array.isArray(obj.messages) && typeof obj.sent === 'number') {
-    return formatUploadResult(obj);
+    return formatUploadResult(obj as AlbumResult);
   }
 
   // Check for single MessageItem at top level (e.g. from send command)
@@ -280,6 +308,15 @@ export function formatData(data: unknown): string {
   // Check for ChatInfo shape (has title + type + memberCount at top level)
   if ('title' in obj && 'type' in obj && 'memberCount' in obj) {
     return formatChatInfo(obj as ChatInfo);
+  }
+
+  // Check for topics array (forum topics)
+  if (Array.isArray(obj.topics)) {
+    if (obj.topics.length === 0) return 'No topics.';
+    const first = obj.topics[0];
+    if ('title' in first && 'isClosed' in first) {
+      return formatTopics(obj.topics as TopicItem[]);
+    }
   }
 
   // Check for members array
