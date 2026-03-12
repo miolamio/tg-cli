@@ -100,10 +100,10 @@ Plans:
   2. User can request messages by ID in batch and see both found messages and a list of IDs that were not found (deleted or invalid)
   3. User can run `tg message pinned <chat>` and receive all currently pinned messages in the chat
   4. Both commands produce correct JSON, human-readable, JSONL, and field-selected output using existing output pipeline
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md — Get messages by ID (with notFound tracking) and pinned messages command, shared entity-map utility
 
 ### Phase 7: Message Write Operations
 **Goal**: Users can edit, delete, pin, and unpin messages with clear permission feedback and safe defaults
@@ -188,7 +188,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 3. Messaging & Interaction | v1.0 | 2/2 | Complete | 2026-03-11 |
 | 4. Media & Files | v1.0 | 2/2 | Complete | 2026-03-11 |
 | 5. Advanced Features & Polish | v1.0 | 3/3 | Complete | 2026-03-12 |
-| 6. Message Read Operations | v1.1 | 0/0 | Not started | - |
+| 6. Message Read Operations | v1.1 | 0/1 | Planning | - |
 | 7. Message Write Operations | v1.1 | 0/0 | Not started | - |
 | 8. User Profiles & Block/Unblock | v1.1 | 0/0 | Not started | - |
 | 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
