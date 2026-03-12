@@ -6,9 +6,10 @@ import { chatLeaveAction } from './leave.js';
 import { chatResolveAction } from './resolve.js';
 import { chatInviteInfoAction } from './invite-info.js';
 import { chatMembersAction } from './members.js';
+import { chatTopicsAction } from './topics.js';
 
 /**
- * Create the `chat` command group with 7 subcommands for chat discovery and management.
+ * Create the `chat` command group with 8 subcommands for chat discovery and management.
  *
  * Usage:
  *   tg chat list             - List all chats/dialogs
@@ -18,6 +19,7 @@ import { chatMembersAction } from './members.js';
  *   tg chat resolve <input>  - Resolve a peer to entity info
  *   tg chat invite-info <link> - Check invite link info without joining
  *   tg chat members <chat>   - List members of a group/channel
+ *   tg chat topics <chat>    - List forum topics in a supergroup
  */
 export function createChatCommand(): Command {
   const chat = new Command('chat')
@@ -69,6 +71,14 @@ export function createChatCommand(): Command {
     .option('--offset <n>', 'Skip results', '0')
     .option('--search <query>', 'Filter members by name')
     .action(chatMembersAction);
+
+  chat
+    .command('topics')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .description('List forum topics in a supergroup')
+    .option('--limit <n>', 'Max topics', '50')
+    .option('--offset <n>', 'Skip topics', '0')
+    .action(chatTopicsAction);
 
   return chat;
 }
