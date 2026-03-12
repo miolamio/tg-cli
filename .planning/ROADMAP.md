@@ -1,8 +1,9 @@
 # Roadmap: Telegram CLI
 
-## Overview
+## Milestones
 
-This roadmap delivers a full-featured Telegram CLI client from zero to a working npm package that Claude Code agents can use to authenticate, search, read, write, and manage media across Telegram chats. The phases follow the natural dependency chain: foundation and auth first (nothing works without it), then read operations (core value proposition), then write operations, media handling, and finally advanced features like forum topics and multi-chat search.
+- ✅ **v1.0 MVP** - Phases 1-5 (shipped 2026-03-12)
+- 🚧 **v1.1 Новые дополнения** - Phases 6-11 (in progress)
 
 ## Phases
 
@@ -12,113 +13,184 @@ This roadmap delivers a full-featured Telegram CLI client from zero to a working
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Foundation & Auth** - Project scaffolding, npm package, auth flow, session management, JSON output infrastructure, rate limiting (completed 2026-03-11)
-- [ ] **Phase 2: Chat Discovery & Message Reading** - List chats, chat info, join/leave groups, peer resolution, message history, search
-- [ ] **Phase 3: Messaging & Interaction** - Send messages, reply, forward, react, human-readable output mode
-- [ ] **Phase 4: Media & Files** - Download and upload media/files, search filters by media type
-- [ ] **Phase 5: Advanced Features & Polish** - Forum topic support, multi-chat search, field selection, JSONL streaming
+<details>
+<summary>✅ v1.0 MVP (Phases 1-5) - SHIPPED 2026-03-12</summary>
 
-## Phase Details
+- [x] **Phase 1: Foundation & Auth** - Project scaffolding, npm package, auth flow, session management, JSON output infrastructure, rate limiting (completed 2026-03-11)
+- [x] **Phase 2: Chat Discovery & Message Reading** - List chats, chat info, join/leave groups, peer resolution, message history, search (completed 2026-03-11)
+- [x] **Phase 3: Messaging & Interaction** - Send messages, reply, forward, react, human-readable output mode (completed 2026-03-11)
+- [x] **Phase 4: Media & Files** - Download and upload media/files, search filters by media type (completed 2026-03-11)
+- [x] **Phase 5: Advanced Features & Polish** - Forum topic support, multi-chat search, field selection, JSONL streaming (completed 2026-03-12)
 
 ### Phase 1: Foundation & Auth
 **Goal**: Users can install the CLI via npm/npx, authenticate with Telegram (including 2FA), persist and manage sessions, and receive structured JSON output from all commands
 **Depends on**: Nothing (first phase)
 **Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, OUT-01, OUT-02, OUT-06
-**Success Criteria** (what must be TRUE):
-  1. User can run `npx telegram-cli auth login` and complete phone + code + 2FA flow to authenticate
-  2. User can close the terminal, reopen it, and run commands without re-authenticating (session persists)
-  3. User can export a session string, use it on another machine via import, and be authenticated there
-  4. User can run `tg auth status` to check login state and `tg auth logout` to destroy the session
-  5. Every command returns JSON on stdout with `{ ok, data, error? }` envelope, errors/progress on stderr
 **Plans**: 3 plans
 
 Plans:
-- [x] 01-01-PLAN.md — Project scaffolding, build infrastructure, and core library modules (types, output, errors, config, prompt)
-- [x] 01-02-PLAN.md — Session store with locking, client lifecycle wrapper, rate limiting, and auth commands (login, status, logout)
+- [x] 01-01-PLAN.md — Project scaffolding, build infrastructure, and core library modules
+- [x] 01-02-PLAN.md — Session store with locking, client lifecycle wrapper, rate limiting, and auth commands
 - [x] 01-03-PLAN.md — Session commands (export, import), CLI entry point wiring, build, and end-to-end verification
 
 ### Phase 2: Chat Discovery & Message Reading
-**Goal**: Users can discover their chats, get detailed chat info, join/leave groups, resolve peers, and read/search message history -- delivering the core agent use case of finding and extracting information from Telegram
+**Goal**: Users can discover their chats, get detailed chat info, join/leave groups, resolve peers, and read/search message history
 **Depends on**: Phase 1
 **Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06, CHAT-07, READ-01, READ-02, READ-03, READ-04
-**Success Criteria** (what must be TRUE):
-  1. User can list all their chats and see names, types, and unread counts in JSON output
-  2. User can get detailed info for any chat (title, description, member count) and list members with pagination
-  3. User can join a group by username or invite link, and leave any group they belong to
-  4. User can read message history from any chat with pagination and date range filtering
-  5. User can search messages by keyword within a specific chat or globally across all chats
 **Plans**: 4 plans
 
 Plans:
-- [x] 02-01-PLAN.md — Shared foundation: types, serialization, peer resolution, entity-to-markdown, withClient timeout fix
-- [x] 02-02-PLAN.md — Chat commands (list, info, join, leave, resolve, invite-info, members) and CLI wiring
-- [x] 02-03-PLAN.md — Message commands (history with date filtering, search per-chat and global) and CLI wiring
-- [ ] 02-04-PLAN.md — UAT gap closure: fix ignoreMigrated empty results, -q shorthand conflict, DM chatTitle resolution
+- [x] 02-01-PLAN.md — Shared foundation: types, serialization, peer resolution, entity-to-markdown
+- [x] 02-02-PLAN.md — Chat commands (list, info, join, leave, resolve, invite-info, members)
+- [x] 02-03-PLAN.md — Message commands (history with date filtering, search per-chat and global)
+- [x] 02-04-PLAN.md — UAT gap closure: fix ignoreMigrated, -q shorthand conflict, DM chatTitle resolution
 
 ### Phase 3: Messaging & Interaction
 **Goal**: Users can send text messages, reply to specific messages, forward messages between chats, react with emoji, and switch between JSON and human-readable output
 **Depends on**: Phase 2
 **Requirements**: WRITE-01, WRITE-02, WRITE-03, WRITE-05, OUT-03
-**Success Criteria** (what must be TRUE):
-  1. User can send a text message to any chat (user, group, or channel) and see confirmation in JSON
-  2. User can reply to a specific message by ID and forward messages between chats
-  3. User can add an emoji reaction to any message
-  4. User can pass `--human` or `--no-json` to get human-readable output instead of JSON
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Write commands: send (with reply and stdin pipe), forward (batch), react (with remove), types, tests
-- [ ] 03-02-PLAN.md — Human-readable output: format.ts formatters, mode-aware output.ts, --no-json flag, retrofit all existing commands
+- [x] 03-01-PLAN.md — Write commands: send (with reply and stdin pipe), forward (batch), react (with remove)
+- [x] 03-02-PLAN.md — Human-readable output: format.ts formatters, mode-aware output.ts, --no-json flag
 
 ### Phase 4: Media & Files
-**Goal**: Users can download media/files from messages and upload files to chats, and can filter search results by media type (photos, videos, documents, etc.)
+**Goal**: Users can download media/files from messages and upload files to chats, and can filter search results by media type
 **Depends on**: Phase 3
 **Requirements**: READ-07, WRITE-04, READ-05
-**Success Criteria** (what must be TRUE):
-  1. User can download any file or media attachment from a message to a local path
-  2. User can upload and send a local file (photo, video, document) to any chat
-  3. User can filter search results by media type using `--filter photos|videos|documents|urls|voice|...`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Media types, utilities (filter map, auto-naming), metadata extraction in serialization, search filter integration (--filter on search), format updates for media annotations
-- [ ] 04-02-PLAN.md — Media download command (single + batch, auto-naming, -o override), media send command (single + album, caption, reply-to, voice detection), CLI wiring
+- [x] 04-01-PLAN.md — Media types, utilities, metadata extraction, search filter integration
+- [x] 04-02-PLAN.md — Media download command, media send command, CLI wiring
 
 ### Phase 5: Advanced Features & Polish
-**Goal**: Users can interact with forum topics in supergroups, search across multiple specific chats in one command, select output fields, and stream results as JSONL
+**Goal**: Users can interact with forum topics in supergroups, search across multiple specific chats, select output fields, and stream results as JSONL
 **Depends on**: Phase 4
 **Requirements**: WRITE-06, WRITE-07, WRITE-08, READ-06, OUT-04, OUT-05
-**Success Criteria** (what must be TRUE):
-  1. User can list forum topics in a supergroup, read messages from a specific topic, and send messages to a topic
-  2. User can search across multiple specific chats in a single command using `--chat @a,@b,@c`
-  3. User can select specific output fields with `--fields id,text,date,sender` to reduce output noise
-  4. User can use `--jsonl` on list commands to get one JSON object per line for streaming consumption
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Forum topic listing command (`tg chat topics`), TopicItem type, serialization, format dispatch, forum guard
-- [ ] 05-02-PLAN.md — Output enhancements: field selection (`--fields`), JSONL streaming (`--jsonl`), global option wiring
-- [ ] 05-03-PLAN.md — Topic-scoped commands (`--topic` on history/send/search/media), multi-chat search (`--chat @a,@b,@c`)
+- [x] 05-01-PLAN.md — Forum topic listing, TopicItem type, serialization, format dispatch
+- [x] 05-02-PLAN.md — Output enhancements: field selection (--fields), JSONL streaming (--jsonl)
+- [x] 05-03-PLAN.md — Topic-scoped commands (--topic on history/send/search/media), multi-chat search
+
+</details>
+
+### v1.1 Новые дополнения (In Progress)
+
+**Milestone Goal:** Expand the CLI with message management (get/edit/delete/pin), user profiles, contacts, polls, and TOON output format for token-efficient agent consumption.
+
+- [ ] **Phase 6: Message Read Operations** - Get messages by ID, get pinned messages from a chat
+- [ ] **Phase 7: Message Write Operations** - Edit, delete, pin, and unpin messages
+- [ ] **Phase 8: User Profiles & Block/Unblock** - New `user` command group with profile, block, unblock, blocked list
+- [ ] **Phase 9: Contacts CRUD** - New `contact` command group with list, add, delete, search
+- [ ] **Phase 10: Polls** - Send polls with quiz mode, multiple choice, anonymous/public, auto-close
+- [ ] **Phase 11: TOON Output Format** - Token-efficient output mode (`--toon`) for LLM consumers
+
+## Phase Details
+
+### Phase 6: Message Read Operations
+**Goal**: Users can retrieve specific messages by ID and discover pinned messages in any chat
+**Depends on**: Phase 5 (v1.0 complete)
+**Requirements**: READ-08, READ-09
+**Success Criteria** (what must be TRUE):
+  1. User can run `tg message get <chat> <id1> <id2> ...` and receive the specified messages with full serialization (text, sender, date, media)
+  2. User can request messages by ID in batch and see both found messages and a list of IDs that were not found (deleted or invalid)
+  3. User can run `tg message pinned <chat>` and receive all currently pinned messages in the chat
+  4. Both commands produce correct JSON, human-readable, JSONL, and field-selected output using existing output pipeline
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
+
+### Phase 7: Message Write Operations
+**Goal**: Users can edit, delete, pin, and unpin messages with clear permission feedback and safe defaults
+**Depends on**: Phase 6
+**Requirements**: WRITE-09, WRITE-10, WRITE-11, WRITE-12
+**Success Criteria** (what must be TRUE):
+  1. User can run `tg message edit <chat> <id> <text>` to edit their own sent messages, and receives a clear error when the 48-hour window has expired or the message is not theirs
+  2. User can run `tg message delete <chat> <ids>` with explicit `--revoke` (delete for everyone) or `--for-me` (delete only for self) control, with no silent default that deletes for everyone
+  3. User can run `tg message pin <chat> <id>` which defaults to silent (no notification) and supports `--notify` to opt in to notifying members
+  4. User can run `tg message unpin <chat> <id>` to unpin a specific pinned message
+  5. All four commands translate Telegram permission errors (MESSAGE_EDIT_TIME_EXPIRED, MESSAGE_AUTHOR_REQUIRED, MESSAGE_DELETE_FORBIDDEN, CHAT_ADMIN_REQUIRED) into actionable CLI messages
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 7 to break down)
+
+### Phase 8: User Profiles & Block/Unblock
+**Goal**: Users can inspect detailed profiles for any Telegram user and manage their block list
+**Depends on**: Phase 6
+**Requirements**: USER-01, USER-02, USER-03, USER-04
+**Success Criteria** (what must be TRUE):
+  1. User can run `tg user profile <user>` and see bio, photo count, last seen status, common chats count, and blocked status, with privacy-restricted fields clearly labeled rather than shown as empty
+  2. User can run `tg user block <user>` and `tg user unblock <user>` to manage blocking, with confirmation in output
+  3. User can run `tg user blocked` to list all blocked users with pagination support
+  4. All user commands produce correct JSON and human-readable output using the existing output pipeline
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 8 to break down)
+
+### Phase 9: Contacts CRUD
+**Goal**: Users can manage their Telegram contacts -- list, add, delete, and search
+**Depends on**: Phase 6
+**Requirements**: CONT-01, CONT-02, CONT-03, CONT-04
+**Success Criteria** (what must be TRUE):
+  1. User can run `tg contact list` and see all contacts with phone number, username, and online status
+  2. User can run `tg contact add` with either a username/ID (routed to addContact API) or a phone number (routed to importContacts API) and see the added contact in output
+  3. User can run `tg contact delete <user>` to remove a contact
+  4. User can run `tg contact search <query>` to find contacts by name, returning matching results
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 9 to break down)
+
+### Phase 10: Polls
+**Goal**: Users can create and send polls with full configuration (quiz mode, multiple choice, anonymous/public, auto-close)
+**Depends on**: Phase 6
+**Requirements**: WRITE-13
+**Success Criteria** (what must be TRUE):
+  1. User can run `tg message poll <chat> --question <q> --option <o1> --option <o2>` to send a basic poll with 2-10 options
+  2. User can create a quiz poll with `--quiz --correct <index> --solution <text>` where exactly one correct answer is required
+  3. User can configure poll behavior with `--multiple` (multiple choice), `--public` (non-anonymous), and `--close-in <seconds>` (auto-close timer)
+  4. Client-side validation rejects invalid configurations before API call (too few/many options, missing --correct in quiz mode, option text too long)
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 10 to break down)
+
+### Phase 11: TOON Output Format
+**Goal**: Users can use `--toon` for a token-efficient output format that reduces LLM context consumption by 30-60% on uniform data
+**Depends on**: Phase 10 (all data shapes must exist)
+**Requirements**: OUT-07
+**Success Criteria** (what must be TRUE):
+  1. User can pass `--toon` on any command that returns data and receive TOON-formatted output instead of JSON
+  2. `--toon` is mutually exclusive with `--human` and `--jsonl` -- passing conflicting flags produces a clear error
+  3. `--fields` selection works with `--toon` (field filtering applied before TOON encoding)
+  4. TOON output produces measurably fewer tokens than equivalent JSON output on a benchmark of 100+ real messages (benchmark gate: minimum 20% savings)
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 11 to break down)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation & Auth | 3/3 | Complete   | 2026-03-11 |
-| 2. Chat Discovery & Message Reading | 3/4 | In progress | - |
-| 3. Messaging & Interaction | 0/2 | Not started | - |
-| 4. Media & Files | 0/2 | Not started | - |
-| 5. Advanced Features & Polish | 0/3 | Not started | - |
-
-### Phase 6: Add channel post replies/comments command (message.getReplies)
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 5
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 6 to break down)
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Foundation & Auth | v1.0 | 3/3 | Complete | 2026-03-11 |
+| 2. Chat Discovery & Message Reading | v1.0 | 4/4 | Complete | 2026-03-11 |
+| 3. Messaging & Interaction | v1.0 | 2/2 | Complete | 2026-03-11 |
+| 4. Media & Files | v1.0 | 2/2 | Complete | 2026-03-11 |
+| 5. Advanced Features & Polish | v1.0 | 3/3 | Complete | 2026-03-12 |
+| 6. Message Read Operations | v1.1 | 0/0 | Not started | - |
+| 7. Message Write Operations | v1.1 | 0/0 | Not started | - |
+| 8. User Profiles & Block/Unblock | v1.1 | 0/0 | Not started | - |
+| 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
+| 10. Polls | v1.1 | 0/0 | Not started | - |
+| 11. TOON Output Format | v1.1 | 0/0 | Not started | - |

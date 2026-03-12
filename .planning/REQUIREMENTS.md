@@ -181,33 +181,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
 
-### v1.1 (Pending)
+### v1.1 (In Progress)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| READ-08 | TBD | Pending |
-| READ-09 | TBD | Pending |
-| WRITE-09 | TBD | Pending |
-| WRITE-10 | TBD | Pending |
-| WRITE-11 | TBD | Pending |
-| WRITE-12 | TBD | Pending |
-| WRITE-13 | TBD | Pending |
-| USER-01 | TBD | Pending |
-| USER-02 | TBD | Pending |
-| USER-03 | TBD | Pending |
-| USER-04 | TBD | Pending |
-| CONT-01 | TBD | Pending |
-| CONT-02 | TBD | Pending |
-| CONT-03 | TBD | Pending |
-| CONT-04 | TBD | Pending |
-| OUT-07 | TBD | Pending |
+| READ-08 | Phase 6 | Pending |
+| READ-09 | Phase 6 | Pending |
+| WRITE-09 | Phase 7 | Pending |
+| WRITE-10 | Phase 7 | Pending |
+| WRITE-11 | Phase 7 | Pending |
+| WRITE-12 | Phase 7 | Pending |
+| WRITE-13 | Phase 10 | Pending |
+| USER-01 | Phase 8 | Pending |
+| USER-02 | Phase 8 | Pending |
+| USER-03 | Phase 8 | Pending |
+| USER-04 | Phase 8 | Pending |
+| CONT-01 | Phase 9 | Pending |
+| CONT-02 | Phase 9 | Pending |
+| CONT-03 | Phase 9 | Pending |
+| CONT-04 | Phase 9 | Pending |
+| OUT-07 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.0 requirements: 41 total, 41 complete
-- v1.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 (pending roadmap)
+- v1.1 requirements: 16 total, 16 mapped
+- Mapped to phases: 16/16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-12 after v1.1 milestone requirements*
+*Last updated: 2026-03-12 after v1.1 roadmap creation*
