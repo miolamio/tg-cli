@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { outputSuccess, outputError, logStatus, setOutputMode, getOutputMode } from '../../src/lib/output.js';
+import { outputSuccess, outputError, logStatus, setOutputMode, getOutputMode, setJsonlMode, setFieldSelection } from '../../src/lib/output.js';
 
 describe('outputSuccess', () => {
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
@@ -217,5 +217,195 @@ describe('outputSuccess in default JSON mode', () => {
     const written = stdoutSpy.mock.calls[0][0] as string;
     const parsed = JSON.parse(written);
     expect(parsed).toEqual({ ok: true, data: { test: true } });
+  });
+});
+
+describe('outputSuccess in JSONL mode', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(false);
+    setJsonlMode(true);
+    setFieldSelection(null as unknown as string[]);
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    setJsonlMode(false);
+    setFieldSelection(null as unknown as string[]);
+  });
+
+  it('writes one JSON object per line for list data, no envelope', () => {
+    const msg1 = { id: 1, text: 'hello' };
+    const msg2 = { id: 2, text: 'world' };
+    outputSuccess({ messages: [msg1, msg2], total: 2 });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(2);
+    const line1 = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+    const line2 = JSON.parse(stdoutSpy.mock.calls[1][0] as string);
+    expect(line1).toEqual(msg1);
+    expect(line2).toEqual(msg2);
+  });
+
+  it('each line ends with newline', () => {
+    outputSuccess({ messages: [{ id: 1 }], total: 1 });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    expect(written.endsWith('\n')).toBe(true);
+  });
+
+  it('falls through to JSON envelope for non-list data', () => {
+    outputSuccess({ status: 'ok', loggedIn: true });
+
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed).toEqual({ ok: true, data: { status: 'ok', loggedIn: true } });
+  });
+
+  it('composes with field selection', () => {
+    setFieldSelection(['id']);
+    outputSuccess({
+      messages: [
+        { id: 1, text: 'hello', date: '2026-01-01' },
+        { id: 2, text: 'world', date: '2026-01-02' },
+      ],
+      total: 2,
+    });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: 1 });
+    expect(JSON.parse(stdoutSpy.mock.calls[1][0] as string)).toEqual({ id: 2 });
+  });
+
+  it('works with chats array', () => {
+    outputSuccess({ chats: [{ id: '1', title: 'Test' }], total: 1 });
+
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '1', title: 'Test' });
+  });
+});
+
+describe('outputSuccess with field selection in JSON mode', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(false);
+    setJsonlMode(false);
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    setFieldSelection(null as unknown as string[]);
+  });
+
+  it('filters items but preserves envelope and metadata', () => {
+    setFieldSelection(['id']);
+    outputSuccess({
+      messages: [{ id: 1, text: 'hello', date: '2026-01-01' }],
+      total: 5,
+    });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed).toEqual({
+      ok: true,
+      data: { messages: [{ id: 1 }], total: 5 },
+    });
+  });
+
+  it('preserves multiple metadata fields', () => {
+    setFieldSelection(['id', 'title']);
+    outputSuccess({
+      chats: [{ id: '1', title: 'Chat', type: 'group' }],
+      total: 10,
+      count: 1,
+    });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed.data.total).toBe(10);
+    expect(parsed.data.count).toBe(1);
+    expect(parsed.data.chats).toEqual([{ id: '1', title: 'Chat' }]);
+  });
+
+  it('does not filter when no field selection is set', () => {
+    outputSuccess({ messages: [{ id: 1, text: 'hi' }], total: 1 });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed.data.messages[0]).toEqual({ id: 1, text: 'hi' });
+  });
+});
+
+describe('outputSuccess with field selection in human mode', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(true);
+    setFieldSelection(['id']);
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    setOutputMode(false);
+    setFieldSelection(null as unknown as string[]);
+  });
+
+  it('silently ignores --fields in human mode', () => {
+    outputSuccess({
+      messages: [
+        {
+          id: 1, text: 'Hello', date: '2026-03-11T12:30:00.000Z',
+          senderId: '123', senderName: 'Alice', replyToMsgId: null,
+          forwardFrom: null, mediaType: null, type: 'message',
+        },
+      ],
+      total: 1,
+    });
+
+    // Should still format as human-readable (not filtered to just id)
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    expect(written).toContain('Alice');
+    expect(written).toContain('Hello');
+  });
+});
+
+describe('outputError in JSONL mode', () => {
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(false);
+    setJsonlMode(true);
+  });
+
+  afterEach(() => {
+    stderrSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    setJsonlMode(false);
+  });
+
+  it('writes error to stderr only, no envelope', () => {
+    outputError('something failed', 'TEST_ERR');
+
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const written = stderrSpy.mock.calls[0][0] as string;
+    expect(written).toContain('Error:');
+    expect(written).toContain('something failed');
+    expect(written).toContain('[TEST_ERR]');
+    expect(stdoutSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes error without code when not provided', () => {
+    outputError('oops');
+
+    const written = stderrSpy.mock.calls[0][0] as string;
+    expect(written).toBe('Error: oops\n');
   });
 });

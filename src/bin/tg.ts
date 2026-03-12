@@ -7,7 +7,7 @@ import { createSessionCommand } from '../commands/session/index.js';
 import { createChatCommand } from '../commands/chat/index.js';
 import { createMessageCommand } from '../commands/message/index.js';
 import { createMediaCommand } from '../commands/media/index.js';
-import { setOutputMode } from '../lib/output.js';
+import { setOutputMode, setJsonlMode, setFieldSelection, outputError } from '../lib/output.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,7 +46,9 @@ program
   .option('-v, --verbose', 'Show extra info')
   .option('-q, --quiet', 'Suppress stderr output')
   .option('--profile <name>', 'Named profile', 'default')
-  .option('--config <path>', 'Config file path');
+  .option('--config <path>', 'Config file path')
+  .option('--fields <fields>', 'Select output fields (comma-separated, dot notation for nested)')
+  .option('--jsonl', 'Output one JSON object per line (list commands only)');
 
 // Global options are parsed at any position in the command line
 
@@ -55,6 +57,15 @@ program.hook('preAction', (thisCommand) => {
   const opts = thisCommand.optsWithGlobals();
   const isHuman = opts.human === true || opts.json === false;
   setOutputMode(isHuman);
+
+  // --jsonl and --human are mutually exclusive
+  if (opts.jsonl && isHuman) {
+    outputError('--jsonl and --human are mutually exclusive', 'INVALID_OPTIONS');
+    process.exit(1);
+  }
+
+  if (opts.jsonl) setJsonlMode(true);
+  if (opts.fields) setFieldSelection(opts.fields.split(',').map((f: string) => f.trim()));
 });
 
 // Wire command groups with help group headings
