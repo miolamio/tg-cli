@@ -66,6 +66,41 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **INFRA-05**: Graceful connection lifecycle management (connect, disconnect, error recovery)
 - [x] **INFRA-06**: Configuration file for persistent settings (`~/.config/telegram-cli/config.json`)
 
+## v1.1 Requirements
+
+Requirements for v1.1 milestone "Новые дополнения". Each maps to roadmap phases.
+
+### Messaging — Read (extended)
+
+- [ ] **READ-08**: User can get specific messages by ID (`tg message get <chat> <ids>`) with batch support
+- [ ] **READ-09**: User can get pinned messages from a chat (`tg message pinned <chat>`)
+
+### Messaging — Write (extended)
+
+- [ ] **WRITE-09**: User can edit own sent messages (`tg message edit <chat> <id> <text>`) with 48h window error handling
+- [ ] **WRITE-10**: User can delete messages with explicit revoke control (`tg message delete <chat> <ids> --revoke/--for-me`)
+- [ ] **WRITE-11**: User can pin a message in a chat (`tg message pin <chat> <id>`) with silent default and `--notify` opt-in
+- [ ] **WRITE-12**: User can unpin a message (`tg message unpin <chat> <id>`)
+- [ ] **WRITE-13**: User can send polls (`tg message poll <chat>`) with quiz mode, multiple choice, anonymous/public, auto-close options
+
+### User Management (new)
+
+- [ ] **USER-01**: User can get a detailed profile for any user (`tg user profile <user>`) showing bio, photos count, last seen, common chats, blocked status, and privacy-restricted field indicators
+- [ ] **USER-02**: User can block a user (`tg user block <user>`)
+- [ ] **USER-03**: User can unblock a user (`tg user unblock <user>`)
+- [ ] **USER-04**: User can list blocked users (`tg user blocked`) with pagination
+
+### Contacts (new)
+
+- [ ] **CONT-01**: User can list all contacts (`tg contact list`) with phone, username, status
+- [ ] **CONT-02**: User can add a contact by username/ID or phone number (`tg contact add`) with dual API routing
+- [ ] **CONT-03**: User can delete a contact (`tg contact delete <user>`)
+- [ ] **CONT-04**: User can search contacts by name (`tg contact search <query>`)
+
+### Output (extended)
+
+- [ ] **OUT-07**: User can use `--toon` flag for TOON output format (token-efficient, LLM-optimized) with mutual exclusion against `--human` and `--jsonl`
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -75,9 +110,11 @@ Deferred to future release. Tracked but not in current roadmap.
 - **ADV-01**: Poll/watch mode for monitoring new messages with `--interval`
 - **ADV-02**: Inline bot query support
 - **ADV-03**: Channel admin operations (create, set admins, set description)
-- **ADV-04**: Message deletion with safety guards
 - **ADV-05**: Broadcast to multiple peers
 - **ADV-06**: Interactive TUI mode (separate package)
+- **ADV-07**: User profile photo download (use existing media download)
+- **ADV-08**: Contact bulk import by phone number
+- **ADV-09**: Unpin all messages in chat
 
 ## Out of Scope
 
@@ -87,14 +124,18 @@ Deferred to future release. Tracked but not in current roadmap.
 | Secret chats | Device-specific keys, breaks session portability, rarely used |
 | Bot API support | Different protocol entirely; Telegraf/grammY serve this |
 | Sticker rendering in terminal | Meaningless in CLI; download as files via `download` command |
-| Profile/account management | Rarely needed, high risk of agent misuse |
-| Contact list CRUD | Phone-book concept; username/ID resolution covers the use case |
+| Own account management | Rarely needed, high risk of agent misuse |
 | Real-time push streaming | Fundamentally different architecture; poll mode deferred to v2 |
 | Interactive TUI | Different product; deferred to v2 as separate package |
+| Channel/group administration | Create, edit info, manage admins, ban/kick — not needed yet |
+| Forum topic management | Create, close, reopen topics — deferred |
+| Mark as read | Deferred |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
+
+### v1.0 (Complete)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -140,11 +181,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
 
+### v1.1 (Pending)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| READ-08 | TBD | Pending |
+| READ-09 | TBD | Pending |
+| WRITE-09 | TBD | Pending |
+| WRITE-10 | TBD | Pending |
+| WRITE-11 | TBD | Pending |
+| WRITE-12 | TBD | Pending |
+| WRITE-13 | TBD | Pending |
+| USER-01 | TBD | Pending |
+| USER-02 | TBD | Pending |
+| USER-03 | TBD | Pending |
+| USER-04 | TBD | Pending |
+| CONT-01 | TBD | Pending |
+| CONT-02 | TBD | Pending |
+| CONT-03 | TBD | Pending |
+| CONT-04 | TBD | Pending |
+| OUT-07 | TBD | Pending |
+
 **Coverage:**
-- v1 requirements: 41 total
-- Mapped to phases: 41
-- Unmapped: 0
+- v1.0 requirements: 41 total, 41 complete
+- v1.1 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 (pending roadmap)
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after roadmap creation*
+*Last updated: 2026-03-12 after v1.1 milestone requirements*
