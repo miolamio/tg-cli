@@ -129,7 +129,7 @@ export function serializeMessage(
   const item: MessageItem = {
     id: msg.id,
     text,
-    date: new Date(msg.date * 1000).toISOString(),
+    date: msg.date ? new Date(msg.date * 1000).toISOString() : new Date().toISOString(),
     senderId: (msg as any).senderId ? bigIntToString((msg as any).senderId) : null,
     senderName: senderName(senderEntity),
     replyToMsgId: (msg as any).replyTo?.replyToMsgId ?? null,
