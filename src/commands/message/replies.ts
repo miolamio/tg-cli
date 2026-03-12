@@ -7,21 +7,8 @@ import { outputSuccess, outputError } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { buildEntityMap } from '../../lib/entity-map.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
-
-/**
- * Build entity lookup map from GetReplies result users/chats arrays.
- */
-function buildEntityMap(result: any): Map<string, any> {
-  const map = new Map<string, any>();
-  for (const u of result.users ?? []) {
-    map.set(u.id.toString(), u);
-  }
-  for (const c of result.chats ?? []) {
-    map.set(c.id.toString(), c);
-  }
-  return map;
-}
 
 /**
  * Serialize messages from a GetReplies result, resolving sender names.
