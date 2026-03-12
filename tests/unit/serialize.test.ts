@@ -403,6 +403,21 @@ describe('extractMediaInfo', () => {
     expect(info!.fileSize).toBe(98765);
   });
 
+  it('handles gramjs BigInteger-like size values via toJSNumber()', () => {
+    const bigIntLike = { toJSNumber: () => 9876543210 };
+    const media = new MockMediaDocument();
+    (media as any).document = {
+      size: bigIntLike,
+      mimeType: 'application/pdf',
+      attributes: [
+        new MockAttrFilename({ fileName: 'large.pdf' }),
+      ],
+    };
+    const info = extractMediaInfo(media);
+    expect(info).not.toBeNull();
+    expect(info!.fileSize).toBe(9876543210);
+  });
+
   it('returns null for unsupported media types', () => {
     const unknownMedia = { className: 'MessageMediaGeo' };
     expect(extractMediaInfo(unknownMedia)).toBeNull();

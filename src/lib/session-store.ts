@@ -52,12 +52,48 @@ export class SessionStore {
 
   /**
    * Delete the session file for the given profile.
+   * Uses file locking to prevent races with concurrent save/load.
    * No-op if the file does not exist.
    */
   async delete(profile: string): Promise<void> {
     const file = this.filePath(profile);
+    if (!existsSync(file)) return;
+
+    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
+    try {
+      unlinkSync(file);
+    } finally {
+      await release();
+    }
+  }
+
+  /**
+   * Delete the session file without acquiring a lock.
+   * ONLY call this from within a withLock() callback where the lock is already held.
+   * No-op if the file does not exist.
+   */
+  deleteUnlocked(profile: string): void {
+    const file = this.filePath(profile);
     if (existsSync(file)) {
       unlinkSync(file);
+    }
+  }
+
+  /**
+   * Load a session and hold the file lock for the entire callback lifecycle.
+   * Prevents concurrent processes from using the same session simultaneously.
+   * Returns the callback result. If no session file exists, calls fn with ''.
+   */
+  async withLock<T>(profile: string, fn: (sessionString: string) => Promise<T>): Promise<T> {
+    const file = this.filePath(profile);
+    if (!existsSync(file)) return fn('');
+
+    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
+    try {
+      const session = readFileSync(file, 'utf-8').trim();
+      return await fn(session);
+    } finally {
+      await release();
     }
   }
 

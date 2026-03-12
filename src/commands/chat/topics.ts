@@ -55,7 +55,7 @@ export async function chatTopicsAction(this: Command, chatInput: string): Promis
             offsetDate: 0,
             offsetId: 0,
             offsetTopic: 0,
-            limit,
+            limit: offset + limit,
           }),
         );
 
@@ -67,8 +67,8 @@ export async function chatTopicsAction(this: Command, chatInput: string): Promis
         // Serialize each topic
         const serialized = validTopics.map(serializeTopic);
 
-        // Apply client-side offset slicing
-        const sliced = serialized.slice(offset);
+        // Apply client-side offset + limit slicing
+        const sliced = serialized.slice(offset, offset + limit);
 
         outputSuccess({
           topics: sliced,

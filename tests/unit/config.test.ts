@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { rmSync } from 'node:fs';
 import { resolveCredentials, createConfig } from '../../src/lib/config.js';
 
 describe('createConfig', () => {
@@ -7,6 +11,23 @@ describe('createConfig', () => {
     expect(config).toBeDefined();
     expect(typeof config.get).toBe('function');
     expect(typeof config.set).toBe('function');
+  });
+
+  it('default config path uses telegram-cli project name', () => {
+    const config = createConfig();
+    expect(config.path).toContain('telegram-cli');
+  });
+
+  it('uses custom config path when provided', () => {
+    const tmpDir = join(tmpdir(), `tg-cfg-test-${randomUUID()}`);
+    const customPath = join(tmpDir, 'custom.json');
+
+    const config = createConfig(customPath);
+    expect(config.path).toBe(customPath);
+
+    // Clean up
+    config.clear();
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   });
 });
 

@@ -99,6 +99,24 @@ describe('applyFieldSelection', () => {
       total: 2,
     });
   });
+
+  it('filters single-object output (e.g., MessageItem from message send)', () => {
+    const data = { id: 42, text: 'hello', date: '2026-01-01', senderId: '123', mediaType: null };
+    const result = applyFieldSelection(data, ['id', 'text']);
+    expect(result).toEqual({ id: 42, text: 'hello' });
+  });
+
+  it('filters single-object with dot-notation fields', () => {
+    const data = { id: 1, media: { filename: 'a.jpg', fileSize: 100 }, text: 'caption' };
+    const result = applyFieldSelection(data, ['id', 'media.filename']);
+    expect(result).toEqual({ id: 1, media: { filename: 'a.jpg' } });
+  });
+
+  it('filters DownloadResult single object', () => {
+    const data = { path: '/tmp/photo.jpg', filename: 'photo.jpg', size: 1024, mediaType: 'photo', messageId: 42 };
+    const result = applyFieldSelection(data, ['path', 'filename']);
+    expect(result).toEqual({ path: '/tmp/photo.jpg', filename: 'photo.jpg' });
+  });
 });
 
 describe('extractListItems', () => {

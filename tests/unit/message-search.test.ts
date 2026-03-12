@@ -513,6 +513,38 @@ describe('messageSearchAction', () => {
     expect(mockGetMessages).not.toHaveBeenCalled();
   });
 
+  it('multi-chat search applies --offset after merge, not per-chat', async () => {
+    // 3 results per chat, request offset=2 limit=2 — should skip first 2 merged results
+    const msgsA = [
+      createMockMessage({ id: 1, date: 1710100000, peerId: { channelId: BigInt(100), chatId: null, userId: null }, chat: { title: 'A' } }),
+      createMockMessage({ id: 2, date: 1710200000, peerId: { channelId: BigInt(100), chatId: null, userId: null }, chat: { title: 'A' } }),
+      createMockMessage({ id: 3, date: 1710500000, peerId: { channelId: BigInt(100), chatId: null, userId: null }, chat: { title: 'A' } }),
+    ];
+    (msgsA as any).total = 3;
+
+    const msgsB = [
+      createMockMessage({ id: 4, date: 1710300000, peerId: { channelId: BigInt(200), chatId: null, userId: null }, chat: { title: 'B' } }),
+      createMockMessage({ id: 5, date: 1710400000, peerId: { channelId: BigInt(200), chatId: null, userId: null }, chat: { title: 'B' } }),
+    ];
+    (msgsB as any).total = 2;
+
+    mockResolveEntity
+      .mockResolvedValueOnce({ id: BigInt(100), className: 'Channel' })
+      .mockResolvedValueOnce({ id: BigInt(200), className: 'Channel' });
+    mockGetMessages
+      .mockResolvedValueOnce(msgsA)
+      .mockResolvedValueOnce(msgsB);
+
+    const ctx = createMockCommandContext({ chat: '@chatA,@chatB', query: 'test', limit: '2', offset: '2' });
+    await messageSearchAction.call(ctx as any);
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    // Merged sorted: id3(500k), id5(400k), id4(300k), id2(200k), id1(100k)
+    // After offset=2: id4(300k), id2(200k) — then limit=2
+    expect(data.messages).toHaveLength(2);
+    expect(data.total).toBe(2);
+  });
+
   it('all flags compose: multi-chat + filter + query + limit', async () => {
     const msgs = [
       createMockMessage({

@@ -8,9 +8,10 @@ import { existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 
 // Mock prompt
 const mockAsk = vi.fn();
+const mockAskSecret = vi.fn();
 const mockClose = vi.fn();
 vi.mock('../../src/lib/prompt.js', () => ({
-  createPrompt: vi.fn(() => ({ ask: mockAsk, close: mockClose })),
+  createPrompt: vi.fn(() => ({ ask: mockAsk, askSecret: mockAskSecret, close: mockClose })),
 }));
 
 // Mock output
@@ -85,12 +86,19 @@ vi.mock('../../src/lib/config.js', () => ({
 const mockStoreSave = vi.fn().mockResolvedValue(undefined);
 const mockStoreLoad = vi.fn().mockResolvedValue('');
 const mockStoreDelete = vi.fn().mockResolvedValue(undefined);
+const mockStoreDeleteUnlocked = vi.fn();
+const mockStoreWithLock = vi.fn().mockImplementation(async (_profile: string, fn: (s: string) => Promise<any>) => {
+  const session = await mockStoreLoad();
+  return fn(session);
+});
 
 vi.mock('../../src/lib/session-store.js', () => ({
   SessionStore: vi.fn().mockImplementation(() => ({
     save: mockStoreSave,
     load: mockStoreLoad,
     delete: mockStoreDelete,
+    deleteUnlocked: mockStoreDeleteUnlocked,
+    withLock: mockStoreWithLock,
     filePath: (p: string) => `/mock/sessions/${p}.session`,
   })),
 }));
@@ -123,9 +131,18 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 }
 
 describe('loginAction', () => {
+  const originalIsTTY = process.stdin.isTTY;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockAsk.mockResolvedValue('+15551234567');
+    mockAskSecret.mockResolvedValue('secret123');
+    // Default: simulate interactive TTY
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, writable: true, configurable: true });
   });
 
   it('calls client.start() with phone, code, and password callbacks', async () => {
@@ -178,6 +195,38 @@ describe('loginAction', () => {
     expect(mockDestroy).toHaveBeenCalled();
     expect(mockClose).toHaveBeenCalled();
   });
+
+  it('outputs NOT_INTERACTIVE error when stdin is not a TTY', async () => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: false, writable: true, configurable: true });
+    const ctx = createMockCommandContext();
+
+    await loginAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Interactive login requires a terminal'),
+      'NOT_INTERACTIVE',
+    );
+    // Should NOT have tried to start auth
+    expect(mockStart).not.toHaveBeenCalled();
+  });
+
+  it('uses askSecret for 2FA password callback (not ask)', async () => {
+    // Make client.start call the password callback
+    mockStart.mockImplementationOnce(async (opts: any) => {
+      await opts.phoneNumber();
+      await opts.phoneCode(true);
+      await opts.password('my hint');
+    });
+
+    const ctx = createMockCommandContext();
+    await loginAction.call(ctx as any);
+
+    // Phone and code should use ask()
+    expect(mockAsk).toHaveBeenCalledWith('Phone number (international format): ');
+    expect(mockAsk).toHaveBeenCalledWith('Code (from Telegram app): ');
+    // Password should use askSecret() for masked input
+    expect(mockAskSecret).toHaveBeenCalledWith('2FA password (hint: my hint): ');
+  });
 });
 
 describe('statusAction', () => {
@@ -220,13 +269,15 @@ describe('logoutAction', () => {
     expect(mockOutputError).toHaveBeenCalledOnce();
   });
 
-  it('invokes auth.LogOut and deletes session file', async () => {
+  it('invokes auth.LogOut and deletes session file (without re-locking)', async () => {
     mockStoreLoad.mockResolvedValueOnce('existing-session');
     const ctx = createMockCommandContext();
     await logoutAction.call(ctx as any);
 
     expect(mockInvoke).toHaveBeenCalled();
-    expect(mockStoreDelete).toHaveBeenCalledWith('default');
+    // Must use deleteUnlocked (not delete) to avoid deadlock inside withLock
+    expect(mockStoreDeleteUnlocked).toHaveBeenCalledWith('default');
+    expect(mockStoreDelete).not.toHaveBeenCalled();
   });
 
   it('outputs loggedOut: true on success', async () => {

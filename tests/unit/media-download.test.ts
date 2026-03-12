@@ -245,7 +245,42 @@ describe('mediaDownloadAction', () => {
     expect(result.filename).toBe('photo_123.jpg');
   });
 
-  it('-o flag overrides output path for single download', async () => {
+  it('returns INVALID_ID error for non-numeric message IDs', async () => {
+    const ctx = createMockCommandContext(['testchat', 'abc']);
+    await mediaDownloadAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_ID',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
+
+  it('sanitizes path traversal in Telegram-supplied filenames', async () => {
+    mockExtractMediaInfo.mockReturnValue({
+      filename: '../../etc/passwd',
+      fileSize: 2048,
+      mimeType: 'application/octet-stream',
+      width: null,
+      height: null,
+      duration: null,
+    });
+    mockDetectMedia.mockReturnValue({ mediaType: 'document' });
+
+    const mockMsg = createMockMessageWithMedia(999, { _type: 'document' });
+    mockGetMessages.mockResolvedValueOnce([mockMsg]);
+
+    const ctx = createMockCommandContext(['testchat', '999']);
+    await mediaDownloadAction.call(ctx as any);
+
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    const result = mockOutputSuccess.mock.calls[0][0];
+    // basename() should strip path traversal, leaving just 'passwd'
+    expect(result.filename).toBe('passwd');
+    expect(result.path).not.toContain('..');
+  });
+
+  it('-o flag overrides output path and filename for single download', async () => {
     const mockMsg = createMockMessageWithMedia(333, { _type: 'photo' });
     mockGetMessages.mockResolvedValueOnce([mockMsg]);
 
@@ -259,5 +294,7 @@ describe('mediaDownloadAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const result = mockOutputSuccess.mock.calls[0][0];
     expect(result.path).toBe(resolve('/tmp/custom-photo.jpg'));
+    // filename should match the actual saved path, not the Telegram metadata name
+    expect(result.filename).toBe('custom-photo.jpg');
   });
 });

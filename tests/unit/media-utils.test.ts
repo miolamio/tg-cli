@@ -4,30 +4,54 @@ import { describe, it, expect, vi } from 'vitest';
 const {
   MockFilterPhotos,
   MockFilterVideo,
+  MockFilterPhotoVideo,
   MockFilterDocument,
   MockFilterUrl,
+  MockFilterGif,
   MockFilterVoice,
   MockFilterMusic,
-  MockFilterGif,
   MockFilterRoundVideo,
+  MockFilterRoundVoice,
+  MockFilterChatPhotos,
+  MockFilterPhoneCalls,
+  MockFilterMyMentions,
+  MockFilterGeo,
+  MockFilterContacts,
+  MockFilterPinned,
 } = vi.hoisted(() => {
   class MockFilterPhotos {}
   class MockFilterVideo {}
+  class MockFilterPhotoVideo {}
   class MockFilterDocument {}
   class MockFilterUrl {}
+  class MockFilterGif {}
   class MockFilterVoice {}
   class MockFilterMusic {}
-  class MockFilterGif {}
   class MockFilterRoundVideo {}
+  class MockFilterRoundVoice {}
+  class MockFilterChatPhotos {}
+  class MockFilterPhoneCalls {}
+  class MockFilterMyMentions {}
+  class MockFilterGeo {}
+  class MockFilterContacts {}
+  class MockFilterPinned {}
   return {
     MockFilterPhotos,
     MockFilterVideo,
+    MockFilterPhotoVideo,
     MockFilterDocument,
     MockFilterUrl,
+    MockFilterGif,
     MockFilterVoice,
     MockFilterMusic,
-    MockFilterGif,
     MockFilterRoundVideo,
+    MockFilterRoundVoice,
+    MockFilterChatPhotos,
+    MockFilterPhoneCalls,
+    MockFilterMyMentions,
+    MockFilterGeo,
+    MockFilterContacts,
+    MockFilterPinned,
   };
 });
 
@@ -35,12 +59,20 @@ vi.mock('telegram', () => ({
   Api: {
     InputMessagesFilterPhotos: MockFilterPhotos,
     InputMessagesFilterVideo: MockFilterVideo,
+    InputMessagesFilterPhotoVideo: MockFilterPhotoVideo,
     InputMessagesFilterDocument: MockFilterDocument,
     InputMessagesFilterUrl: MockFilterUrl,
+    InputMessagesFilterGif: MockFilterGif,
     InputMessagesFilterVoice: MockFilterVoice,
     InputMessagesFilterMusic: MockFilterMusic,
-    InputMessagesFilterGif: MockFilterGif,
     InputMessagesFilterRoundVideo: MockFilterRoundVideo,
+    InputMessagesFilterRoundVoice: MockFilterRoundVoice,
+    InputMessagesFilterChatPhotos: MockFilterChatPhotos,
+    InputMessagesFilterPhoneCalls: MockFilterPhoneCalls,
+    InputMessagesFilterMyMentions: MockFilterMyMentions,
+    InputMessagesFilterGeo: MockFilterGeo,
+    InputMessagesFilterContacts: MockFilterContacts,
+    InputMessagesFilterPinned: MockFilterPinned,
   },
 }));
 
@@ -53,12 +85,16 @@ import {
 } from '../../src/lib/media-utils.js';
 
 describe('FILTER_MAP', () => {
-  it('has exactly 8 entries', () => {
-    expect(Object.keys(FILTER_MAP)).toHaveLength(8);
+  it('has all 16 MTProto search filters', () => {
+    expect(Object.keys(FILTER_MAP)).toHaveLength(16);
   });
 
   it('contains all expected filter names', () => {
-    const expected = ['photos', 'videos', 'documents', 'urls', 'voice', 'music', 'gifs', 'round'];
+    const expected = [
+      'photos', 'videos', 'photo_video', 'documents', 'urls', 'gifs',
+      'voice', 'music', 'round', 'round_voice', 'chat_photos',
+      'phone_calls', 'mentions', 'geo', 'contacts', 'pinned',
+    ];
     for (const name of expected) {
       expect(FILTER_MAP).toHaveProperty(name);
     }
@@ -67,12 +103,20 @@ describe('FILTER_MAP', () => {
   it('each value is a factory function returning a filter instance', () => {
     expect(FILTER_MAP.photos()).toBeInstanceOf(MockFilterPhotos);
     expect(FILTER_MAP.videos()).toBeInstanceOf(MockFilterVideo);
+    expect(FILTER_MAP.photo_video()).toBeInstanceOf(MockFilterPhotoVideo);
     expect(FILTER_MAP.documents()).toBeInstanceOf(MockFilterDocument);
     expect(FILTER_MAP.urls()).toBeInstanceOf(MockFilterUrl);
+    expect(FILTER_MAP.gifs()).toBeInstanceOf(MockFilterGif);
     expect(FILTER_MAP.voice()).toBeInstanceOf(MockFilterVoice);
     expect(FILTER_MAP.music()).toBeInstanceOf(MockFilterMusic);
-    expect(FILTER_MAP.gifs()).toBeInstanceOf(MockFilterGif);
     expect(FILTER_MAP.round()).toBeInstanceOf(MockFilterRoundVideo);
+    expect(FILTER_MAP.round_voice()).toBeInstanceOf(MockFilterRoundVoice);
+    expect(FILTER_MAP.chat_photos()).toBeInstanceOf(MockFilterChatPhotos);
+    expect(FILTER_MAP.phone_calls()).toBeInstanceOf(MockFilterPhoneCalls);
+    expect(FILTER_MAP.mentions()).toBeInstanceOf(MockFilterMyMentions);
+    expect(FILTER_MAP.geo()).toBeInstanceOf(MockFilterGeo);
+    expect(FILTER_MAP.contacts()).toBeInstanceOf(MockFilterContacts);
+    expect(FILTER_MAP.pinned()).toBeInstanceOf(MockFilterPinned);
   });
 
   it('factory functions create fresh instances each call', () => {

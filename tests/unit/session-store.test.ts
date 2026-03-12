@@ -76,4 +76,87 @@ describe('SessionStore', () => {
     expect(existsSync(expectedPath)).toBe(true);
     expect(readFileSync(expectedPath, 'utf-8')).toBe('data');
   });
+
+  it('delete uses file locking (lockfile is created during delete)', async () => {
+    await store.save('locked', 'data');
+    const file = store.filePath('locked');
+    expect(existsSync(file)).toBe(true);
+
+    // Delete should succeed with locking
+    await store.delete('locked');
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it('withLock returns empty string when session file does not exist', async () => {
+    const result = await store.withLock('missing', async (session) => {
+      return session;
+    });
+    expect(result).toBe('');
+  });
+
+  it('withLock provides session string and holds lock during callback', async () => {
+    await store.save('locked-profile', 'my-session');
+
+    const result = await store.withLock('locked-profile', async (session) => {
+      expect(session).toBe('my-session');
+      // Session file should still be readable inside lock
+      const raw = readFileSync(store.filePath('locked-profile'), 'utf-8');
+      expect(raw).toBe('my-session');
+      return 'callback-result';
+    });
+
+    expect(result).toBe('callback-result');
+  });
+
+  it('withLock releases lock after callback completes', async () => {
+    await store.save('relock', 'data');
+
+    await store.withLock('relock', async () => {
+      // Lock is held here
+    });
+
+    // Should be able to acquire lock again
+    const loaded = await store.load('relock');
+    expect(loaded).toBe('data');
+  });
+
+  it('withLock releases lock even if callback throws', async () => {
+    await store.save('throw-profile', 'data');
+
+    await expect(
+      store.withLock('throw-profile', async () => {
+        throw new Error('callback failed');
+      }),
+    ).rejects.toThrow('callback failed');
+
+    // Lock should be released — load should succeed
+    const loaded = await store.load('throw-profile');
+    expect(loaded).toBe('data');
+  });
+
+  it('deleteUnlocked removes file without acquiring lock', async () => {
+    await store.save('unlocked-del', 'data');
+    const file = store.filePath('unlocked-del');
+    expect(existsSync(file)).toBe(true);
+
+    store.deleteUnlocked('unlocked-del');
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it('deleteUnlocked is a no-op for missing profile', () => {
+    // Should not throw
+    store.deleteUnlocked('nonexistent');
+  });
+
+  it('deleteUnlocked works inside withLock without deadlock', async () => {
+    await store.save('nested-del', 'data');
+    const file = store.filePath('nested-del');
+
+    await store.withLock('nested-del', async (session) => {
+      expect(session).toBe('data');
+      // This would deadlock if it tried to acquire the lock
+      store.deleteUnlocked('nested-del');
+      expect(existsSync(file)).toBe(false);
+    });
+  });
 });

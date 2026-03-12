@@ -10,6 +10,9 @@ import type { GlobalOptions } from '../../lib/types.js';
 /**
  * Login action handler for `tg auth login`.
  *
+ * Requires an interactive terminal (TTY). Fails fast with a structured
+ * error when stdin is not a TTY (CI, piped input, agent automation).
+ *
  * Invokes gramjs client.start() with interactive prompts for
  * phone number, verification code, and optional 2FA password.
  * Saves the resulting session string to disk on success.
@@ -17,6 +20,15 @@ import type { GlobalOptions } from '../../lib/types.js';
 export async function loginAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
   const { profile, quiet } = opts;
+
+  // Fail fast when not running in an interactive terminal
+  if (!process.stdin.isTTY) {
+    outputError(
+      'Interactive login requires a terminal (TTY). Use `tg session import` for non-interactive auth.',
+      'NOT_INTERACTIVE',
+    );
+    return;
+  }
 
   const config = createConfig(opts.config);
   const { apiId, apiHash } = getCredentialsOrThrow(config);
@@ -47,7 +59,7 @@ export async function loginAction(this: Command): Promise<void> {
         const msg = hint
           ? `2FA password (hint: ${hint}): `
           : '2FA password: ';
-        return prompt.ask(msg);
+        return prompt.askSecret(msg);
       },
       onError: (err: Error) => {
         logStatus(`Auth error: ${err.message}`, quiet);

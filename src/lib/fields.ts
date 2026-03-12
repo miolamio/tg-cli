@@ -66,6 +66,23 @@ export function applyFieldSelection(data: unknown, fields: string[]): unknown {
   if (data == null || typeof data !== 'object') return data;
 
   const obj = data as Record<string, unknown>;
+
+  // Check if any value is an array of objects (list-shaped data)
+  const hasArrayOfObjects = Object.values(obj).some(
+    (value) =>
+      Array.isArray(value) &&
+      value.length > 0 &&
+      typeof value[0] === 'object' &&
+      value[0] !== null,
+  );
+
+  // Single-object output (e.g., MessageItem from `message send`):
+  // apply pickFields directly to the top-level object
+  if (!hasArrayOfObjects) {
+    return pickFields(obj, fields);
+  }
+
+  // List-shaped data: filter each array item, preserve metadata
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
@@ -75,7 +92,6 @@ export function applyFieldSelection(data: unknown, fields: string[]): unknown {
       typeof value[0] === 'object' &&
       value[0] !== null
     ) {
-      // This is an array of objects — apply field selection to each item
       result[key] = value.map((item) => pickFields(item, fields));
     } else {
       // Metadata or scalar — preserve as-is

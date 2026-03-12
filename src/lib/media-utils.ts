@@ -9,12 +9,20 @@ import { Api } from 'telegram';
 export const FILTER_MAP: Record<string, () => InstanceType<any>> = {
   photos: () => new Api.InputMessagesFilterPhotos(),
   videos: () => new Api.InputMessagesFilterVideo(),
+  photo_video: () => new Api.InputMessagesFilterPhotoVideo(),
   documents: () => new Api.InputMessagesFilterDocument(),
   urls: () => new Api.InputMessagesFilterUrl(),
+  gifs: () => new Api.InputMessagesFilterGif(),
   voice: () => new Api.InputMessagesFilterVoice(),
   music: () => new Api.InputMessagesFilterMusic(),
-  gifs: () => new Api.InputMessagesFilterGif(),
   round: () => new Api.InputMessagesFilterRoundVideo(),
+  round_voice: () => new Api.InputMessagesFilterRoundVoice(),
+  chat_photos: () => new Api.InputMessagesFilterChatPhotos(),
+  phone_calls: () => new Api.InputMessagesFilterPhoneCalls({} as any),
+  mentions: () => new Api.InputMessagesFilterMyMentions(),
+  geo: () => new Api.InputMessagesFilterGeo(),
+  contacts: () => new Api.InputMessagesFilterContacts(),
+  pinned: () => new Api.InputMessagesFilterPinned(),
 };
 
 /**

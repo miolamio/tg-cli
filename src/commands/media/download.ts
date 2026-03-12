@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
@@ -29,13 +29,15 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
   const { profile, quiet } = opts;
 
   // Parse comma-separated message IDs
-  const messageIds = rawIds.split(',').map((s: string) => {
+  const messageIds: number[] = [];
+  for (const s of rawIds.split(',')) {
     const id = parseInt(s.trim(), 10);
     if (isNaN(id)) {
-      throw new TgError(`Invalid message ID: ${s}`, 'INVALID_ID');
+      outputError(`Invalid message ID: ${s.trim()}`, 'INVALID_ID');
+      return;
     }
-    return id;
-  });
+    messageIds.push(id);
+  }
 
   const isBatch = messageIds.length > 1;
   const config = createConfig(opts.config);
@@ -74,8 +76,10 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
           }
 
           const mediaInfo = extractMediaInfo((msg as any).media);
-          const filename = mediaInfo?.filename
-            ?? generateFilename(mediaType, msgId, mediaInfo?.mimeType ?? null);
+          const rawFilename = mediaInfo?.filename;
+          const filename = rawFilename
+            ? basename(rawFilename)
+            : generateFilename(mediaType, msgId, mediaInfo?.mimeType ?? null);
 
           // Determine target path
           let targetPath: string;
@@ -111,9 +115,14 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
             },
           });
 
+          // For single -o, filename should match the actual saved path
+          const savedFilename = (!isBatch && opts.output)
+            ? basename(targetPath)
+            : filename;
+
           results.push({
             path: targetPath,
-            filename,
+            filename: savedFilename,
             size: mediaInfo?.fileSize ?? 0,
             mediaType,
             messageId: msgId,

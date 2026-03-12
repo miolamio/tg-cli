@@ -390,6 +390,35 @@ describe('chatTopicsAction', () => {
     expect(data.topics[0].title).toBe('Topic 3');
   });
 
+  it('fetches offset+limit topics for correct second-page pagination', async () => {
+    const entity = new MockChannel({ forum: true });
+    mockResolveEntity.mockResolvedValueOnce(entity);
+
+    // Simulate 20 topics available; request page 2 with limit=10, offset=10
+    const topics = Array.from({ length: 20 }, (_, i) =>
+      new MockForumTopic({ id: i + 1, title: `Topic ${i + 1}` }),
+    );
+
+    mockInvoke.mockResolvedValueOnce({
+      topics,
+      count: 20,
+    });
+
+    const ctx = createMockCommandContext({ limit: '10', offset: '10' });
+    await chatTopicsAction.call(ctx as any, 'testforum');
+
+    // Should have requested offset+limit=20 from API
+    expect(mockInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 20 }),
+    );
+
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.topics).toHaveLength(10);
+    expect(data.topics[0].title).toBe('Topic 11');
+    expect(data.topics[9].title).toBe('Topic 20');
+  });
+
   it('lists topics with serialized output', async () => {
     const entity = new MockChannel({ forum: true });
     mockResolveEntity.mockResolvedValueOnce(entity);

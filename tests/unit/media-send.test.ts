@@ -321,4 +321,63 @@ describe('mediaSendAction', () => {
       }),
     );
   });
+
+  // ---- Topic tests (Finding 4: external verification coverage gap) ----
+
+  it('sends to topic by passing topicId as replyTo', async () => {
+    const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { topic: '42' });
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockAssertForum).toHaveBeenCalledWith(
+      expect.objectContaining({ className: 'Channel' }),
+      42,
+    );
+    expect(mockSendFile).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        replyTo: 42,
+      }),
+    );
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('--topic overrides --reply-to', async () => {
+    const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { topic: '42', replyTo: '99' });
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockSendFile).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        replyTo: 42,
+      }),
+    );
+  });
+
+  it('returns error when --topic used on non-forum chat', async () => {
+    // assertForum throws TgError which goes through formatError in catch block
+    const { TgError } = await import('../../src/lib/errors.js');
+    mockAssertForum.mockRejectedValueOnce(
+      new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM'),
+    );
+
+    const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { topic: '42' });
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('forum'),
+      'NOT_A_FORUM',
+    );
+    expect(mockSendFile).not.toHaveBeenCalled();
+  });
+
+  it('returns INVALID_TOPIC_ID for non-numeric --topic', async () => {
+    const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { topic: 'abc' });
+    await mediaSendAction.call(ctx as any);
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid topic ID'),
+      'INVALID_TOPIC_ID',
+    );
+    expect(mockSendFile).not.toHaveBeenCalled();
+  });
 });

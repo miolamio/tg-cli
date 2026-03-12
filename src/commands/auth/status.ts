@@ -21,35 +21,35 @@ export async function statusAction(this: Command): Promise<void> {
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
   try {
-    const sessionString = await store.load(profile);
-
-    if (!sessionString) {
-      outputSuccess({ authorized: false, reason: 'No session found' });
-      return;
-    }
-
-    const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-    await withClient({ apiId, apiHash, sessionString }, async (client) => {
-      const authorized = await client.checkAuthorization();
-
-      if (authorized) {
-        const me = await client.getMe();
-        outputSuccess({
-          authorized: true,
-          user: {
-            id: (me as any)?.id,
-            phone: (me as any)?.phone,
-            username: (me as any)?.username,
-            firstName: (me as any)?.firstName,
-          },
-        });
-      } else {
-        outputSuccess({
-          authorized: false,
-          reason: 'Session expired or invalid',
-        });
+    await store.withLock(profile, async (sessionString) => {
+      if (!sessionString) {
+        outputSuccess({ authorized: false, reason: 'No session found' });
+        return;
       }
+
+      const { apiId, apiHash } = getCredentialsOrThrow(config);
+
+      await withClient({ apiId, apiHash, sessionString }, async (client) => {
+        const authorized = await client.checkAuthorization();
+
+        if (authorized) {
+          const me = await client.getMe();
+          outputSuccess({
+            authorized: true,
+            user: {
+              id: (me as any)?.id,
+              phone: (me as any)?.phone,
+              username: (me as any)?.username,
+              firstName: (me as any)?.firstName,
+            },
+          });
+        } else {
+          outputSuccess({
+            authorized: false,
+            reason: 'Session expired or invalid',
+          });
+        }
+      });
     });
   } catch (err: unknown) {
     const { message, code } = formatError(err);

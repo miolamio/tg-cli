@@ -21,6 +21,7 @@ export function createSessionCommand(): Command {
   session
     .command('import')
     .argument('[session]', 'Session string to import')
+    .option('--skip-verify', 'Skip session validation via Telegram API')
     .description('Import a session string')
     .action(importAction);
 

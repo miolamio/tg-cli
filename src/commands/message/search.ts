@@ -114,10 +114,12 @@ export async function messageSearchAction(this: Command): Promise<void> {
             }
 
             const allResults: SearchResultItem[] = [];
+            // Fetch enough results from each chat to satisfy offset + limit after merge
+            const perChatLimit = offset + limit;
             for (const chatId of chatIds) {
               try {
                 const entity = await resolveEntity(client, chatId);
-                const messages = await client.getMessages(entity, { ...searchParams, limit });
+                const messages = await client.getMessages(entity, { ...searchParams, addOffset: 0, limit: perChatLimit });
                 for (const msg of messages) {
                   const peerId = (msg as any).peerId;
                   const msgChatId = bigIntToString(
@@ -138,10 +140,10 @@ export async function messageSearchAction(this: Command): Promise<void> {
               }
             }
 
-            // Sort newest first, truncate to total limit
+            // Sort newest first, apply offset, truncate to limit
             allResults.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            const limited = allResults.slice(0, limit);
-            outputSuccess({ messages: limited, total: limited.length });
+            const paged = allResults.slice(offset, offset + limit);
+            outputSuccess({ messages: paged, total: paged.length });
           }
         } else {
           // Global search (READ-04)

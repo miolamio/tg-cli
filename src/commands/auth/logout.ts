@@ -21,26 +21,26 @@ export async function logoutAction(this: Command): Promise<void> {
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
   try {
-    const sessionString = await store.load(profile);
+    await store.withLock(profile, async (sessionString) => {
+      if (!sessionString) {
+        outputError('Not logged in', 'NOT_LOGGED_IN');
+        return;
+      }
 
-    if (!sessionString) {
-      outputError('Not logged in', 'NOT_LOGGED_IN');
-      return;
-    }
+      const { apiId, apiHash } = getCredentialsOrThrow(config);
 
-    const { apiId, apiHash } = getCredentialsOrThrow(config);
+      await withClient({ apiId, apiHash, sessionString }, async (client) => {
+        logStatus('Logging out...', quiet);
+        await client.invoke(new Api.auth.LogOut());
+      });
 
-    await withClient({ apiId, apiHash, sessionString }, async (client) => {
-      logStatus('Logging out...', quiet);
-      await client.invoke(new Api.auth.LogOut());
+      // Delete file without re-acquiring lock (we're already inside withLock)
+      store.deleteUnlocked(profile);
+      config.delete(`profiles.${profile}` as any);
+
+      logStatus('Logged out successfully.', quiet);
+      outputSuccess({ loggedOut: true });
     });
-
-    // Delete local session and config profile
-    await store.delete(profile);
-    config.delete(`profiles.${profile}` as any);
-
-    logStatus('Logged out successfully.', quiet);
-    outputSuccess({ loggedOut: true });
   } catch (err: unknown) {
     const { message, code } = formatError(err);
     outputError(message, code);

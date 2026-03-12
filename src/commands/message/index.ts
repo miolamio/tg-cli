@@ -33,12 +33,12 @@ export function createMessageCommand(): Command {
   message
     .command('search')
     .description('Search messages by keyword or media type')
-    .option('--chat <chat>', 'Search in specific chat (omit for global search)')
+    .option('--chat <chat>', 'Search in specific chat or comma-separated chats (omit for global search)')
     .option('--query <text>', 'Search query')
     .option('--filter <type>', 'Filter by type (photos|videos|documents|urls|voice|music|gifs|round|photo_video|round_voice|chat_photos|phone_calls|mentions|geo|contacts|pinned)')
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
-    .option('--topic <topicId>', 'Forum topic ID')
+    .option('--topic <topicId>', 'Forum topic ID (single --chat only)')
     .addHelpText('after', '\nValid filters: photos, videos, photo_video, documents, urls, gifs, voice, music, round, round_voice, chat_photos, phone_calls, mentions, geo, contacts, pinned')
     .action(messageSearchAction);
 
