@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **READ-02**: User can filter message history by date range (`--since`, `--until`)
 - [x] **READ-03**: User can search messages in a specific chat by keyword
 - [x] **READ-04**: User can search messages globally across all chats
-- [ ] **READ-05**: User can filter search results using any of the 17 MTProto search filters (`--filter photos|videos|documents|urls|voice|...`)
+- [x] **READ-05**: User can filter search results using any of the 17 MTProto search filters (`--filter photos|videos|documents|urls|voice|...`)
 - [ ] **READ-06**: User can search across multiple specific chats in one command (`--chats chat1,chat2,chat3`)
 - [ ] **READ-07**: User can download files and media from messages to a local path
 
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | READ-02 | Phase 2 | Complete |
 | READ-03 | Phase 2 | Complete |
 | READ-04 | Phase 2 | Complete |
-| READ-05 | Phase 4 | Pending |
+| READ-05 | Phase 4 | Complete |
 | READ-06 | Phase 5 | Pending |
 | READ-07 | Phase 4 | Pending |
 | WRITE-01 | Phase 3 | Complete |

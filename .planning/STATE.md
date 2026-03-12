@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 4 context gathered
-last_updated: "2026-03-12T06:01:10.949Z"
-last_activity: 2026-03-11 — Plan 03-02 complete (human-readable output with formatters, mode-aware output, --no-json flag).
+status: in-progress
+stopped_at: "Plan 04-01 complete"
+last_updated: "2026-03-12T08:06:32Z"
+last_activity: 2026-03-12 — Plan 04-01 complete (media metadata extraction, search filters, media-utils module).
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 11
+  completed_plans: 10
+  percent: 91
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 3 complete. All write commands and human-readable output done. Ready for Phase 4.
+**Current focus:** Phase 4 in progress. Media metadata and search filters done. Download/send commands next.
 
 ## Current Position
 
-Phase: 3 of 5 (Messaging & Interaction) -- COMPLETE
-Plan: 2 of 2 in current phase (03-02 human-readable output complete)
-Status: Phase 3 complete (both plans done), ready for Phase 4
-Last activity: 2026-03-11 — Plan 03-02 complete (human-readable output with formatters, mode-aware output, --no-json flag).
+Phase: 4 of 5 (Media & Files)
+Plan: 1 of 2 in current phase (04-01 media metadata & search filters complete)
+Status: Plan 04-01 complete, ready for Plan 04-02
+Last activity: 2026-03-12 — Plan 04-01 complete (media metadata extraction, search filters, media-utils module).
 
-Progress: [██████████] 100%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 4.9min
-- Total execution time: 0.75 hours
+- Total plans completed: 10
+- Average duration: 5.2min
+- Total execution time: 0.87 hours
 
 **By Phase:**
 
@@ -46,10 +46,11 @@ Progress: [██████████] 100%
 | 01-foundation-auth | 3 | 16min | 5.3min |
 | 02-chat-discovery-message-reading | 4 | 20min | 5.0min |
 | 03-messaging-interaction | 2 | 9min | 4.5min |
+| 04-media-files | 1 | 8min | 8.0min |
 
 **Recent Trend:**
-- Last 5 plans: 8min, 3min, 2min, 5min, 4min
-- Trend: Stable
+- Last 5 plans: 3min, 2min, 5min, 4min, 8min
+- Trend: Stable (TDD tasks take slightly longer)
 
 *Updated after each plan completion*
 
@@ -93,6 +94,10 @@ Recent decisions affecting current work:
 - 03-02: formatData auto-detects data shapes (messages, chats, members, search results, chat info) for smart formatting
 - 03-02: Human-mode errors go to stderr with colored prefix; JSON-mode errors go to stdout as before
 - 03-02: Commands without specific formatters fall through to formatGeneric (pretty JSON)
+- 04-01: FILTER_MAP uses factory functions (not static instances) because gramjs mutates filter objects
+- 04-01: extractMediaInfo picks largest PhotoSize by pixel area for dimensions
+- 04-01: AlbumResult shape detected before generic messages[] in formatData to prevent false dispatch
+- 04-01: MessageItem.media field only present when mediaType is not null (backward compatible)
 
 ### Pending Todos
 
@@ -107,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:01:10.946Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-media-files/04-CONTEXT.md
+Last session: 2026-03-12T08:06:32Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-media-files/04-01-SUMMARY.md
