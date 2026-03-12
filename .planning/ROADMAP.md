@@ -90,13 +90,15 @@ Plans:
 **Requirements**: WRITE-06, WRITE-07, WRITE-08, READ-06, OUT-04, OUT-05
 **Success Criteria** (what must be TRUE):
   1. User can list forum topics in a supergroup, read messages from a specific topic, and send messages to a topic
-  2. User can search across multiple specific chats in a single command using `--chats chat1,chat2,chat3`
+  2. User can search across multiple specific chats in a single command using `--chat @a,@b,@c`
   3. User can select specific output fields with `--fields id,text,date,sender` to reduce output noise
   4. User can use `--jsonl` on list commands to get one JSON object per line for streaming consumption
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Forum topic listing command (`tg chat topics`), TopicItem type, serialization, format dispatch, forum guard
+- [ ] 05-02-PLAN.md — Output enhancements: field selection (`--fields`), JSONL streaming (`--jsonl`), global option wiring
+- [ ] 05-03-PLAN.md — Topic-scoped commands (`--topic` on history/send/search/media), multi-chat search (`--chat @a,@b,@c`)
 
 ## Progress
 
@@ -109,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Chat Discovery & Message Reading | 3/4 | In progress | - |
 | 3. Messaging & Interaction | 0/2 | Not started | - |
 | 4. Media & Files | 0/2 | Not started | - |
-| 5. Advanced Features & Polish | 0/1 | Not started | - |
+| 5. Advanced Features & Polish | 0/3 | Not started | - |
