@@ -39,11 +39,11 @@ created: 2026-03-12
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 05-01-01 | 01 | 1 | WRITE-06 | unit | `npx vitest run tests/unit/chat-topics.test.ts -x` | Wave 0 | ⬜ pending |
-| 05-01-02 | 01 | 1 | WRITE-07 | unit | `npx vitest run tests/unit/message-history.test.ts -x` | Extend existing | ⬜ pending |
-| 05-01-03 | 01 | 1 | WRITE-08 | unit | `npx vitest run tests/unit/message-send.test.ts -x` | Extend existing | ⬜ pending |
-| 05-02-01 | 02 | 1 | READ-06 | unit | `npx vitest run tests/unit/message-search.test.ts -x` | Extend existing | ⬜ pending |
-| 05-03-01 | 03 | 1 | OUT-04 | unit | `npx vitest run tests/unit/fields.test.ts -x` | Wave 0 | ⬜ pending |
-| 05-03-02 | 03 | 1 | OUT-05 | unit | `npx vitest run tests/unit/output.test.ts -x` | Extend existing | ⬜ pending |
+| 05-01-02 | 01 | 1 | WRITE-06 | unit | `npx vitest run tests/unit/chat-topics.test.ts -x && npx tsc --noEmit` | Wave 0 | ⬜ pending |
+| 05-02-01 | 02 | 1 | OUT-04 | unit | `npx vitest run tests/unit/fields.test.ts -x` | Wave 0 | ⬜ pending |
+| 05-02-02 | 02 | 1 | OUT-05 | unit | `npx vitest run tests/unit/output.test.ts tests/unit/fields.test.ts -x && npx tsc --noEmit` | Extend existing | ⬜ pending |
+| 05-03-01 | 03 | 2 | WRITE-07, WRITE-08 | unit | `npx vitest run tests/unit/message-history.test.ts tests/unit/message-send.test.ts -x && npx tsc --noEmit` | Extend existing | ⬜ pending |
+| 05-03-02 | 03 | 2 | READ-06 | unit | `npx vitest run tests/unit/message-search.test.ts -x && npx tsc --noEmit` | Extend existing | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
