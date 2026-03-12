@@ -18,7 +18,7 @@ export const FILTER_MAP: Record<string, () => InstanceType<any>> = {
   round: () => new Api.InputMessagesFilterRoundVideo(),
   round_voice: () => new Api.InputMessagesFilterRoundVoice(),
   chat_photos: () => new Api.InputMessagesFilterChatPhotos(),
-  phone_calls: () => new Api.InputMessagesFilterPhoneCalls({} as any),
+  phone_calls: () => new Api.InputMessagesFilterPhoneCalls({ missed: false }),
   mentions: () => new Api.InputMessagesFilterMyMentions(),
   geo: () => new Api.InputMessagesFilterGeo(),
   contacts: () => new Api.InputMessagesFilterContacts(),

@@ -115,7 +115,6 @@ export async function importAction(
 
   // Update config profile with metadata
   config.set(`profiles.${profile}`, {
-    session,
     created: new Date().toISOString(),
   });
 

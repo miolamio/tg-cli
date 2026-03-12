@@ -1,6 +1,6 @@
 import { lock } from 'proper-lockfile';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 
 /**
  * Manages session file persistence with proper-lockfile locking.
@@ -60,11 +60,8 @@ export class SessionStore {
     if (!existsSync(file)) return;
 
     const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
-    try {
-      unlinkSync(file);
-    } finally {
-      await release();
-    }
+    await release();
+    unlinkSync(file);
   }
 
   /**
@@ -101,6 +98,6 @@ export class SessionStore {
    * Get the file path for a given profile's session file.
    */
   filePath(profile: string): string {
-    return join(this.dir, `${profile}.session`);
+    return join(this.dir, `${basename(profile)}.session`);
   }
 }

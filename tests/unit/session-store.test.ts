@@ -77,6 +77,12 @@ describe('SessionStore', () => {
     expect(readFileSync(expectedPath, 'utf-8')).toBe('data');
   });
 
+  it('filePath sanitizes path traversal attempts', () => {
+    const safePath = store.filePath('../../etc/evil');
+    expect(safePath).toBe(join(tmpDir, 'sessions', 'evil.session'));
+    expect(safePath).not.toContain('..');
+  });
+
   it('delete uses file locking (lockfile is created during delete)', async () => {
     await store.save('locked', 'data');
     const file = store.filePath('locked');

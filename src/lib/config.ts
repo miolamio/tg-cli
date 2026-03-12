@@ -5,7 +5,7 @@ import { CredentialError } from './errors.js';
 
 /**
  * Create a Conf instance for tg-cli configuration.
- * Default path: ~/.config/telegram-cli/config.json (XDG via projectName).
+ * Default path: ~/.config/tg-cli/config.json (XDG via projectName).
  * When configPath is provided (--config flag), uses that exact file path.
  *
  * @param configPath - Optional custom config file path from --config flag
@@ -13,7 +13,7 @@ import { CredentialError } from './errors.js';
 export function createConfig(configPath?: string): Conf<TgConfig> {
   if (configPath) {
     return new Conf<TgConfig>({
-      projectName: 'telegram-cli',
+      projectName: 'tg-cli',
       configName: basename(configPath, extname(configPath)),
       cwd: dirname(configPath),
       defaults: {

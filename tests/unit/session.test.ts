@@ -238,7 +238,6 @@ describe('session import', () => {
     expect(mockConfig.set).toHaveBeenCalledWith(
       'profiles.default',
       expect.objectContaining({
-        session: 'importedsession123',
         created: expect.any(String),
       }),
     );

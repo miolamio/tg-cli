@@ -72,7 +72,6 @@ export async function loginAction(this: Command): Promise<void> {
 
     // Update profile in config
     config.set(`profiles.${profile}`, {
-      session: sessionString,
       phone,
       created: new Date().toISOString(),
     });

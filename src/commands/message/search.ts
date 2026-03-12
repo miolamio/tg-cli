@@ -73,14 +73,12 @@ export async function messageSearchAction(this: Command): Promise<void> {
       const { apiId, apiHash } = getCredentialsOrThrow(config);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const searchParams: Record<string, any> = {
+        const baseSearchParams: Record<string, any> = {
           search: opts.query || '',
-          limit,
-          addOffset: offset,
         };
 
         if (opts.filter) {
-          searchParams.filter = FILTER_MAP[opts.filter]();
+          baseSearchParams.filter = FILTER_MAP[opts.filter]();
         }
 
         if (opts.chat) {
@@ -92,10 +90,10 @@ export async function messageSearchAction(this: Command): Promise<void> {
 
             if (topicId !== undefined) {
               await assertForum(entity, topicId);
-              searchParams.replyTo = topicId;
+              baseSearchParams.replyTo = topicId;
             }
 
-            const messages = await client.getMessages(entity, searchParams);
+            const messages = await client.getMessages(entity, { ...baseSearchParams, limit, addOffset: offset });
 
             const serialized = messages.map((msg: any) =>
               serializeMessage(msg),
@@ -119,7 +117,7 @@ export async function messageSearchAction(this: Command): Promise<void> {
             for (const chatId of chatIds) {
               try {
                 const entity = await resolveEntity(client, chatId);
-                const messages = await client.getMessages(entity, { ...searchParams, addOffset: 0, limit: perChatLimit });
+                const messages = await client.getMessages(entity, { ...baseSearchParams, addOffset: 0, limit: perChatLimit });
                 for (const msg of messages) {
                   const peerId = (msg as any).peerId;
                   const msgChatId = bigIntToString(
@@ -147,7 +145,7 @@ export async function messageSearchAction(this: Command): Promise<void> {
           }
         } else {
           // Global search (READ-04)
-          const messages = await client.getMessages(undefined, searchParams);
+          const messages = await client.getMessages(undefined, { ...baseSearchParams, limit, addOffset: offset });
 
           const serialized = messages.map((msg: any) => {
             const peerId = msg.peerId;
