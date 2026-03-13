@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Phase 11 context gathered
-last_updated: "2026-03-13T15:34:19.346Z"
-last_activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-13T16:42:24.182Z"
+last_activity: 2026-03-13 — Completed Phase 11 Plan 1 (TOON encoder, output pipeline, CLI flag, tests)
 progress:
   total_phases: 11
   completed_phases: 10
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 25
+  completed_plans: 24
   percent: 96
 ---
 
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 10 in progress — Polls
+**Current focus:** Phase 11 in progress — TOON Output Format
 
 ## Current Position
 
-Phase: 10 of 11 (Polls)
-Plan: 2 of 2
-Status: Phase 10 complete
-Last activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
+Phase: 11 of 11 (TOON Output Format)
+Plan: 1 of 2
+Status: Plan 1 complete, Plan 2 remaining
+Last activity: 2026-03-13 — Completed Phase 11 Plan 1 (TOON encoder, output pipeline, CLI flag, tests)
 
 Progress: [██████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (v1.0: 15, v1.1: 7)
+- Total plans completed: 23 (v1.0: 15, v1.1: 8)
 - Average duration: 4.8min
 - Total execution time: 1.68 hours
 
@@ -55,7 +55,7 @@ Progress: [██████████] 96%
 | 09-contacts-crud | 2/2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 4min, 4min, 5min, 3min
+- Last 5 plans: 4min, 4min, 5min, 3min, 5min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -63,6 +63,7 @@ Progress: [██████████] 96%
 | Phase 09 P02 | 5min | 2 tasks | 8 files |
 | Phase 10 P01 | 3min | 2 tasks | 4 files |
 | Phase 10 P02 | 5min | 2 tasks | 5 files |
+| Phase 11 P01 | 5min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Recent decisions affecting current work:
 - [Phase 10]: Poll sent via client.sendFile with InputMediaPoll wrapping Api.Poll
 - [Phase 10]: formatPoll uses inline rendering in formatSingleMessage for all message contexts
 - [Phase 10]: Commander repeatable --option flag via collect helper in message/index.ts
+- [Phase 11]: TOON branch is highest priority in output chain (TOON > JSONL > human > JSON)
+- [Phase 11]: TOON errors go to stdout as TOON-encoded envelope (matching JSON mode, not stderr like JSONL)
+- [Phase 11]: encodeToon uses fixed options: tab delimiter, safe key folding, 2-space indent
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T15:34:19.336Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-toon-output-format/11-CONTEXT.md
+Last session: 2026-03-13T16:42:24.177Z
+Stopped at: Completed 11-01-PLAN.md
+Resume file: None

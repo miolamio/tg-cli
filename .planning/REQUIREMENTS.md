@@ -99,7 +99,7 @@ Requirements for v1.1 milestone "Новые дополнения". Each maps to 
 
 ### Output (extended)
 
-- [ ] **OUT-07**: User can use `--toon` flag for TOON output format (token-efficient, LLM-optimized) with mutual exclusion against `--human` and `--jsonl`
+- [x] **OUT-07**: User can use `--toon` flag for TOON output format (token-efficient, LLM-optimized) with mutual exclusion against `--human` and `--jsonl`
 
 ## v2 Requirements
 
@@ -200,7 +200,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONT-02 | Phase 9 | Complete |
 | CONT-03 | Phase 9 | Complete |
 | CONT-04 | Phase 9 | Complete |
-| OUT-07 | Phase 11 | Pending |
+| OUT-07 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.0 requirements: 41 total, 41 complete
