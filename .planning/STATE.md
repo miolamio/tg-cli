@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: in-progress
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-13T07:20:37Z"
-last_activity: 2026-03-13 — Completed Phase 7 Plan 1 (error translation, types, edit command)
+status: completed
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-13T07:30:02.369Z"
+last_activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
 progress:
   total_phases: 11
-  completed_phases: 6
-  total_plans: 15
-  completed_plans: 16
-  percent: 12
+  completed_phases: 7
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 7 — Message Write Operations (edit, delete, pin, forward)
+**Current focus:** Phase 7 complete — Message Write Operations (edit, delete, pin, unpin)
 
 ## Current Position
 
 Phase: 7 of 11 (Message Write Operations)
-Plan: 1 of 2
-Status: Phase 7 Plan 1 complete
-Last activity: 2026-03-13 — Completed Phase 7 Plan 1 (error translation, types, edit command)
+Plan: 2 of 2
+Status: Phase 7 complete
+Last activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (v1.0: 15, v1.1: 2)
+- Total plans completed: 18 (v1.0: 15, v1.1: 3)
 - Average duration: 4.9min
-- Total execution time: 1.38 hours
+- Total execution time: 1.46 hours
 
 **By Phase (v1.0):**
 
@@ -50,10 +50,10 @@ Progress: [█░░░░░░░░░] 12%
 | 05-advanced-features-polish | 3 | 19min | 6.3min |
 
 | 06-message-read-operations | 1 | 5min | 5.0min |
-| 07-message-write-operations | 1 | 3min | 3.0min |
+| 07-message-write-operations | 2 | 8min | 4.0min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 4min, 5min, 5min, 3min
+- Last 5 plans: 4min, 5min, 5min, 3min, 5min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -71,6 +71,7 @@ Recent decisions affecting current work:
 - Phase 6: Extracted buildEntityMap to shared entity-map.ts for reuse across get/pinned/replies commands
 - Phase 6: gramjs getMessages returns undefined for missing IDs (confirmed, not null) — notFound tracking works
 - Phase 7: translateTelegramError uses duck-typing for RPCError detection; editDate as optional (undefined) not nullable
+- Phase 7: Delete requires explicit --revoke/--for-me flag (safety-first); pin defaults to silent; unpin synthesizes PinResult
 
 ### Pending Todos
 
@@ -80,10 +81,10 @@ None yet.
 
 - TOON token savings on real heterogeneous Telegram data unverified — benchmark gate in Phase 11
 - gramjs getMessages returns undefined for missing IDs (confirmed in Phase 6, handled via notFound array)
-- Pin command must default to silent:true to avoid mass-notifying group members
+- Pin command must default to silent:true to avoid mass-notifying group members (resolved in Phase 7 Plan 2)
 
 ## Session Continuity
 
-Last session: 2026-03-13T07:20:37Z
-Stopped at: Completed 07-01-PLAN.md
-Resume file: .planning/phases/07-message-write-operations/07-01-SUMMARY.md
+Last session: 2026-03-13T07:30:02.019Z
+Stopped at: Completed 07-02-PLAN.md
+Resume file: .planning/phases/07-message-write-operations/07-02-SUMMARY.md
