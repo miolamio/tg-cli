@@ -61,7 +61,7 @@ describe('translateTelegramError', () => {
     const err = { errorMessage: 'PEER_ID_INVALID' };
     const result = translateTelegramError(err);
     expect(result).toEqual({
-      message: 'Chat not found',
+      message: 'Peer not found',
       code: 'PEER_ID_INVALID',
     });
   });
