@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: in-progress
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-13T10:56:02.000Z"
-last_activity: 2026-03-13 — Completed Phase 9 Plan 1 (contact types, delete & add commands)
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-13T11:04:36.000Z"
+last_activity: 2026-03-13 — Completed Phase 9 Plan 2 (contact list, search, formatters, CLI wiring)
 progress:
   total_phases: 11
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 9 of 11 (Contacts CRUD)
-Plan: 1 of 2
-Status: Plan 1 complete, Plan 2 pending
-Last activity: 2026-03-13 — Completed Phase 9 Plan 1 (contact types, delete & add commands)
+Plan: 2 of 2
+Status: Phase 9 complete
+Last activity: 2026-03-13 — Completed Phase 9 Plan 2 (contact list, search, formatters, CLI wiring)
 
-Progress: [█████████░] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (v1.0: 15, v1.1: 5)
+- Total plans completed: 21 (v1.0: 15, v1.1: 6)
 - Average duration: 4.8min
-- Total execution time: 1.60 hours
+- Total execution time: 1.68 hours
 
 **By Phase (v1.0):**
 
@@ -52,14 +52,15 @@ Progress: [█████████░] 95%
 | 06-message-read-operations | 1 | 5min | 5.0min |
 | 07-message-write-operations | 2 | 8min | 4.0min |
 | 08-user-profiles-block-unblock | 2/2 | 10min | 5.0min |
-| 09-contacts-crud | 1/2 | 4min | 4.0min |
+| 09-contacts-crud | 2/2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 5min, 6min, 4min, 4min
+- Last 5 plans: 5min, 6min, 4min, 4min, 5min
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 09 P01 | 4min | 2 tasks | 6 files |
+| Phase 09 P02 | 5min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - Phase 8: formatData dispatch order -- new shapes placed before DownloadResult for correct priority
 - Phase 9: isPhoneInput regex for auto-detecting phone vs username input routing in contactAddAction
 - Phase 9: Duplicated mapUserStatus in add.ts to minimize cross-file changes (profile.ts has same logic)
+- Phase 9: Contact formatData dispatch placed before BlockedListResult to avoid shape collision
+- Phase 9: formatContactSearch shows [contact] tag for myResults items, no tag for global-only
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T10:56:02.000Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-contacts-crud/09-01-SUMMARY.md
+Last session: 2026-03-13T11:04:36.000Z
+Stopped at: Completed 09-02-PLAN.md
+Resume file: .planning/phases/09-contacts-crud/09-02-SUMMARY.md
