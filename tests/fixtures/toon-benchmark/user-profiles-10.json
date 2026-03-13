@@ -49,9 +49,7 @@
       "premium": false,
       "verified": true,
       "mutualContact": false,
-      "langCode": null,
-      "botInlinePlaceholder": "Search bots...",
-      "supportsInline": true
+      "langCode": null
     },
     {
       "id": "300004",
@@ -76,7 +74,7 @@
       "lastName": "Кузнецова",
       "username": "elena_kuz",
       "phone": "+79031112233",
-      "bio": "Люблю путешествия и фотографию. Currently in Bali 🌴",
+      "bio": "Люблю путешествия и фотографию. Currently in Bali.",
       "photoCount": 89,
       "lastSeen": "2026-03-13T14:00:00.000Z",
       "isBot": false,
@@ -102,9 +100,7 @@
       "premium": false,
       "verified": false,
       "mutualContact": false,
-      "langCode": "en",
-      "botInlinePlaceholder": "Search news...",
-      "supportsInline": true
+      "langCode": "en"
     },
     {
       "id": "300007",
@@ -146,7 +142,7 @@
       "lastName": "Козлов",
       "username": null,
       "phone": "+79267778899",
-      "bio": "DevOps инженер. Kubernetes, Terraform, Ansible. Автоматизирую всё.",
+      "bio": "DevOps инженер. Kubernetes, Terraform, Ansible.",
       "photoCount": 3,
       "lastSeen": "2026-03-13T12:00:00.000Z",
       "isBot": false,

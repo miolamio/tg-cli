@@ -4,7 +4,7 @@
       "id": "200000",
       "title": "Alice Johnson",
       "type": "user",
-      "username": "alice_johnson0",
+      "username": null,
       "unreadCount": 0
     },
     {
@@ -12,55 +12,55 @@
       "title": "Bob Williams",
       "type": "user",
       "username": "bob_williams1",
-      "unreadCount": 0
+      "unreadCount": 7
     },
     {
       "id": "200002",
       "title": "Charlie Brown",
       "type": "user",
-      "username": null,
+      "username": "charlie_brown2",
       "unreadCount": 0
     },
     {
       "id": "200003",
       "title": "Diana Prince",
       "type": "user",
-      "username": "diana_prince3",
-      "unreadCount": 0
+      "username": null,
+      "unreadCount": 3
     },
     {
       "id": "200004",
-      "title": "QA & Testing",
+      "title": "QA and Testing",
       "type": "group",
       "username": null,
-      "unreadCount": 0
+      "unreadCount": 3
     },
     {
       "id": "200005",
       "title": "DevOps Guild",
       "type": "group",
       "username": null,
-      "unreadCount": 0
+      "unreadCount": 90
     },
     {
       "id": "200006",
       "title": "Data Science Hub",
       "type": "group",
       "username": null,
-      "unreadCount": 69
+      "unreadCount": 0
     },
     {
       "id": "200007",
       "title": "Open Source Weekly",
       "type": "channel",
       "username": "open_source_weekly",
-      "unreadCount": 77
+      "unreadCount": 57
     },
     {
       "id": "200008",
       "title": "Product Hunt",
       "type": "channel",
-      "username": null,
+      "username": "product_hunt",
       "unreadCount": 0
     },
     {
@@ -74,7 +74,7 @@
       "id": "200010",
       "title": "Go Programmers",
       "type": "supergroup",
-      "username": null,
+      "username": "go_programmers",
       "unreadCount": 0
     },
     {
@@ -82,7 +82,7 @@
       "title": "TypeScript Fans",
       "type": "supergroup",
       "username": "typescript_fans",
-      "unreadCount": 4
+      "unreadCount": 0
     },
     {
       "id": "200012",
@@ -95,7 +95,7 @@
       "id": "200013",
       "title": "Noah Garcia",
       "type": "user",
-      "username": "noah_garcia13",
+      "username": null,
       "unreadCount": 0
     },
     {
@@ -103,14 +103,14 @@
       "title": "Olivia Robinson",
       "type": "user",
       "username": "olivia_robinson14",
-      "unreadCount": 62
+      "unreadCount": 0
     },
     {
       "id": "200015",
       "title": "Alice Johnson",
       "type": "user",
-      "username": "alice_johnson15",
-      "unreadCount": 8
+      "username": null,
+      "unreadCount": 7
     },
     {
       "id": "200016",
@@ -121,7 +121,7 @@
     },
     {
       "id": "200017",
-      "title": "QA & Testing",
+      "title": "QA and Testing",
       "type": "group",
       "username": null,
       "unreadCount": 0
@@ -131,34 +131,34 @@
       "title": "DevOps Guild",
       "type": "group",
       "username": null,
-      "unreadCount": 0
+      "unreadCount": 87
     },
     {
       "id": "200019",
       "title": "Dev Community",
       "type": "channel",
       "username": "dev_community",
-      "unreadCount": 0
+      "unreadCount": 9
     },
     {
       "id": "200020",
       "title": "Tech News Daily",
       "type": "channel",
       "username": "tech_news_daily",
-      "unreadCount": 0
+      "unreadCount": 6
     },
     {
       "id": "200021",
       "title": "Crypto Updates",
       "type": "channel",
-      "username": null,
-      "unreadCount": 94
+      "username": "crypto_updates",
+      "unreadCount": 5
     },
     {
       "id": "200022",
       "title": "Python Developers",
       "type": "supergroup",
-      "username": "python_developers",
+      "username": null,
       "unreadCount": 0
     },
     {
@@ -166,77 +166,77 @@
       "title": "JavaScript Universe",
       "type": "supergroup",
       "username": "javascript_universe",
-      "unreadCount": 96
+      "unreadCount": 0
     },
     {
       "id": "200024",
       "title": "Jack Taylor",
       "type": "user",
-      "username": null,
-      "unreadCount": 0
+      "username": "jack_taylor24",
+      "unreadCount": 64
     },
     {
       "id": "200025",
       "title": "Kate Anderson",
       "type": "user",
-      "username": null,
-      "unreadCount": 60
+      "username": "kate_anderson25",
+      "unreadCount": 0
     },
     {
       "id": "200026",
       "title": "Leo Martin",
       "type": "user",
       "username": "leo_martin26",
-      "unreadCount": 0
+      "unreadCount": 89
     },
     {
       "id": "200027",
       "title": "Mia Thompson",
       "type": "user",
-      "username": "mia_thompson27",
-      "unreadCount": 39
+      "username": null,
+      "unreadCount": 3
     },
     {
       "id": "200028",
       "title": "Marketing Crew",
       "type": "group",
       "username": null,
-      "unreadCount": 89
+      "unreadCount": 0
     },
     {
       "id": "200029",
       "title": "Design Workshop",
       "type": "group",
       "username": null,
-      "unreadCount": 75
+      "unreadCount": 6
     },
     {
       "id": "200030",
-      "title": "QA & Testing",
+      "title": "QA and Testing",
       "type": "group",
       "username": null,
-      "unreadCount": 86
+      "unreadCount": 0
     },
     {
       "id": "200031",
       "title": "Crypto Updates",
       "type": "channel",
-      "username": "crypto_updates",
-      "unreadCount": 5
+      "username": null,
+      "unreadCount": 0
     },
     {
       "id": "200032",
       "title": "World Events",
       "type": "channel",
       "username": "world_events",
-      "unreadCount": 2
+      "unreadCount": 0
     },
     {
       "id": "200033",
       "title": "Startup Insider",
       "type": "channel",
       "username": "startup_insider",
-      "unreadCount": 1
+      "unreadCount": 6
     },
     {
       "id": "200034",
@@ -250,7 +250,7 @@
       "title": "Rust Community",
       "type": "supergroup",
       "username": "rust_community",
-      "unreadCount": 4
+      "unreadCount": 0
     },
     {
       "id": "200036",
@@ -264,20 +264,20 @@
       "title": "Henry Wilson",
       "type": "user",
       "username": "henry_wilson37",
-      "unreadCount": 0
+      "unreadCount": 94
     },
     {
       "id": "200038",
       "title": "Iris Zhang",
       "type": "user",
-      "username": "iris_zhang38",
-      "unreadCount": 0
+      "username": null,
+      "unreadCount": 6
     },
     {
       "id": "200039",
       "title": "Jack Taylor",
       "type": "user",
-      "username": "jack_taylor39",
+      "username": null,
       "unreadCount": 0
     },
     {
@@ -306,7 +306,7 @@
       "title": "Startup Insider",
       "type": "channel",
       "username": "startup_insider",
-      "unreadCount": 0
+      "unreadCount": 9
     },
     {
       "id": "200044",
@@ -326,29 +326,29 @@
       "id": "200046",
       "title": "TypeScript Fans",
       "type": "supergroup",
-      "username": "typescript_fans",
+      "username": null,
       "unreadCount": 0
     },
     {
       "id": "200047",
       "title": "Kubernetes Users",
       "type": "supergroup",
-      "username": null,
-      "unreadCount": 0
+      "username": "kubernetes_users",
+      "unreadCount": 46
     },
     {
       "id": "200048",
       "title": "Diana Prince",
       "type": "user",
-      "username": null,
+      "username": "diana_prince48",
       "unreadCount": 0
     },
     {
       "id": "200049",
       "title": "Eve Davis",
       "type": "user",
-      "username": null,
-      "unreadCount": 0
+      "username": "eve_davis49",
+      "unreadCount": 1
     },
     {
       "id": "200050",
@@ -361,7 +361,7 @@
       "id": "200051",
       "title": "Grace Lee",
       "type": "user",
-      "username": null,
+      "username": "grace_lee51",
       "unreadCount": 0
     },
     {
