@@ -145,10 +145,11 @@ Plans:
   2. User can run `tg contact add` with either a username/ID (routed to addContact API) or a phone number (routed to importContacts API) and see the added contact in output
   3. User can run `tg contact delete <user>` to remove a contact
   4. User can run `tg contact search <query>` to find contacts by name, returning matching results
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 9 to break down)
+- [ ] 09-01-PLAN.md — Contact types, error map, delete and add commands (dual routing)
+- [ ] 09-02-PLAN.md — List and search commands, formatters, formatData dispatch, CLI wiring
 
 ### Phase 10: Polls
 **Goal**: Users can create and send polls with full configuration (quiz mode, multiple choice, anonymous/public, auto-close)
@@ -193,6 +194,6 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 6. Message Read Operations | v1.1 | 0/1 | Planning | - |
 | 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
 | 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
-| 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
+| 9. Contacts CRUD | v1.1 | 0/2 | Planning | - |
 | 10. Polls | v1.1 | 0/0 | Not started | - |
 | 11. TOON Output Format | v1.1 | 0/0 | Not started | - |
