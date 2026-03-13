@@ -27,6 +27,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@toon-format/toon": "^2.1.0",
     "commander": "^14.0.3",
     "conf": "^15.1.0",
     "picocolors": "^1.1.1",
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@types/node": "^25.4.0",
     "@types/proper-lockfile": "^4.1.4",
+    "gpt-tokenizer": "^3.4.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
