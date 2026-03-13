@@ -30,9 +30,11 @@ import {
   formatPinResult,
   formatUserProfile,
   formatBlockedList,
+  formatPoll,
 } from '../../src/lib/format.js';
 import type {
   MessageItem,
+  PollData,
   ChatListItem,
   ChatInfo,
   MemberItem,
@@ -885,5 +887,183 @@ describe('formatData - UserProfileResult, BlockedListResult, BlockResult dispatc
     const data = { userId: '400', username: null, firstName: null, action: 'unblocked' };
     const result = formatData(data);
     expect(result).toBe('Unblocked 400');
+  });
+});
+
+describe('formatPoll', () => {
+  const basePoll: PollData = {
+    question: 'Favorite color?',
+    options: [
+      { text: 'Red', voters: 0, chosen: false, correct: false },
+      { text: 'Blue', voters: 0, chosen: false, correct: false },
+    ],
+    isQuiz: false,
+    isPublic: false,
+    isMultiple: false,
+    isClosed: false,
+    closePeriod: null,
+    closeDate: null,
+    totalVoters: 0,
+    correctOption: null,
+    solution: null,
+  };
+
+  it('renders basic poll with question and numbered options', () => {
+    const result = formatPoll(basePoll);
+    expect(result).toContain('Poll: Favorite color?');
+    expect(result).toContain('1. Red');
+    expect(result).toContain('2. Blue');
+  });
+
+  it('shows vote counts when > 0', () => {
+    const poll: PollData = {
+      ...basePoll,
+      options: [
+        { text: 'Red', voters: 5, chosen: false, correct: false },
+        { text: 'Blue', voters: 1, chosen: false, correct: false },
+      ],
+    };
+    const result = formatPoll(poll);
+    expect(result).toContain('1. Red (5 votes)');
+    expect(result).toContain('2. Blue (1 vote)');
+  });
+
+  it('marks quiz correct answer with checkmark', () => {
+    const poll: PollData = {
+      ...basePoll,
+      isQuiz: true,
+      options: [
+        { text: 'Berlin', voters: 0, chosen: false, correct: false },
+        { text: 'Paris', voters: 0, chosen: false, correct: true },
+      ],
+      correctOption: 2,
+    };
+    const result = formatPoll(poll);
+    expect(result).toContain('2. Paris');
+    expect(result).toMatch(/Paris\s*✓/);
+    expect(result).not.toMatch(/Berlin\s*✓/);
+  });
+
+  it('shows Quiz config tag', () => {
+    const poll: PollData = { ...basePoll, isQuiz: true };
+    const result = formatPoll(poll);
+    expect(result).toContain('Quiz');
+  });
+
+  it('shows Public config tag', () => {
+    const poll: PollData = { ...basePoll, isPublic: true };
+    const result = formatPoll(poll);
+    expect(result).toContain('Public');
+  });
+
+  it('shows Multiple config tag', () => {
+    const poll: PollData = { ...basePoll, isMultiple: true };
+    const result = formatPoll(poll);
+    expect(result).toContain('Multiple');
+  });
+
+  it('shows Closes in Ns tag', () => {
+    const poll: PollData = { ...basePoll, closePeriod: 30 };
+    const result = formatPoll(poll);
+    expect(result).toContain('Closes in 30s');
+  });
+
+  it('shows Closed tag and voter count for closed polls', () => {
+    const poll: PollData = { ...basePoll, isClosed: true, totalVoters: 12 };
+    const result = formatPoll(poll);
+    expect(result).toContain('Closed');
+    expect(result).toContain('12 voters');
+  });
+
+  it('shows singular voter count', () => {
+    const poll: PollData = { ...basePoll, isClosed: true, totalVoters: 1 };
+    const result = formatPoll(poll);
+    expect(result).toContain('1 voter');
+    expect(result).not.toContain('1 voters');
+  });
+
+  it('omits tag line when all flags false', () => {
+    const result = formatPoll(basePoll);
+    const lines = result.split('\n');
+    // Should only have header + 2 option lines, no tag line
+    expect(lines.length).toBe(3);
+  });
+
+  it('joins multiple tags with dot separator', () => {
+    const poll: PollData = { ...basePoll, isQuiz: true, isPublic: true };
+    const result = formatPoll(poll);
+    expect(result).toMatch(/Quiz\s*·\s*Public/);
+  });
+});
+
+describe('formatMessages - poll rendering', () => {
+  it('renders poll inline when MessageItem has poll field', () => {
+    const msg: MessageItem = {
+      id: 1, text: '', date: '2026-03-13T12:00:00.000Z',
+      senderId: '123', senderName: 'Alice', replyToMsgId: null,
+      forwardFrom: null, mediaType: 'poll', type: 'message',
+      poll: {
+        question: 'Pick one',
+        options: [
+          { text: 'A', voters: 0, chosen: false, correct: false },
+          { text: 'B', voters: 0, chosen: false, correct: false },
+        ],
+        isQuiz: false,
+        isPublic: false,
+        isMultiple: false,
+        isClosed: false,
+        closePeriod: null,
+        closeDate: null,
+        totalVoters: 0,
+        correctOption: null,
+        solution: null,
+      },
+    };
+    const result = formatMessages([msg]);
+    expect(result).toContain('Alice');
+    expect(result).toContain('Poll: Pick one');
+    expect(result).toContain('1. A');
+    expect(result).toContain('2. B');
+  });
+
+  it('does not render poll when poll field is absent', () => {
+    const msg: MessageItem = {
+      id: 2, text: 'Normal message', date: '2026-03-13T12:00:00.000Z',
+      senderId: '123', senderName: 'Alice', replyToMsgId: null,
+      forwardFrom: null, mediaType: null, type: 'message',
+    };
+    const result = formatMessages([msg]);
+    expect(result).not.toContain('Poll:');
+  });
+});
+
+describe('formatData - poll message dispatch', () => {
+  it('dispatches single MessageItem with poll field correctly', () => {
+    const data: MessageItem = {
+      id: 1, text: '', date: '2026-03-13T12:00:00.000Z',
+      senderId: '123', senderName: 'Alice', replyToMsgId: null,
+      forwardFrom: null, mediaType: 'poll', type: 'message',
+      poll: {
+        question: 'Test poll',
+        options: [
+          { text: 'Yes', voters: 3, chosen: false, correct: false },
+          { text: 'No', voters: 1, chosen: false, correct: false },
+        ],
+        isQuiz: false,
+        isPublic: false,
+        isMultiple: false,
+        isClosed: false,
+        closePeriod: null,
+        closeDate: null,
+        totalVoters: 4,
+        correctOption: null,
+        solution: null,
+      },
+    };
+    const result = formatData(data);
+    expect(result).toContain('Alice');
+    expect(result).toContain('Poll: Test poll');
+    expect(result).toContain('1. Yes (3 votes)');
+    expect(result).toContain('2. No (1 vote)');
   });
 });

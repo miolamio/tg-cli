@@ -11,10 +11,11 @@ import { messageEditAction } from './edit.js';
 import { messageDeleteAction } from './delete.js';
 import { messagePinAction } from './pin.js';
 import { messageUnpinAction } from './unpin.js';
+import { messagePollAction } from './poll.js';
 
 /**
  * Create the `message` command group with history, search, get, pinned, send, forward, react, replies,
- * edit, delete, pin, and unpin subcommands.
+ * edit, delete, pin, unpin, and poll subcommands.
  *
  * Usage:
  *   tg message history <chat>               - Read message history from a chat
@@ -29,6 +30,7 @@ import { messageUnpinAction } from './unpin.js';
  *   tg message delete <chat> <ids>           - Delete messages (--revoke or --for-me required)
  *   tg message pin <chat> <id>              - Pin a message (silent by default)
  *   tg message unpin <chat> <id>            - Unpin a message
+ *   tg message poll <chat>                  - Send a poll to a chat
  */
 export function createMessageCommand(): Command {
   const message = new Command('message')
@@ -139,5 +141,27 @@ export function createMessageCommand(): Command {
     .description('Unpin a message from a chat')
     .action(messageUnpinAction);
 
+  message
+    .command('poll')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .description('Send a poll to a chat')
+    .requiredOption('--question <text>', 'Poll question (max 300 chars)')
+    .option('--option <text>', 'Poll option (repeat 2-10 times)', collect, [])
+    .option('--quiz', 'Quiz mode (one correct answer)')
+    .option('--correct <index>', 'Correct answer index, 1-based (requires --quiz)')
+    .option('--solution <text>', 'Solution explanation (requires --quiz)')
+    .option('--multiple', 'Allow multiple choices')
+    .option('--public', 'Show voter names (non-anonymous)')
+    .option('--close-in <seconds>', 'Auto-close after N seconds')
+    .action(messagePollAction);
+
   return message;
+}
+
+/**
+ * Commander repeatable option accumulator.
+ * Used for --option flags that can be specified multiple times.
+ */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }

@@ -13,6 +13,7 @@ import type {
   UserProfile,
   BlockResult,
   BlockedListItem,
+  PollData,
 } from './types.js';
 import { formatBytes } from './media-utils.js';
 
@@ -62,6 +63,41 @@ function formatMediaAnnotation(m: MessageItem): string {
 }
 
 /**
+ * Format poll data as expanded multi-line text.
+ *
+ * Renders question, numbered options with vote counts and correct markers,
+ * and config tags (Quiz, Public, Multiple, Closes in Ns, Closed, voter count).
+ */
+export function formatPoll(poll: PollData): string {
+  const lines: string[] = [];
+  lines.push(`\u{1F4CA} Poll: ${poll.question}`);
+
+  poll.options.forEach((opt, i) => {
+    const num = i + 1;
+    const correct = opt.correct ? ' \u2713' : '';
+    const votes = opt.voters > 0
+      ? ` (${opt.voters} vote${opt.voters !== 1 ? 's' : ''})`
+      : '';
+    lines.push(`  ${num}. ${opt.text}${correct}${votes}`);
+  });
+
+  const tags: string[] = [];
+  if (poll.isQuiz) tags.push('Quiz');
+  if (poll.isPublic) tags.push('Public');
+  if (poll.isMultiple) tags.push('Multiple');
+  if (poll.closePeriod) tags.push(`Closes in ${poll.closePeriod}s`);
+  if (poll.isClosed) {
+    tags.push('Closed');
+    tags.push(`${poll.totalVoters} voter${poll.totalVoters !== 1 ? 's' : ''}`);
+  }
+  if (tags.length > 0) {
+    lines.push(`  ${tags.join(' \u00B7 ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Format a single message line in conversational style.
  * [2026-03-11 12:30] Alice: Hello world
  * [2026-03-11 12:31] Bob (reply to 42): Thanks!
@@ -74,7 +110,11 @@ function formatSingleMessage(m: MessageItem): string {
   const edited = m.editDate ? pc.dim(' (edited)') : '';
   const annotation = formatMediaAnnotation(m);
   const media = annotation ? pc.yellow(annotation) + ' ' : '';
-  return `${ts} ${sender}${reply}${edited}: ${media}${m.text}`;
+  let line = `${ts} ${sender}${reply}${edited}: ${media}${m.text}`;
+  if (m.poll) {
+    line += '\n' + formatPoll(m.poll);
+  }
+  return line;
 }
 
 /**
