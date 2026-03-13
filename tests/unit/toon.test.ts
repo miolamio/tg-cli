@@ -21,12 +21,35 @@ describe('encodeToon', () => {
   });
 
   it('array data uses tabular format with tab delimiters', () => {
-    const result = encodeToon({ ok: true, data: { messages: [{ id: 1, text: 'hi' }, { id: 2, text: 'bye' }] } });
+    const result = encodeToon({
+      ok: true,
+      data: { messages: [{ id: 1, text: 'hi' }, { id: 2, text: 'bye' }] },
+    });
     // Tab characters should be present in tabular rows
     expect(result).toContain('\t');
   });
 
-  it.todo('handles null values without error');
-  it.todo('handles empty arrays without error');
-  it.todo('error envelope encodes correctly (ok: false, error present)');
+  it('handles null values without error', () => {
+    const result = encodeToon({
+      ok: true,
+      data: { messages: [{ id: 1, text: null, mediaType: null }] },
+    });
+    expect(typeof result).toBe('string');
+    expect(result).toContain('ok: true');
+    // null values should be encoded (not omitted or throwing)
+    expect(result).toContain('null');
+  });
+
+  it('handles empty arrays without error', () => {
+    const result = encodeToon({ ok: true, data: { messages: [], total: 0 } });
+    expect(typeof result).toBe('string');
+    expect(result).toContain('ok: true');
+  });
+
+  it('error envelope encodes correctly (ok: false, error present)', () => {
+    const result = encodeToon({ ok: false, error: 'Not found', code: 'NOT_FOUND' });
+    expect(result).toContain('ok: false');
+    expect(result).toContain('Not found');
+    expect(result).toContain('NOT_FOUND');
+  });
 });

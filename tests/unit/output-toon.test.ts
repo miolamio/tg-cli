@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { outputSuccess, outputError, setOutputMode, setJsonlMode, setFieldSelection } from '../../src/lib/output.js';
-// This import will fail until setToonMode is implemented
-import { setToonMode } from '../../src/lib/output.js';
+import { outputSuccess, outputError, setOutputMode, setJsonlMode, setFieldSelection, setToonMode } from '../../src/lib/output.js';
 
 describe('outputSuccess in TOON mode', () => {
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
@@ -41,12 +39,46 @@ describe('outputSuccess in TOON mode', () => {
     expect(written.endsWith('\n')).toBe(true);
   });
 
-  it.todo('does not write to stderr');
+  it('does not write to stderr', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    outputSuccess({ messages: [{ id: 1, text: 'test' }], total: 1 });
+    expect(stderrSpy).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
+  });
 });
 
 describe('outputSuccess in TOON mode with field selection', () => {
-  it.todo('filters fields before TOON encoding (selected fields present)');
-  it.todo('filtered fields are absent from TOON output');
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(false);
+    setJsonlMode(false);
+    setToonMode(true);
+    setFieldSelection(['id', 'text']);
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    setFieldSelection(null as unknown as string[]);
+    setToonMode(false);
+  });
+
+  it('filters fields before TOON encoding (selected fields present)', () => {
+    outputSuccess({ messages: [{ id: 1, text: 'hi', date: '2026-03-13' }], total: 1 });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    expect(written).toContain('id');
+    expect(written).toContain('text');
+  });
+
+  it('filtered fields are absent from TOON output', () => {
+    outputSuccess({ messages: [{ id: 1, text: 'hi', date: '2026-03-13' }], total: 1 });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    // date was not in the field selection, so it should be absent
+    expect(written).not.toContain('2026-03-13');
+  });
 });
 
 describe('outputError in TOON mode', () => {
@@ -72,15 +104,39 @@ describe('outputError in TOON mode', () => {
 
     expect(stdoutSpy).toHaveBeenCalled();
     expect(stderrSpy).not.toHaveBeenCalled();
+  });
+
+  it('output contains ok: false, error message, and error code', () => {
+    outputError('fail', 'TEST_ERR');
+
     const written = stdoutSpy.mock.calls[0][0] as string;
     expect(written).toContain('ok: false');
     expect(written).toContain('fail');
     expect(written).toContain('TEST_ERR');
   });
-
-  it.todo('output contains ok: false, error message, and error code');
 });
 
 describe('TOON mode does not interfere with other modes', () => {
-  it.todo('after setToonMode(false), outputSuccess produces normal JSON');
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    setOutputMode(false);
+    setJsonlMode(false);
+    setToonMode(false);
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    setToonMode(false);
+  });
+
+  it('after setToonMode(false), outputSuccess produces normal JSON', () => {
+    setToonMode(false);
+    outputSuccess({ test: true });
+
+    const written = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written);
+    expect(parsed).toEqual({ ok: true, data: { test: true } });
+  });
 });

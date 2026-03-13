@@ -116,7 +116,7 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('--notify');
   });
 
-  it('--help shows all 6 command groups: Auth, Session, Chat, Message, Media, User', () => {
+  it('--help shows all 7 command groups: Auth, Session, Chat, Message, Media, User, Contact', () => {
     const output = execSync(`node ${BINARY} --help`, {
       cwd: ROOT,
       encoding: 'utf-8',
@@ -129,6 +129,8 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('Media');
     expect(output).toContain('User');
     expect(output).toContain('user');
+    expect(output).toContain('Contact');
+    expect(output).toContain('contact');
   });
 
   it('--help shows --no-json and --human global options', () => {
@@ -170,6 +172,28 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('unblock');
     expect(output).toContain('blocked');
     expect(output).toContain('User profiles');
+  });
+
+  it('contact --help shows list, add, delete, search subcommands', () => {
+    const output = execSync(`node ${BINARY} contact --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('list');
+    expect(output).toContain('add');
+    expect(output).toContain('delete');
+    expect(output).toContain('search');
+    expect(output).toContain('Contact');
+  });
+
+  it('--help shows --toon global option', () => {
+    const output = execSync(`node ${BINARY} --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('--toon');
   });
 
   it('session import --skip-verify with empty string returns NO_INPUT error', () => {
