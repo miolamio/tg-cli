@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: in-progress
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-13T14:40:42.240Z"
-last_activity: 2026-03-13 — Completed Phase 10 Plan 1 (poll types, serialization, error codes)
+status: completed
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-03-13T14:49:23.651Z"
+last_activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
 progress:
   total_phases: 11
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 96
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 10 of 11 (Polls)
-Plan: 1 of 2
-Status: Plan 1 complete
-Last activity: 2026-03-13 — Completed Phase 10 Plan 1 (poll types, serialization, error codes)
+Plan: 2 of 2
+Status: Phase 10 complete
+Last activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
 
 Progress: [██████████] 96%
 
@@ -62,6 +62,7 @@ Progress: [██████████] 96%
 | Phase 09 P01 | 4min | 2 tasks | 6 files |
 | Phase 09 P02 | 5min | 2 tasks | 8 files |
 | Phase 10 P01 | 3min | 2 tasks | 4 files |
+| Phase 10 P02 | 5min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Recent decisions affecting current work:
 - Phase 10: Buffer.equals for poll option byte matching (not === reference equality)
 - Phase 10: correctOption as 1-based index derived from first option with correct===true
 - Phase 10: Poll types in dedicated Phase 10 section of types.ts
+- [Phase 10]: Poll sent via client.sendFile with InputMediaPoll wrapping Api.Poll
+- [Phase 10]: formatPoll uses inline rendering in formatSingleMessage for all message contexts
+- [Phase 10]: Commander repeatable --option flag via collect helper in message/index.ts
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T14:39:37Z
-Stopped at: Completed 10-01-PLAN.md
-Resume file: .planning/phases/10-polls/10-02-PLAN.md
+Last session: 2026-03-13T14:49:23.645Z
+Stopped at: Completed 10-02-PLAN.md
+Resume file: None
