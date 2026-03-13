@@ -143,7 +143,7 @@ export function formatChatInfo(info: ChatInfo): string {
  * Alice @alice
  * Bob @bob [bot]
  */
-export function formatMembers(members: MemberItem[]): string {
+export function formatMembers(members: Pick<MemberItem, 'firstName' | 'lastName' | 'username' | 'isBot'>[]): string {
   if (members.length === 0) return '';
 
   return members.map(m => {
@@ -375,7 +375,34 @@ export function formatUserProfile(profiles: UserProfile[], notFound: string[]): 
  */
 export function formatBlockedList(users: BlockedListItem[]): string {
   if (users.length === 0) return 'No blocked users.';
-  return formatMembers(users as MemberItem[]);
+  return formatMembers(users);
+}
+
+/**
+ * Format a contact list for human-readable output.
+ * Empty list returns 'No contacts.'.
+ * Delegates to formatMembers for compact name + username + bot tag display.
+ */
+export function formatContactList(contacts: UserProfile[]): string {
+  if (contacts.length === 0) return 'No contacts.';
+  return formatMembers(contacts);
+}
+
+/**
+ * Format contact search results for human-readable output.
+ * Empty list returns 'No results.'.
+ * Each result shows name, username, and [contact] tag for contacts.
+ */
+export function formatContactSearch(results: (UserProfile & { isContact: boolean })[]): string {
+  if (results.length === 0) return 'No results.';
+
+  return results.map(r => {
+    const name = pc.bold([r.firstName, r.lastName].filter(Boolean).join(' ') || 'Unknown');
+    const username = r.username ? pc.dim(` @${r.username}`) : '';
+    const bot = r.isBot ? pc.cyan(' [bot]') : '';
+    const contact = r.isContact ? pc.green(' [contact]') : '';
+    return `${name}${username}${bot}${contact}`;
+  }).join('\n');
 }
 
 /**
@@ -409,10 +436,28 @@ export function formatData(data: unknown): string {
     return formatUserProfile(obj.profiles as UserProfile[], obj.notFound as string[]);
   }
 
-  // Check for BlockedListResult shape (users[] + total number)
+  // Check for ContactListResult shape (contacts[] + total number)
+  if (Array.isArray(obj.contacts) && typeof obj.total === 'number') {
+    return formatContactList(obj.contacts as UserProfile[]);
+  }
+
+  // Check for ContactSearchResult shape (results[] + total number)
+  if (Array.isArray(obj.results) && typeof obj.total === 'number') {
+    return formatContactSearch(obj.results as (UserProfile & { isContact: boolean })[]);
+  }
+
+  // Check for ContactDeleteResult shape (userId + action === 'deleted')
+  if ('userId' in obj && 'action' in obj && obj.action === 'deleted') {
+    const name = obj.firstName || obj.username || obj.userId;
+    return `Deleted contact ${name}`;
+  }
+
+  // Check for BlockedListResult shape (users[] + total number, first item has isBot)
   if (Array.isArray(obj.users) && typeof obj.total === 'number') {
     if (obj.users.length === 0) return 'No blocked users.';
-    return formatMembers(obj.users as MemberItem[]);
+    if ('isBot' in obj.users[0]) {
+      return formatMembers(obj.users as BlockedListItem[]);
+    }
   }
 
   // Check for BlockResult shape (userId + action blocked/unblocked)

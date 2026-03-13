@@ -4,7 +4,7 @@
  */
 
 /** Known array property names for list command detection. */
-const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files', 'profiles', 'users'] as const;
+const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files', 'profiles', 'users', 'contacts', 'results'] as const;
 
 /**
  * Pick specific fields from an object, supporting dot-notation paths.
