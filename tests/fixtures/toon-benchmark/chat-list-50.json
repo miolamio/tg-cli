@@ -1,0 +1,390 @@
+{
+  "chats": [
+    {
+      "id": "200000",
+      "title": "Alice Johnson",
+      "type": "user",
+      "username": "alice_johnson0",
+      "unreadCount": 0
+    },
+    {
+      "id": "200001",
+      "title": "Bob Williams",
+      "type": "user",
+      "username": "bob_williams1",
+      "unreadCount": 0
+    },
+    {
+      "id": "200002",
+      "title": "Charlie Brown",
+      "type": "user",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200003",
+      "title": "Diana Prince",
+      "type": "user",
+      "username": "diana_prince3",
+      "unreadCount": 0
+    },
+    {
+      "id": "200004",
+      "title": "QA & Testing",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200005",
+      "title": "DevOps Guild",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200006",
+      "title": "Data Science Hub",
+      "type": "group",
+      "username": null,
+      "unreadCount": 69
+    },
+    {
+      "id": "200007",
+      "title": "Open Source Weekly",
+      "type": "channel",
+      "username": "open_source_weekly",
+      "unreadCount": 77
+    },
+    {
+      "id": "200008",
+      "title": "Product Hunt",
+      "type": "channel",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200009",
+      "title": "Dev Community",
+      "type": "channel",
+      "username": "dev_community",
+      "unreadCount": 0
+    },
+    {
+      "id": "200010",
+      "title": "Go Programmers",
+      "type": "supergroup",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200011",
+      "title": "TypeScript Fans",
+      "type": "supergroup",
+      "username": "typescript_fans",
+      "unreadCount": 4
+    },
+    {
+      "id": "200012",
+      "title": "Mia Thompson",
+      "type": "user",
+      "username": "mia_thompson12",
+      "unreadCount": 0
+    },
+    {
+      "id": "200013",
+      "title": "Noah Garcia",
+      "type": "user",
+      "username": "noah_garcia13",
+      "unreadCount": 0
+    },
+    {
+      "id": "200014",
+      "title": "Olivia Robinson",
+      "type": "user",
+      "username": "olivia_robinson14",
+      "unreadCount": 62
+    },
+    {
+      "id": "200015",
+      "title": "Alice Johnson",
+      "type": "user",
+      "username": "alice_johnson15",
+      "unreadCount": 8
+    },
+    {
+      "id": "200016",
+      "title": "Design Workshop",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200017",
+      "title": "QA & Testing",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200018",
+      "title": "DevOps Guild",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200019",
+      "title": "Dev Community",
+      "type": "channel",
+      "username": "dev_community",
+      "unreadCount": 0
+    },
+    {
+      "id": "200020",
+      "title": "Tech News Daily",
+      "type": "channel",
+      "username": "tech_news_daily",
+      "unreadCount": 0
+    },
+    {
+      "id": "200021",
+      "title": "Crypto Updates",
+      "type": "channel",
+      "username": null,
+      "unreadCount": 94
+    },
+    {
+      "id": "200022",
+      "title": "Python Developers",
+      "type": "supergroup",
+      "username": "python_developers",
+      "unreadCount": 0
+    },
+    {
+      "id": "200023",
+      "title": "JavaScript Universe",
+      "type": "supergroup",
+      "username": "javascript_universe",
+      "unreadCount": 96
+    },
+    {
+      "id": "200024",
+      "title": "Jack Taylor",
+      "type": "user",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200025",
+      "title": "Kate Anderson",
+      "type": "user",
+      "username": null,
+      "unreadCount": 60
+    },
+    {
+      "id": "200026",
+      "title": "Leo Martin",
+      "type": "user",
+      "username": "leo_martin26",
+      "unreadCount": 0
+    },
+    {
+      "id": "200027",
+      "title": "Mia Thompson",
+      "type": "user",
+      "username": "mia_thompson27",
+      "unreadCount": 39
+    },
+    {
+      "id": "200028",
+      "title": "Marketing Crew",
+      "type": "group",
+      "username": null,
+      "unreadCount": 89
+    },
+    {
+      "id": "200029",
+      "title": "Design Workshop",
+      "type": "group",
+      "username": null,
+      "unreadCount": 75
+    },
+    {
+      "id": "200030",
+      "title": "QA & Testing",
+      "type": "group",
+      "username": null,
+      "unreadCount": 86
+    },
+    {
+      "id": "200031",
+      "title": "Crypto Updates",
+      "type": "channel",
+      "username": "crypto_updates",
+      "unreadCount": 5
+    },
+    {
+      "id": "200032",
+      "title": "World Events",
+      "type": "channel",
+      "username": "world_events",
+      "unreadCount": 2
+    },
+    {
+      "id": "200033",
+      "title": "Startup Insider",
+      "type": "channel",
+      "username": "startup_insider",
+      "unreadCount": 1
+    },
+    {
+      "id": "200034",
+      "title": "Docker Enthusiasts",
+      "type": "supergroup",
+      "username": "docker_enthusiasts",
+      "unreadCount": 0
+    },
+    {
+      "id": "200035",
+      "title": "Rust Community",
+      "type": "supergroup",
+      "username": "rust_community",
+      "unreadCount": 4
+    },
+    {
+      "id": "200036",
+      "title": "Grace Lee",
+      "type": "user",
+      "username": "grace_lee36",
+      "unreadCount": 0
+    },
+    {
+      "id": "200037",
+      "title": "Henry Wilson",
+      "type": "user",
+      "username": "henry_wilson37",
+      "unreadCount": 0
+    },
+    {
+      "id": "200038",
+      "title": "Iris Zhang",
+      "type": "user",
+      "username": "iris_zhang38",
+      "unreadCount": 0
+    },
+    {
+      "id": "200039",
+      "title": "Jack Taylor",
+      "type": "user",
+      "username": "jack_taylor39",
+      "unreadCount": 0
+    },
+    {
+      "id": "200040",
+      "title": "Backend Devs",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200041",
+      "title": "Marketing Crew",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200042",
+      "title": "Design Workshop",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200043",
+      "title": "Startup Insider",
+      "type": "channel",
+      "username": "startup_insider",
+      "unreadCount": 0
+    },
+    {
+      "id": "200044",
+      "title": "Science Today",
+      "type": "channel",
+      "username": "science_today",
+      "unreadCount": 0
+    },
+    {
+      "id": "200045",
+      "title": "AI Research Feed",
+      "type": "channel",
+      "username": "ai_research_feed",
+      "unreadCount": 0
+    },
+    {
+      "id": "200046",
+      "title": "TypeScript Fans",
+      "type": "supergroup",
+      "username": "typescript_fans",
+      "unreadCount": 0
+    },
+    {
+      "id": "200047",
+      "title": "Kubernetes Users",
+      "type": "supergroup",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200048",
+      "title": "Diana Prince",
+      "type": "user",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200049",
+      "title": "Eve Davis",
+      "type": "user",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200050",
+      "title": "Frank Miller",
+      "type": "user",
+      "username": "frank_miller50",
+      "unreadCount": 0
+    },
+    {
+      "id": "200051",
+      "title": "Grace Lee",
+      "type": "user",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200052",
+      "title": "Project Alpha Team",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200053",
+      "title": "Backend Devs",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    },
+    {
+      "id": "200054",
+      "title": "Marketing Crew",
+      "type": "group",
+      "username": null,
+      "unreadCount": 0
+    }
+  ],
+  "total": 55
+}

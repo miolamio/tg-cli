@@ -1,0 +1,233 @@
+{
+  "chatInfo": {
+    "id": "500001",
+    "title": "Engineering All-Hands",
+    "type": "supergroup",
+    "username": "eng_all_hands",
+    "description": "Weekly engineering sync for all teams. Agenda posted Monday mornings.",
+    "memberCount": 342,
+    "creationDate": "2024-06-15T09:00:00.000Z",
+    "photo": {
+      "hasPhoto": true
+    },
+    "linkedChatId": "500002",
+    "slowmodeSeconds": 0,
+    "permissions": {
+      "sendMessages": true,
+      "sendMedia": true,
+      "sendPolls": true,
+      "inviteUsers": false
+    },
+    "inviteLink": "https://t.me/+abc123def456",
+    "migratedFrom": null
+  },
+  "deleteResult": {
+    "deleted": [
+      10001,
+      10002,
+      10003,
+      10005,
+      10008
+    ],
+    "failed": [
+      {
+        "id": 10004,
+        "reason": "Message not found"
+      },
+      {
+        "id": 10006,
+        "reason": "No permission to delete"
+      }
+    ],
+    "mode": "revoke"
+  },
+  "blockedList": {
+    "users": [
+      {
+        "id": "600001",
+        "firstName": "Spammer",
+        "lastName": "Bot",
+        "username": "spam_bot_x",
+        "isBot": true
+      },
+      {
+        "id": "600002",
+        "firstName": "Annoying",
+        "lastName": "User",
+        "username": null,
+        "isBot": false
+      },
+      {
+        "id": "600003",
+        "firstName": "Crypto",
+        "lastName": "Scammer",
+        "username": "crypto_moon_99",
+        "isBot": false
+      },
+      {
+        "id": "600004",
+        "firstName": "Fake",
+        "lastName": "Account",
+        "username": "totally_legit",
+        "isBot": false
+      },
+      {
+        "id": "600005",
+        "firstName": "Troll",
+        "lastName": null,
+        "username": "bridge_troll",
+        "isBot": false
+      }
+    ],
+    "total": 5
+  },
+  "contactSearch": {
+    "results": [
+      {
+        "id": "700001",
+        "firstName": "Alex",
+        "lastName": "Petrov",
+        "username": "alex_petrov",
+        "phone": "+79161234567",
+        "bio": "Senior software engineer",
+        "photoCount": 12,
+        "lastSeen": "2026-03-13T10:30:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 5,
+        "premium": true,
+        "verified": false,
+        "mutualContact": true,
+        "langCode": "ru",
+        "isContact": true
+      },
+      {
+        "id": "700002",
+        "firstName": "Alexandra",
+        "lastName": "Petrova",
+        "username": "alexa_p",
+        "phone": null,
+        "bio": null,
+        "photoCount": 3,
+        "lastSeen": "2026-03-12T15:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 1,
+        "premium": false,
+        "verified": false,
+        "mutualContact": false,
+        "langCode": "ru",
+        "isContact": false
+      },
+      {
+        "id": "700003",
+        "firstName": "Alexei",
+        "lastName": "Popov",
+        "username": null,
+        "phone": null,
+        "bio": "Photographer",
+        "photoCount": 67,
+        "lastSeen": "2026-03-11T20:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 0,
+        "premium": false,
+        "verified": false,
+        "mutualContact": false,
+        "langCode": null,
+        "isContact": false
+      },
+      {
+        "id": "700004",
+        "firstName": "Alex",
+        "lastName": "Turner",
+        "username": "alex_turner",
+        "phone": "+447911123456",
+        "bio": "Music producer and DJ",
+        "photoCount": 22,
+        "lastSeen": "2026-03-13T08:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 2,
+        "premium": true,
+        "verified": false,
+        "mutualContact": true,
+        "langCode": "en",
+        "isContact": true
+      },
+      {
+        "id": "700005",
+        "firstName": "Aleksandr",
+        "lastName": "Volkov",
+        "username": "a_volkov",
+        "phone": null,
+        "bio": "Blockchain developer",
+        "photoCount": 1,
+        "lastSeen": "2026-03-10T12:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 0,
+        "premium": false,
+        "verified": false,
+        "mutualContact": false,
+        "langCode": "ru",
+        "isContact": false
+      },
+      {
+        "id": "700006",
+        "firstName": "Alexis",
+        "lastName": "Chen",
+        "username": "alexis_c",
+        "phone": "+8613912345678",
+        "bio": "UX researcher at Google",
+        "photoCount": 8,
+        "lastSeen": "2026-03-13T03:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 1,
+        "premium": false,
+        "verified": false,
+        "mutualContact": false,
+        "langCode": "en",
+        "isContact": false
+      },
+      {
+        "id": "700007",
+        "firstName": "Alex",
+        "lastName": "Kim",
+        "username": null,
+        "phone": null,
+        "bio": null,
+        "photoCount": 0,
+        "lastSeen": null,
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 0,
+        "premium": false,
+        "verified": false,
+        "mutualContact": false,
+        "langCode": null,
+        "isContact": false
+      },
+      {
+        "id": "700008",
+        "firstName": "Alexander",
+        "lastName": "Bell",
+        "username": "alex_bell",
+        "phone": "+12025551234",
+        "bio": "History buff and amateur inventor",
+        "photoCount": 15,
+        "lastSeen": "2026-03-12T11:00:00.000Z",
+        "isBot": false,
+        "blocked": false,
+        "commonChatsCount": 3,
+        "premium": false,
+        "verified": false,
+        "mutualContact": true,
+        "langCode": "en",
+        "isContact": true
+      }
+    ],
+    "total": 8
+  }
+}
