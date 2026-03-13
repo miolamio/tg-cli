@@ -196,5 +196,5 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
 | 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
 | 9. Contacts CRUD | v1.1 | 0/2 | Planning | - |
-| 10. Polls | v1.1 | 0/2 | Planning | - |
+| 10. Polls | 1/2 | In Progress|  | - |
 | 11. TOON Output Format | v1.1 | 0/0 | Not started | - |

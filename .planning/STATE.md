@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: completed
-stopped_at: Phase 10 context gathered
-last_updated: "2026-03-13T14:10:30.871Z"
-last_activity: 2026-03-13 — Completed Phase 9 Plan 2 (contact list, search, formatters, CLI wiring)
+status: in-progress
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-03-13T14:40:42.240Z"
+last_activity: 2026-03-13 — Completed Phase 10 Plan 1 (poll types, serialization, error codes)
 progress:
   total_phases: 11
   completed_phases: 9
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_plans: 23
+  completed_plans: 22
+  percent: 96
 ---
 
 # Project State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 9 in progress — Contacts CRUD
+**Current focus:** Phase 10 in progress — Polls
 
 ## Current Position
 
-Phase: 9 of 11 (Contacts CRUD)
-Plan: 2 of 2
-Status: Phase 9 complete
-Last activity: 2026-03-13 — Completed Phase 9 Plan 2 (contact list, search, formatters, CLI wiring)
+Phase: 10 of 11 (Polls)
+Plan: 1 of 2
+Status: Plan 1 complete
+Last activity: 2026-03-13 — Completed Phase 10 Plan 1 (poll types, serialization, error codes)
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21 (v1.0: 15, v1.1: 6)
+- Total plans completed: 22 (v1.0: 15, v1.1: 7)
 - Average duration: 4.8min
 - Total execution time: 1.68 hours
 
@@ -55,12 +55,13 @@ Progress: [██████████] 100%
 | 09-contacts-crud | 2/2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 6min, 4min, 4min, 5min
+- Last 5 plans: 6min, 4min, 4min, 5min, 3min
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 09 P01 | 4min | 2 tasks | 6 files |
 | Phase 09 P02 | 5min | 2 tasks | 8 files |
+| Phase 10 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - Phase 9: Duplicated mapUserStatus in add.ts to minimize cross-file changes (profile.ts has same logic)
 - Phase 9: Contact formatData dispatch placed before BlockedListResult to avoid shape collision
 - Phase 9: formatContactSearch shows [contact] tag for myResults items, no tag for global-only
+- Phase 10: Buffer.equals for poll option byte matching (not === reference equality)
+- Phase 10: correctOption as 1-based index derived from first option with correct===true
+- Phase 10: Poll types in dedicated Phase 10 section of types.ts
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T14:10:30.862Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-polls/10-CONTEXT.md
+Last session: 2026-03-13T14:39:37Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: .planning/phases/10-polls/10-02-PLAN.md
