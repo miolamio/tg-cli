@@ -93,8 +93,8 @@ Requirements for v1.1 milestone "Новые дополнения". Each maps to 
 ### Contacts (new)
 
 - [ ] **CONT-01**: User can list all contacts (`tg contact list`) with phone, username, status
-- [ ] **CONT-02**: User can add a contact by username/ID or phone number (`tg contact add`) with dual API routing
-- [ ] **CONT-03**: User can delete a contact (`tg contact delete <user>`)
+- [x] **CONT-02**: User can add a contact by username/ID or phone number (`tg contact add`) with dual API routing
+- [x] **CONT-03**: User can delete a contact (`tg contact delete <user>`)
 - [ ] **CONT-04**: User can search contacts by name (`tg contact search <query>`)
 
 ### Output (extended)
@@ -197,8 +197,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-03 | Phase 8 | Complete |
 | USER-04 | Phase 8 | Complete |
 | CONT-01 | Phase 9 | Pending |
-| CONT-02 | Phase 9 | Pending |
-| CONT-03 | Phase 9 | Pending |
+| CONT-02 | Phase 9 | Complete |
+| CONT-03 | Phase 9 | Complete |
 | CONT-04 | Phase 9 | Pending |
 | OUT-07 | Phase 11 | Pending |
 

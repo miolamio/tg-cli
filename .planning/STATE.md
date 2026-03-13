@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: completed
-stopped_at: Phase 9 context gathered
-last_updated: "2026-03-13T10:30:01.443Z"
-last_activity: 2026-03-13 — Completed Phase 8 Plan 2 (blocked list, formatters, CLI wiring)
+status: in-progress
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-13T10:56:02.000Z"
+last_activity: 2026-03-13 — Completed Phase 9 Plan 1 (contact types, delete & add commands)
 progress:
   total_phases: 11
   completed_phases: 8
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_plans: 21
+  completed_plans: 20
+  percent: 95
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 8 complete — User Profiles & Block/Unblock
+**Current focus:** Phase 9 in progress — Contacts CRUD
 
 ## Current Position
 
-Phase: 8 of 11 (User Profiles & Block/Unblock)
-Plan: 2 of 2
-Status: Phase 8 complete
-Last activity: 2026-03-13 — Completed Phase 8 Plan 2 (blocked list, formatters, CLI wiring)
+Phase: 9 of 11 (Contacts CRUD)
+Plan: 1 of 2
+Status: Plan 1 complete, Plan 2 pending
+Last activity: 2026-03-13 — Completed Phase 9 Plan 1 (contact types, delete & add commands)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19 (v1.0: 15, v1.1: 4)
+- Total plans completed: 20 (v1.0: 15, v1.1: 5)
 - Average duration: 4.8min
-- Total execution time: 1.53 hours
+- Total execution time: 1.60 hours
 
 **By Phase (v1.0):**
 
@@ -52,13 +52,14 @@ Progress: [██████████] 100%
 | 06-message-read-operations | 1 | 5min | 5.0min |
 | 07-message-write-operations | 2 | 8min | 4.0min |
 | 08-user-profiles-block-unblock | 2/2 | 10min | 5.0min |
+| 09-contacts-crud | 1/2 | 4min | 4.0min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 3min, 5min, 6min, 4min
+- Last 5 plans: 3min, 5min, 6min, 4min, 4min
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 08 P02 | 4min | 2 tasks | 9 files |
+| Phase 09 P01 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - Phase 8: PEER_ID_INVALID changed to 'Peer not found' (shared by chat and user commands)
 - Phase 8: BlockedListItem cast to MemberItem for formatMembers reuse (compatible shapes)
 - Phase 8: formatData dispatch order -- new shapes placed before DownloadResult for correct priority
+- Phase 9: isPhoneInput regex for auto-detecting phone vs username input routing in contactAddAction
+- Phase 9: Duplicated mapUserStatus in add.ts to minimize cross-file changes (profile.ts has same logic)
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T10:30:01.437Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-contacts-crud/09-CONTEXT.md
+Last session: 2026-03-13T10:56:02.000Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-contacts-crud/09-01-SUMMARY.md
