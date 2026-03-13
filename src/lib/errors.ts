@@ -74,6 +74,10 @@ const TELEGRAM_ERROR_MAP: Record<string, string> = {
   'MESSAGE_NOT_MODIFIED': 'Message content unchanged',
   'USER_BOT_INVALID': 'Cannot block this bot',
   'INPUT_USER_DEACTIVATED': 'User account deleted',
+  'CONTACT_ID_INVALID': 'Contact not found',
+  'CONTACT_NAME_EMPTY': 'First name is required',
+  'CONTACT_REQ_MISSING': 'Contact request required',
+  'SEARCH_QUERY_EMPTY': 'Search query cannot be empty',
 };
 
 /**

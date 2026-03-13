@@ -344,3 +344,30 @@ export interface BlockedListResult {
   users: BlockedListItem[];
   total: number;
 }
+
+// ---- Phase 9: Contacts CRUD types ----
+
+/** Result of deleting a contact. */
+export interface ContactDeleteResult {
+  userId: string;
+  username: string | null;
+  firstName: string | null;
+  action: 'deleted';
+}
+
+/** Result of listing contacts. */
+export interface ContactListResult {
+  contacts: UserProfile[];
+  total: number;
+}
+
+/** A search result item with contact status. */
+export interface ContactSearchItem extends UserProfile {
+  isContact: boolean;
+}
+
+/** Result of searching contacts. */
+export interface ContactSearchResult {
+  results: ContactSearchItem[];
+  total: number;
+}
