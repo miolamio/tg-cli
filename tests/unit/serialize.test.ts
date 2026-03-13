@@ -5,6 +5,7 @@ const {
   MockBold,
   MockMediaPhoto,
   MockMediaDocument,
+  MockMediaPoll,
   MockAttrSticker,
   MockAttrVideo,
   MockAttrAudio,
@@ -15,13 +16,14 @@ const {
   class MockBold { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockMediaPhoto {}
   class MockMediaDocument {}
+  class MockMediaPoll {}
   class MockAttrSticker { alt: string; constructor(a?: any) { this.alt = a?.alt ?? ''; } }
   class MockAttrVideo { w?: number; h?: number; duration?: number; constructor(a?: any) { this.w = a?.w; this.h = a?.h; this.duration = a?.duration; } }
   class MockAttrAudio { voice?: boolean; duration?: number; constructor(a?: any) { this.voice = a?.voice; this.duration = a?.duration; } }
   class MockAttrFilename { fileName: string; constructor(a?: any) { this.fileName = a?.fileName ?? ''; } }
   class MockAttrImageSize { w: number; h: number; constructor(a?: any) { this.w = a?.w ?? 0; this.h = a?.h ?? 0; } }
   class MockActionChatCreate {}
-  return { MockBold, MockMediaPhoto, MockMediaDocument, MockAttrSticker, MockAttrVideo, MockAttrAudio, MockAttrFilename, MockAttrImageSize, MockActionChatCreate };
+  return { MockBold, MockMediaPhoto, MockMediaDocument, MockMediaPoll, MockAttrSticker, MockAttrVideo, MockAttrAudio, MockAttrFilename, MockAttrImageSize, MockActionChatCreate };
 });
 
 vi.mock('telegram', () => ({
@@ -36,6 +38,7 @@ vi.mock('telegram', () => ({
     MessageEntityMentionName: class { offset: number; length: number; userId: number; constructor(a: any) { this.offset = a.offset; this.length = a.length; this.userId = a.userId; } },
     MessageMediaPhoto: MockMediaPhoto,
     MessageMediaDocument: MockMediaDocument,
+    MessageMediaPoll: MockMediaPoll,
     DocumentAttributeSticker: MockAttrSticker,
     DocumentAttributeVideo: MockAttrVideo,
     DocumentAttributeAudio: MockAttrAudio,
@@ -52,6 +55,8 @@ import {
   serializeMember,
   bigIntToString,
   extractMediaInfo,
+  extractPollData,
+  detectMedia,
 } from '../../src/lib/serialize.js';
 
 // Helper to create a mock Dialog
@@ -463,5 +468,213 @@ describe('serializeMessage - media field', () => {
     expect(result.media).toBeDefined();
     expect(result.media!.filename).toBe('report.pdf');
     expect(result.media!.mimeType).toBe('application/pdf');
+  });
+});
+
+// Helper to create a mock MessageMediaPoll instance
+function mockPollMedia(overrides: any = {}) {
+  const defaults = {
+    poll: {
+      question: { text: 'Favorite color?' },
+      answers: [
+        { text: { text: 'Red' }, option: Buffer.from('0') },
+        { text: { text: 'Blue' }, option: Buffer.from('1') },
+        { text: { text: 'Green' }, option: Buffer.from('2') },
+      ],
+      quiz: false,
+      publicVoters: false,
+      multipleChoice: false,
+      closed: false,
+      closePeriod: undefined,
+      closeDate: undefined,
+    },
+    results: {
+      results: [],
+      totalVoters: 0,
+      solution: undefined,
+    },
+  };
+
+  const merged = {
+    poll: { ...defaults.poll, ...overrides.poll },
+    results: { ...defaults.results, ...overrides.results },
+  };
+
+  // Merge answers if provided
+  if (overrides.poll?.answers) {
+    merged.poll.answers = overrides.poll.answers;
+  }
+
+  return Object.assign(new MockMediaPoll(), merged);
+}
+
+describe('extractPollData', () => {
+  it('returns null for non-MessageMediaPoll media', () => {
+    const photo = new MockMediaPhoto();
+    expect(extractPollData(photo)).toBeNull();
+    expect(extractPollData(null)).toBeNull();
+    expect(extractPollData(undefined)).toBeNull();
+  });
+
+  it('extracts basic poll with question and options', () => {
+    const media = mockPollMedia();
+    const result = extractPollData(media);
+    expect(result).not.toBeNull();
+    expect(result!.question).toBe('Favorite color?');
+    expect(result!.options).toHaveLength(3);
+    expect(result!.options[0]).toEqual({ text: 'Red', voters: 0, chosen: false, correct: false });
+    expect(result!.options[1]).toEqual({ text: 'Blue', voters: 0, chosen: false, correct: false });
+    expect(result!.options[2]).toEqual({ text: 'Green', voters: 0, chosen: false, correct: false });
+    expect(result!.isQuiz).toBe(false);
+    expect(result!.isPublic).toBe(false);
+    expect(result!.isMultiple).toBe(false);
+    expect(result!.isClosed).toBe(false);
+    expect(result!.totalVoters).toBe(0);
+    expect(result!.correctOption).toBeNull();
+    expect(result!.solution).toBeNull();
+  });
+
+  it('extracts poll with votes matched to options via option bytes', () => {
+    const media = mockPollMedia({
+      results: {
+        results: [
+          { option: Buffer.from('0'), voters: 5, chosen: false, correct: false },
+          { option: Buffer.from('1'), voters: 3, chosen: true, correct: false },
+          { option: Buffer.from('2'), voters: 1, chosen: false, correct: false },
+        ],
+        totalVoters: 9,
+      },
+    });
+    const result = extractPollData(media);
+    expect(result!.options[0].voters).toBe(5);
+    expect(result!.options[0].chosen).toBe(false);
+    expect(result!.options[1].voters).toBe(3);
+    expect(result!.options[1].chosen).toBe(true);
+    expect(result!.options[2].voters).toBe(1);
+    expect(result!.totalVoters).toBe(9);
+  });
+
+  it('extracts quiz poll with correctOption as 1-based index', () => {
+    const media = mockPollMedia({
+      poll: {
+        question: { text: 'Capital of France?' },
+        answers: [
+          { text: { text: 'London' }, option: Buffer.from('0') },
+          { text: { text: 'Paris' }, option: Buffer.from('1') },
+          { text: { text: 'Berlin' }, option: Buffer.from('2') },
+        ],
+        quiz: true,
+        publicVoters: false,
+        multipleChoice: false,
+        closed: false,
+      },
+      results: {
+        results: [
+          { option: Buffer.from('0'), voters: 2, chosen: false, correct: false },
+          { option: Buffer.from('1'), voters: 8, chosen: true, correct: true },
+          { option: Buffer.from('2'), voters: 1, chosen: false, correct: false },
+        ],
+        totalVoters: 11,
+        solution: 'Paris is the capital of France',
+      },
+    });
+    const result = extractPollData(media);
+    expect(result!.isQuiz).toBe(true);
+    expect(result!.correctOption).toBe(2); // 1-based: option index 1 -> position 2
+    expect(result!.options[1].correct).toBe(true);
+    expect(result!.solution).toBe('Paris is the capital of France');
+  });
+
+  it('extracts closed poll with closePeriod and closeDate', () => {
+    const closeTimestamp = 1710200000; // Unix timestamp
+    const media = mockPollMedia({
+      poll: {
+        question: { text: 'Quick poll' },
+        answers: [
+          { text: { text: 'Yes' }, option: Buffer.from('0') },
+          { text: { text: 'No' }, option: Buffer.from('1') },
+        ],
+        quiz: false,
+        publicVoters: false,
+        multipleChoice: false,
+        closed: true,
+        closePeriod: 60,
+        closeDate: closeTimestamp,
+      },
+      results: {
+        results: [],
+        totalVoters: 5,
+      },
+    });
+    const result = extractPollData(media);
+    expect(result!.isClosed).toBe(true);
+    expect(result!.closePeriod).toBe(60);
+    expect(result!.closeDate).toBe(new Date(closeTimestamp * 1000).toISOString());
+    expect(result!.totalVoters).toBe(5);
+  });
+
+  it('extracts public and multiple-choice flags', () => {
+    const media = mockPollMedia({
+      poll: {
+        question: { text: 'Multi poll' },
+        answers: [
+          { text: { text: 'A' }, option: Buffer.from('0') },
+          { text: { text: 'B' }, option: Buffer.from('1') },
+        ],
+        quiz: false,
+        publicVoters: true,
+        multipleChoice: true,
+        closed: false,
+      },
+    });
+    const result = extractPollData(media);
+    expect(result!.isPublic).toBe(true);
+    expect(result!.isMultiple).toBe(true);
+  });
+
+  it('handles missing results gracefully', () => {
+    const media = Object.assign(new MockMediaPoll(), {
+      poll: {
+        question: { text: 'New poll' },
+        answers: [
+          { text: { text: 'Yes' }, option: Buffer.from('0') },
+          { text: { text: 'No' }, option: Buffer.from('1') },
+        ],
+        quiz: false,
+        publicVoters: false,
+        multipleChoice: false,
+        closed: false,
+      },
+      results: null,
+    });
+    const result = extractPollData(media);
+    expect(result).not.toBeNull();
+    expect(result!.options[0].voters).toBe(0);
+    expect(result!.totalVoters).toBe(0);
+  });
+});
+
+describe('serializeMessage - poll field', () => {
+  it('populates poll field when message contains a poll', () => {
+    const media = mockPollMedia();
+    const msg = mockMessage({ media });
+    const result = serializeMessage(msg as any);
+    expect(result.mediaType).toBe('poll');
+    expect(result.poll).toBeDefined();
+    expect(result.poll!.question).toBe('Favorite color?');
+    expect(result.poll!.options).toHaveLength(3);
+  });
+
+  it('does not include poll field for non-poll messages', () => {
+    const msg = mockMessage({ media: null });
+    const result = serializeMessage(msg as any);
+    expect(result.poll).toBeUndefined();
+  });
+});
+
+describe('detectMedia - poll', () => {
+  it('returns mediaType "poll" for MessageMediaPoll', () => {
+    const media = new MockMediaPoll();
+    expect(detectMedia(media).mediaType).toBe('poll');
   });
 });
