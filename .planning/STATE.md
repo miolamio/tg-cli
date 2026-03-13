@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
 stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-03-13T14:49:23.651Z"
+last_updated: "2026-03-13T14:54:59.997Z"
 last_activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
 progress:
   total_phases: 11
