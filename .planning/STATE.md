@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
-status: in-progress
+status: completed
 stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-03-13T11:04:36.000Z"
+last_updated: "2026-03-13T11:10:55.072Z"
 last_activity: 2026-03-13 — Completed Phase 9 Plan 2 (contact list, search, formatters, CLI wiring)
 progress:
   total_phases: 11
