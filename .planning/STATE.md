@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-03-13T14:54:59.997Z"
+stopped_at: Phase 11 context gathered
+last_updated: "2026-03-13T15:34:19.346Z"
 last_activity: 2026-03-13 — Completed Phase 10 Plan 2 (poll command, validation, formatter, CLI wiring)
 progress:
   total_phases: 11
@@ -105,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T14:49:23.645Z
-Stopped at: Completed 10-02-PLAN.md
-Resume file: None
+Last session: 2026-03-13T15:34:19.336Z
+Stopped at: Phase 11 context gathered
+Resume file: .planning/phases/11-toon-output-format/11-CONTEXT.md
