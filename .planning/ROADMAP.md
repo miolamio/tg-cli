@@ -130,10 +130,11 @@ Plans:
   2. User can run `tg user block <user>` and `tg user unblock <user>` to manage blocking, with confirmation in output
   3. User can run `tg user blocked` to list all blocked users with pagination support
   4. All user commands produce correct JSON and human-readable output using the existing output pipeline
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 8 to break down)
+- [ ] 08-01-PLAN.md — Types, error map extension, profile command (multi-user with partial success), block and unblock commands
+- [ ] 08-02-PLAN.md — Blocked list command, formatters, formatData dispatch, fields.ts, command group index, CLI wiring
 
 ### Phase 9: Contacts CRUD
 **Goal**: Users can manage their Telegram contacts -- list, add, delete, and search
@@ -191,7 +192,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 5. Advanced Features & Polish | v1.0 | 3/3 | Complete | 2026-03-12 |
 | 6. Message Read Operations | v1.1 | 0/1 | Planning | - |
 | 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
-| 8. User Profiles & Block/Unblock | v1.1 | 0/0 | Not started | - |
+| 8. User Profiles & Block/Unblock | v1.1 | 0/2 | Planning | - |
 | 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
 | 10. Polls | v1.1 | 0/0 | Not started | - |
 | 11. TOON Output Format | v1.1 | 0/0 | Not started | - |
