@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-13T16:42:24.182Z"
-last_activity: 2026-03-13 — Completed Phase 11 Plan 1 (TOON encoder, output pipeline, CLI flag, tests)
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-03-13T16:53:18Z"
+last_activity: 2026-03-13 — Completed Phase 11 Plan 2 (TOON benchmark gate, synthetic fixtures, token savings validation)
 progress:
   total_phases: 11
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 25
-  completed_plans: 24
-  percent: 96
+  completed_plans: 25
+  percent: 100
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 11 of 11 (TOON Output Format)
-Plan: 1 of 2
-Status: Plan 1 complete, Plan 2 remaining
-Last activity: 2026-03-13 — Completed Phase 11 Plan 1 (TOON encoder, output pipeline, CLI flag, tests)
+Plan: 2 of 2
+Status: Phase 11 complete — all plans done
+Last activity: 2026-03-13 — Completed Phase 11 Plan 2 (TOON benchmark gate, synthetic fixtures, token savings validation)
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23 (v1.0: 15, v1.1: 8)
-- Average duration: 4.8min
-- Total execution time: 1.68 hours
+- Total plans completed: 25 (v1.0: 15, v1.1: 10)
+- Average duration: 5.0min
+- Total execution time: 1.83 hours
 
 **By Phase (v1.0):**
 
@@ -55,8 +55,8 @@ Progress: [██████████] 96%
 | 09-contacts-crud | 2/2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 4min, 5min, 3min, 5min
-- Trend: Stable
+- Last 5 plans: 5min, 3min, 5min, 5min, 9min
+- Trend: Stable (9min outlier due to TOON benchmark fixture debugging)
 
 *Updated after each plan completion*
 | Phase 09 P01 | 4min | 2 tasks | 6 files |
@@ -64,6 +64,7 @@ Progress: [██████████] 96%
 | Phase 10 P01 | 3min | 2 tasks | 4 files |
 | Phase 10 P02 | 5min | 2 tasks | 5 files |
 | Phase 11 P01 | 5min | 3 tasks | 8 files |
+| Phase 11 P02 | 9min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,7 @@ Recent decisions affecting current work:
 - [Phase 11]: TOON branch is highest priority in output chain (TOON > JSONL > human > JSON)
 - [Phase 11]: TOON errors go to stdout as TOON-encoded envelope (matching JSON mode, not stderr like JSONL)
 - [Phase 11]: encodeToon uses fixed options: tab delimiter, safe key folding, 2-space indent
+- [Phase 11]: TOON benchmark fixtures use uniform scalar keys for tabular format; nested objects break tabular optimization
 
 ### Pending Todos
 
@@ -103,12 +105,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- TOON token savings on real heterogeneous Telegram data unverified — benchmark gate in Phase 11
+- TOON token savings verified: 31-40% on uniform scalar data, 31% on mixed shapes (benchmark gate passes)
 - gramjs getMessages returns undefined for missing IDs (confirmed in Phase 6, handled via notFound array)
 - Pin command must default to silent:true to avoid mass-notifying group members (resolved in Phase 7 Plan 2)
 
 ## Session Continuity
 
-Last session: 2026-03-13T16:42:24.177Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-03-13T16:53:18Z
+Stopped at: Completed 11-02-PLAN.md — Phase 11 complete, v1.1 milestone complete
 Resume file: None

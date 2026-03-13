@@ -87,7 +87,7 @@ Plans:
 - [x] **Phase 8: User Profiles & Block/Unblock** - New `user` command group with profile, block, unblock, blocked list (completed 2026-03-13)
 - [ ] **Phase 9: Contacts CRUD** - New `contact` command group with list, add, delete, search
 - [x] **Phase 10: Polls** - Send polls with quiz mode, multiple choice, anonymous/public, auto-close (completed 2026-03-13)
-- [ ] **Phase 11: TOON Output Format** - Token-efficient output mode (`--toon`) for LLM consumers
+- [x] **Phase 11: TOON Output Format** - Token-efficient output mode (`--toon`) for LLM consumers (completed 2026-03-13)
 
 ## Phase Details
 
@@ -198,4 +198,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
 | 9. Contacts CRUD | v1.1 | 0/2 | Planning | - |
 | 10. Polls | 2/2 | Complete    | 2026-03-13 | - |
-| 11. TOON Output Format | 1/2 | In Progress|  | - |
+| 11. TOON Output Format | 2/2 | Complete   | 2026-03-13 | - |
