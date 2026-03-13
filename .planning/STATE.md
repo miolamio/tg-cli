@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-13T09:36:48.839Z"
-last_activity: 2026-03-13 — Completed Phase 8 Plan 1 (types, profile, block, unblock)
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-13T09:44:39.475Z"
+last_activity: 2026-03-13 — Completed Phase 8 Plan 2 (blocked list, formatters, CLI wiring)
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 19
-  completed_plans: 18
-  percent: 95
+  completed_plans: 19
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 8 in progress — User Profiles & Block/Unblock
+**Current focus:** Phase 8 complete — User Profiles & Block/Unblock
 
 ## Current Position
 
 Phase: 8 of 11 (User Profiles & Block/Unblock)
-Plan: 1 of 2
-Status: Plan 1 complete, Plan 2 pending
-Last activity: 2026-03-13 — Completed Phase 8 Plan 1 (types, profile, block, unblock)
+Plan: 2 of 2
+Status: Phase 8 complete
+Last activity: 2026-03-13 — Completed Phase 8 Plan 2 (blocked list, formatters, CLI wiring)
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (v1.0: 15, v1.1: 3)
-- Average duration: 4.9min
-- Total execution time: 1.46 hours
+- Total plans completed: 19 (v1.0: 15, v1.1: 4)
+- Average duration: 4.8min
+- Total execution time: 1.53 hours
 
 **By Phase (v1.0):**
 
@@ -51,13 +51,14 @@ Progress: [██████████] 95%
 
 | 06-message-read-operations | 1 | 5min | 5.0min |
 | 07-message-write-operations | 2 | 8min | 4.0min |
-| 08-user-profiles-block-unblock | 1/2 | 6min | 6.0min |
+| 08-user-profiles-block-unblock | 2/2 | 10min | 5.0min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 5min, 3min, 5min, 6min
+- Last 5 plans: 5min, 3min, 5min, 6min, 4min
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 08 P02 | 4min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - Phase 7: Delete requires explicit --revoke/--for-me flag (safety-first); pin defaults to silent; unpin synthesizes PinResult
 - Phase 8: className-based entity validation instead of instanceof Api.User for testability
 - Phase 8: PEER_ID_INVALID changed to 'Peer not found' (shared by chat and user commands)
+- Phase 8: BlockedListItem cast to MemberItem for formatMembers reuse (compatible shapes)
+- Phase 8: formatData dispatch order -- new shapes placed before DownloadResult for correct priority
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:36:48.834Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-03-13T09:44:39.473Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None

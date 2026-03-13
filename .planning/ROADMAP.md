@@ -84,7 +84,7 @@ Plans:
 
 - [ ] **Phase 6: Message Read Operations** - Get messages by ID, get pinned messages from a chat
 - [ ] **Phase 7: Message Write Operations** - Edit, delete, pin, and unpin messages
-- [ ] **Phase 8: User Profiles & Block/Unblock** - New `user` command group with profile, block, unblock, blocked list
+- [x] **Phase 8: User Profiles & Block/Unblock** - New `user` command group with profile, block, unblock, blocked list (completed 2026-03-13)
 - [ ] **Phase 9: Contacts CRUD** - New `contact` command group with list, add, delete, search
 - [ ] **Phase 10: Polls** - Send polls with quiz mode, multiple choice, anonymous/public, auto-close
 - [ ] **Phase 11: TOON Output Format** - Token-efficient output mode (`--toon`) for LLM consumers
@@ -192,7 +192,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 5. Advanced Features & Polish | v1.0 | 3/3 | Complete | 2026-03-12 |
 | 6. Message Read Operations | v1.1 | 0/1 | Planning | - |
 | 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
-| 8. User Profiles & Block/Unblock | v1.1 | 0/2 | Planning | - |
+| 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
 | 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
 | 10. Polls | v1.1 | 0/0 | Not started | - |
 | 11. TOON Output Format | v1.1 | 0/0 | Not started | - |

@@ -88,7 +88,7 @@ Requirements for v1.1 milestone "Новые дополнения". Each maps to 
 - [x] **USER-01**: User can get a detailed profile for any user (`tg user profile <user>`) showing bio, photos count, last seen, common chats, blocked status, and privacy-restricted field indicators
 - [x] **USER-02**: User can block a user (`tg user block <user>`)
 - [x] **USER-03**: User can unblock a user (`tg user unblock <user>`)
-- [ ] **USER-04**: User can list blocked users (`tg user blocked`) with pagination
+- [x] **USER-04**: User can list blocked users (`tg user blocked`) with pagination
 
 ### Contacts (new)
 
@@ -195,7 +195,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-01 | Phase 8 | Complete |
 | USER-02 | Phase 8 | Complete |
 | USER-03 | Phase 8 | Complete |
-| USER-04 | Phase 8 | Pending |
+| USER-04 | Phase 8 | Complete |
 | CONT-01 | Phase 9 | Pending |
 | CONT-02 | Phase 9 | Pending |
 | CONT-03 | Phase 9 | Pending |
