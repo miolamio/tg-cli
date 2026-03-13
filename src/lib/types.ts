@@ -115,6 +115,7 @@ export interface MessageItem {
   actionText?: string;
   emoji?: string;
   media?: MediaInfo;  // Only present when mediaType is not null
+  editDate?: string;  // ISO string when message has been edited
 }
 
 /** Reaction count for a message. */
@@ -271,4 +272,21 @@ export interface ReactOptions {
   messageId: number;
   emoji: string;
   remove: boolean;
+}
+
+// ---- Phase 7: Message Write Operations types ----
+
+/** Result of deleting messages. */
+export interface DeleteResult {
+  deleted: number[];
+  failed: { id: number; reason: string }[];
+  mode: 'revoke' | 'for-me';
+}
+
+/** Result of pinning or unpinning a message. */
+export interface PinResult {
+  messageId: number;
+  chatId: string;
+  action: 'pinned' | 'unpinned';
+  silent?: boolean;
 }

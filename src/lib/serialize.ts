@@ -259,6 +259,11 @@ export function serializeMessage(
     item.emoji = emoji;
   }
 
+  // Populate editDate when message has been edited (gramjs stores as Unix timestamp)
+  if ((msg as any).editDate) {
+    item.editDate = new Date((msg as any).editDate * 1000).toISOString();
+  }
+
   // Populate media metadata when message has media
   if (mediaType) {
     const mediaInfo = extractMediaInfo((msg as any).media);

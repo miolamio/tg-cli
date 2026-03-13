@@ -59,3 +59,34 @@ export function formatError(err: unknown): { message: string; code?: string } {
   }
   return { message: String(err) };
 }
+
+/**
+ * Map of Telegram RPCError codes to human-readable messages.
+ * Used by translateTelegramError to produce actionable CLI output.
+ */
+const TELEGRAM_ERROR_MAP: Record<string, string> = {
+  'MESSAGE_EDIT_TIME_EXPIRED': 'Cannot edit: 48-hour edit window has expired',
+  'MESSAGE_AUTHOR_REQUIRED': 'Cannot edit: you can only edit your own messages',
+  'MESSAGE_DELETE_FORBIDDEN': 'Cannot delete this message',
+  'CHAT_ADMIN_REQUIRED': 'Admin privileges required',
+  'MESSAGE_ID_INVALID': 'Message not found',
+  'PEER_ID_INVALID': 'Chat not found',
+  'MESSAGE_NOT_MODIFIED': 'Message content unchanged',
+};
+
+/**
+ * Translate a Telegram API error into a user-friendly message + code pair.
+ *
+ * Handles gramjs RPCError objects (which have an `errorMessage` property)
+ * by mapping known error codes to human-readable messages.
+ * Falls back to formatError for non-RPCError thrown values.
+ */
+export function translateTelegramError(err: unknown): { message: string; code: string } {
+  if (err != null && typeof err === 'object' && 'errorMessage' in err) {
+    const errorMessage = (err as any).errorMessage as string;
+    const humanMessage = TELEGRAM_ERROR_MAP[errorMessage] || errorMessage;
+    return { message: humanMessage, code: errorMessage };
+  }
+  const result = formatError(err);
+  return { message: result.message, code: result.code ?? 'UNKNOWN_ERROR' };
+}
