@@ -10,6 +10,9 @@ import type {
   TopicItem,
   DeleteResult,
   PinResult,
+  UserProfile,
+  BlockResult,
+  BlockedListItem,
 } from './types.js';
 import { formatBytes } from './media-utils.js';
 
@@ -290,6 +293,92 @@ export function formatPinResult(result: PinResult): string {
 }
 
 /**
+ * Format user profiles as aligned key-value pairs with color-coded status.
+ *
+ * Each profile displays: Name, ID, Username, Phone, Bio, Last Seen,
+ * Photos, Common Chats, and conditional flags (Blocked, Premium, Verified, Bot).
+ * Multiple profiles separated by blank lines.
+ * Appends dim "Not found: ..." for any unresolved inputs.
+ */
+export function formatUserProfile(profiles: UserProfile[], notFound: string[]): string {
+  const parts: string[] = [];
+
+  for (const p of profiles) {
+    const pairs: [string, string][] = [];
+
+    const name = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unknown';
+    pairs.push(['Name', name]);
+    pairs.push(['ID', p.id]);
+    if (p.username != null) pairs.push(['Username', `@${p.username}`]);
+
+    // Phone: restricted indicator rendered dim
+    if (p.phone === '[restricted]') {
+      pairs.push(['Phone', pc.dim('[restricted]')]);
+    } else if (p.phone != null) {
+      pairs.push(['Phone', p.phone]);
+    }
+
+    if (p.bio != null) pairs.push(['Bio', p.bio]);
+
+    // Last Seen: color-coded by status
+    if (p.lastSeen != null) {
+      let lastSeenFormatted: string;
+      if (p.lastSeen === 'online') {
+        lastSeenFormatted = pc.green('online');
+      } else if (['recently', 'within_week', 'within_month', 'long_time_ago'].includes(p.lastSeen)) {
+        lastSeenFormatted = pc.dim(p.lastSeen.replace(/_/g, ' '));
+      } else {
+        // ISO timestamp
+        lastSeenFormatted = p.lastSeen;
+      }
+      pairs.push(['Last Seen', lastSeenFormatted]);
+    }
+
+    pairs.push(['Photos', String(p.photoCount)]);
+    pairs.push(['Common Chats', String(p.commonChatsCount)]);
+
+    // Conditional flags
+    if (p.blocked) pairs.push(['Blocked', pc.red('yes')]);
+    if (p.premium) pairs.push(['Premium', pc.yellow('yes')]);
+    if (p.verified) pairs.push(['Verified', pc.cyan('yes')]);
+    if (p.mutualContact) pairs.push(['Mutual Contact', 'yes']);
+
+    if (p.isBot) {
+      pairs.push(['Bot', pc.cyan('yes')]);
+      if (p.supportsInline) pairs.push(['Inline', 'yes']);
+      if (p.botInlinePlaceholder) pairs.push(['Placeholder', p.botInlinePlaceholder]);
+    }
+
+    if (p.langCode != null) pairs.push(['Language', p.langCode]);
+
+    const maxLabelLen = Math.max(...pairs.map(([label]) => label.length));
+
+    const section = pairs.map(([label, value]) => {
+      const paddedLabel = label.padEnd(maxLabelLen);
+      return `${pc.bold(paddedLabel)}  ${value}`;
+    }).join('\n');
+
+    parts.push(section);
+  }
+
+  if (notFound.length > 0) {
+    parts.push(pc.dim('Not found: ' + notFound.join(', ')));
+  }
+
+  return parts.join('\n\n');
+}
+
+/**
+ * Format a blocked user list.
+ * Empty list returns 'No blocked users.'.
+ * Non-empty list delegates to formatMembers (BlockedListItem is MemberItem-compatible).
+ */
+export function formatBlockedList(users: BlockedListItem[]): string {
+  if (users.length === 0) return 'No blocked users.';
+  return formatMembers(users as MemberItem[]);
+}
+
+/**
  * Fallback formatter: pretty-prints any data as indented JSON.
  * Used for auth status, session export/import, join/leave confirmations, etc.
  */
@@ -314,6 +403,23 @@ export function formatData(data: unknown): string {
   }
 
   const obj = data as Record<string, any>;
+
+  // Check for UserProfileResult shape (profiles[] + notFound[])
+  if (Array.isArray(obj.profiles) && Array.isArray(obj.notFound)) {
+    return formatUserProfile(obj.profiles as UserProfile[], obj.notFound as string[]);
+  }
+
+  // Check for BlockedListResult shape (users[] + total number)
+  if (Array.isArray(obj.users) && typeof obj.total === 'number') {
+    if (obj.users.length === 0) return 'No blocked users.';
+    return formatMembers(obj.users as MemberItem[]);
+  }
+
+  // Check for BlockResult shape (userId + action blocked/unblocked)
+  if ('userId' in obj && 'action' in obj && (obj.action === 'blocked' || obj.action === 'unblocked')) {
+    const name = (obj as any).firstName || (obj as any).username || (obj as any).userId;
+    return `${obj.action === 'blocked' ? 'Blocked' : 'Unblocked'} ${name}`;
+  }
 
   // Check for DownloadResult shape (has path + filename + size + mediaType + messageId)
   if ('path' in obj && 'filename' in obj && 'size' in obj && 'mediaType' in obj && 'messageId' in obj) {

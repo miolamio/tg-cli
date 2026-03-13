@@ -285,6 +285,50 @@ describe('outputSuccess in JSONL mode', () => {
     expect(stdoutSpy).toHaveBeenCalledOnce();
     expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '1', title: 'Test' });
   });
+
+  it('works with profiles array (LIST_KEYS includes profiles)', () => {
+    outputSuccess({ profiles: [{ id: '100', firstName: 'Alice' }], notFound: [] });
+
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '100', firstName: 'Alice' });
+  });
+
+  it('works with users array (LIST_KEYS includes users)', () => {
+    outputSuccess({ users: [{ id: '1', firstName: 'Dave', isBot: false }], total: 1 });
+
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '1', firstName: 'Dave', isBot: false });
+  });
+
+  it('streams DeleteResult as one JSONL line per deleted/failed ID', () => {
+    outputSuccess({ deleted: [10, 20, 30], failed: [], mode: 'revoke' });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: 10, status: 'deleted' });
+    expect(JSON.parse(stdoutSpy.mock.calls[1][0] as string)).toEqual({ id: 20, status: 'deleted' });
+    expect(JSON.parse(stdoutSpy.mock.calls[2][0] as string)).toEqual({ id: 30, status: 'deleted' });
+  });
+
+  it('streams DeleteResult failed entries with reason', () => {
+    outputSuccess({
+      deleted: [10],
+      failed: [{ id: 20, reason: 'permission denied' }],
+      mode: 'for-me',
+    });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: 10, status: 'deleted' });
+    expect(JSON.parse(stdoutSpy.mock.calls[1][0] as string)).toEqual({ id: 20, status: 'failed', reason: 'permission denied' });
+  });
+
+  it('streams DeleteResult with field selection', () => {
+    setFieldSelection(['id']);
+    outputSuccess({ deleted: [10, 20], failed: [], mode: 'revoke' });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: 10 });
+    expect(JSON.parse(stdoutSpy.mock.calls[1][0] as string)).toEqual({ id: 20 });
+  });
 });
 
 describe('outputSuccess with field selection in JSON mode', () => {

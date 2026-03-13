@@ -28,6 +28,8 @@ import {
   formatGetResult,
   formatDeleteResult,
   formatPinResult,
+  formatUserProfile,
+  formatBlockedList,
 } from '../../src/lib/format.js';
 import type {
   MessageItem,
@@ -39,6 +41,8 @@ import type {
   AlbumResult,
   DeleteResult,
   PinResult,
+  UserProfile,
+  BlockedListItem,
 } from '../../src/lib/types.js';
 
 describe('formatMessages', () => {
@@ -707,5 +711,179 @@ describe('formatData - DeleteResult and PinResult dispatch', () => {
     // Should fall through to generic JSON, NOT formatPinResult
     expect(result).toContain('"emoji"');
     expect(result).toContain('"action"');
+  });
+});
+
+describe('formatUserProfile', () => {
+  const baseProfile: UserProfile = {
+    id: '12345',
+    firstName: 'Alice',
+    lastName: 'Smith',
+    username: 'alice',
+    phone: '+1234567890',
+    bio: 'Hello world',
+    photoCount: 5,
+    lastSeen: 'online',
+    isBot: false,
+    blocked: false,
+    commonChatsCount: 3,
+    premium: false,
+    verified: false,
+    mutualContact: false,
+    langCode: 'en',
+  };
+
+  it('renders single profile with all fields', () => {
+    const result = formatUserProfile([baseProfile], []);
+    expect(result).toContain('Alice Smith');
+    expect(result).toContain('12345');
+    expect(result).toContain('@alice');
+    expect(result).toContain('+1234567890');
+    expect(result).toContain('Hello world');
+    expect(result).toContain('5');
+    expect(result).toContain('3');
+    expect(result).toContain('en');
+  });
+
+  it('renders online status in green', () => {
+    const result = formatUserProfile([{ ...baseProfile, lastSeen: 'online' }], []);
+    // The text "online" should be present (may be wrapped in color codes)
+    expect(result).toContain('online');
+  });
+
+  it('renders approximate status in dim with spaces', () => {
+    const result = formatUserProfile([{ ...baseProfile, lastSeen: 'within_week' }], []);
+    expect(result).toContain('within week');
+  });
+
+  it('renders ISO timestamp as plain text', () => {
+    const result = formatUserProfile([{ ...baseProfile, lastSeen: '2026-03-13T09:00:00.000Z' }], []);
+    expect(result).toContain('2026-03-13T09:00:00.000Z');
+  });
+
+  it('renders [restricted] phone as dim', () => {
+    const result = formatUserProfile([{ ...baseProfile, phone: '[restricted]' }], []);
+    expect(result).toContain('[restricted]');
+  });
+
+  it('appends not found entries', () => {
+    const result = formatUserProfile([baseProfile], ['unknownuser', 'badid']);
+    expect(result).toContain('Not found: unknownuser, badid');
+  });
+
+  it('renders bot-specific fields', () => {
+    const botProfile: UserProfile = {
+      ...baseProfile,
+      isBot: true,
+      lastSeen: null,
+      phone: null,
+      supportsInline: true,
+      botInlinePlaceholder: 'Search...',
+    };
+    const result = formatUserProfile([botProfile], []);
+    expect(result).toContain('Bot');
+    expect(result).toContain('Inline');
+    expect(result).toContain('Search...');
+  });
+
+  it('renders blocked flag in red', () => {
+    const result = formatUserProfile([{ ...baseProfile, blocked: true }], []);
+    expect(result).toContain('Blocked');
+    expect(result).toContain('yes');
+  });
+
+  it('renders premium flag in yellow', () => {
+    const result = formatUserProfile([{ ...baseProfile, premium: true }], []);
+    expect(result).toContain('Premium');
+  });
+
+  it('renders verified flag in cyan', () => {
+    const result = formatUserProfile([{ ...baseProfile, verified: true }], []);
+    expect(result).toContain('Verified');
+  });
+
+  it('does not show blocked/premium/verified when false', () => {
+    const result = formatUserProfile([baseProfile], []);
+    expect(result).not.toContain('Blocked');
+    expect(result).not.toContain('Premium');
+    expect(result).not.toContain('Verified');
+  });
+});
+
+describe('formatBlockedList', () => {
+  it('returns "No blocked users." for empty list', () => {
+    expect(formatBlockedList([])).toBe('No blocked users.');
+  });
+
+  it('formats non-empty list via formatMembers pattern', () => {
+    const users: BlockedListItem[] = [
+      { id: '1', firstName: 'Alice', lastName: null, username: 'alice', isBot: false },
+      { id: '2', firstName: 'Bot', lastName: null, username: 'mybot', isBot: true },
+    ];
+    const result = formatBlockedList(users);
+    expect(result).toContain('Alice');
+    expect(result).toContain('@alice');
+    expect(result).toContain('Bot');
+    expect(result).toContain('[bot]');
+  });
+});
+
+describe('formatData - UserProfileResult, BlockedListResult, BlockResult dispatch', () => {
+  it('dispatches UserProfileResult shape to formatUserProfile', () => {
+    const data = {
+      profiles: [{
+        id: '100', firstName: 'Alice', lastName: null, username: 'alice',
+        phone: null, bio: null, photoCount: 0, lastSeen: null, isBot: false,
+        blocked: false, commonChatsCount: 0, premium: false, verified: false,
+        mutualContact: false, langCode: null,
+      }],
+      notFound: [],
+    };
+    const result = formatData(data);
+    expect(result).toContain('Alice');
+    expect(result).toContain('100');
+    expect(result).not.toContain('"profiles"');
+  });
+
+  it('dispatches BlockedListResult shape with users to formatMembers', () => {
+    const data = {
+      users: [
+        { id: '1', firstName: 'Dave', lastName: null, username: 'dave', isBot: false },
+      ],
+      total: 5,
+    };
+    const result = formatData(data);
+    expect(result).toContain('Dave');
+    expect(result).toContain('@dave');
+  });
+
+  it('dispatches empty BlockedListResult to "No blocked users."', () => {
+    const data = { users: [], total: 0 };
+    const result = formatData(data);
+    expect(result).toBe('No blocked users.');
+  });
+
+  it('dispatches BlockResult shape to "Blocked name" text', () => {
+    const data = { userId: '100', username: 'alice', firstName: 'Alice', action: 'blocked' };
+    const result = formatData(data);
+    expect(result).toBe('Blocked Alice');
+  });
+
+  it('dispatches unblock BlockResult shape to "Unblocked name" text', () => {
+    const data = { userId: '200', username: null, firstName: 'Bob', action: 'unblocked' };
+    const result = formatData(data);
+    expect(result).toBe('Unblocked Bob');
+  });
+
+  it('uses username when firstName is null for BlockResult', () => {
+    const data = { userId: '300', username: 'carol', firstName: null, action: 'blocked' };
+    const result = formatData(data);
+    expect(result).toBe('Blocked carol');
+  });
+
+  it('uses userId when both firstName and username are null for BlockResult', () => {
+    const data = { userId: '400', username: null, firstName: null, action: 'unblocked' };
+    const result = formatData(data);
+    expect(result).toBe('Unblocked 400');
   });
 });

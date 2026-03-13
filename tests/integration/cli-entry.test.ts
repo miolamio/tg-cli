@@ -80,7 +80,7 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('members');
   });
 
-  it('message --help shows all subcommands: history, search, send, forward, react', () => {
+  it('message --help shows all subcommands including edit, delete, pin, unpin', () => {
     const output = execSync(`node ${BINARY} message --help`, {
       cwd: ROOT,
       encoding: 'utf-8',
@@ -91,9 +91,32 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('send');
     expect(output).toContain('forward');
     expect(output).toContain('react');
+    expect(output).toContain('edit');
+    expect(output).toContain('delete');
+    expect(output).toContain('pin');
+    expect(output).toContain('unpin');
   });
 
-  it('--help shows all 5 command groups: Auth, Session, Chat, Message, Media', () => {
+  it('message delete --help shows --revoke and --for-me flags', () => {
+    const output = execSync(`node ${BINARY} message delete --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('--revoke');
+    expect(output).toContain('--for-me');
+  });
+
+  it('message pin --help shows --notify flag', () => {
+    const output = execSync(`node ${BINARY} message pin --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('--notify');
+  });
+
+  it('--help shows all 6 command groups: Auth, Session, Chat, Message, Media, User', () => {
     const output = execSync(`node ${BINARY} --help`, {
       cwd: ROOT,
       encoding: 'utf-8',
@@ -104,6 +127,8 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('Chat');
     expect(output).toContain('Message');
     expect(output).toContain('Media');
+    expect(output).toContain('User');
+    expect(output).toContain('user');
   });
 
   it('--help shows --no-json and --human global options', () => {
@@ -132,6 +157,19 @@ describe('CLI entry point (built binary)', () => {
     });
 
     expect(output).toContain('msg-ids');
+  });
+
+  it('user --help shows profile, block, unblock, blocked subcommands', () => {
+    const output = execSync(`node ${BINARY} user --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+
+    expect(output).toContain('profile');
+    expect(output).toContain('block');
+    expect(output).toContain('unblock');
+    expect(output).toContain('blocked');
+    expect(output).toContain('User profiles');
   });
 
   it('session import --skip-verify with empty string returns NO_INPUT error', () => {
