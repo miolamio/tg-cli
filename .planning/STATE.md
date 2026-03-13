@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
 stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-03-13T09:44:39.475Z"
+last_updated: "2026-03-13T09:48:37.616Z"
 last_activity: 2026-03-13 — Completed Phase 8 Plan 2 (blocked list, formatters, CLI wiring)
 progress:
   total_phases: 11
