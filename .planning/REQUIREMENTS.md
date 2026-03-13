@@ -77,7 +77,7 @@ Requirements for v1.1 milestone "Новые дополнения". Each maps to 
 
 ### Messaging — Write (extended)
 
-- [ ] **WRITE-09**: User can edit own sent messages (`tg message edit <chat> <id> <text>`) with 48h window error handling
+- [x] **WRITE-09**: User can edit own sent messages (`tg message edit <chat> <id> <text>`) with 48h window error handling
 - [ ] **WRITE-10**: User can delete messages with explicit revoke control (`tg message delete <chat> <ids> --revoke/--for-me`)
 - [ ] **WRITE-11**: User can pin a message in a chat (`tg message pin <chat> <id>`) with silent default and `--notify` opt-in
 - [ ] **WRITE-12**: User can unpin a message (`tg message unpin <chat> <id>`)
@@ -187,7 +187,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | READ-08 | Phase 6 | Complete |
 | READ-09 | Phase 6 | Complete |
-| WRITE-09 | Phase 7 | Pending |
+| WRITE-09 | Phase 7 | Complete |
 | WRITE-10 | Phase 7 | Pending |
 | WRITE-11 | Phase 7 | Pending |
 | WRITE-12 | Phase 7 | Pending |
