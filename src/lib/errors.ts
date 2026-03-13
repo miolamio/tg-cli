@@ -70,8 +70,10 @@ const TELEGRAM_ERROR_MAP: Record<string, string> = {
   'MESSAGE_DELETE_FORBIDDEN': 'Cannot delete this message',
   'CHAT_ADMIN_REQUIRED': 'Admin privileges required',
   'MESSAGE_ID_INVALID': 'Message not found',
-  'PEER_ID_INVALID': 'Chat not found',
+  'PEER_ID_INVALID': 'Peer not found',
   'MESSAGE_NOT_MODIFIED': 'Message content unchanged',
+  'USER_BOT_INVALID': 'Cannot block this bot',
+  'INPUT_USER_DEACTIVATED': 'User account deleted',
 };
 
 /**

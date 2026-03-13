@@ -290,3 +290,57 @@ export interface PinResult {
   action: 'pinned' | 'unpinned';
   silent?: boolean;
 }
+
+// ---- Phase 8: User Profiles & Block/Unblock types ----
+
+/** Detailed user profile information. */
+export interface UserProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  phone: string | null | '[restricted]';
+  bio: string | null;
+  photoCount: number;
+  lastSeen: string | null;
+  isBot: boolean;
+  blocked: boolean;
+  commonChatsCount: number;
+  premium: boolean;
+  verified: boolean;
+  mutualContact: boolean;
+  langCode: string | null;
+  /** Bot-only: inline query placeholder text. */
+  botInlinePlaceholder?: string;
+  /** Bot-only: whether the bot supports inline queries. */
+  supportsInline?: boolean;
+}
+
+/** Result of a multi-user profile lookup. */
+export interface UserProfileResult {
+  profiles: UserProfile[];
+  notFound: string[];
+}
+
+/** Result of blocking or unblocking a user. */
+export interface BlockResult {
+  userId: string;
+  username: string | null;
+  firstName: string | null;
+  action: 'blocked' | 'unblocked';
+}
+
+/** Summary of a blocked user for list output. */
+export interface BlockedListItem {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  isBot: boolean;
+}
+
+/** Result of listing blocked users. */
+export interface BlockedListResult {
+  users: BlockedListItem[];
+  total: number;
+}
