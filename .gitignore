@@ -3,3 +3,5 @@ dist/
 *.session
 .env
 .DS_Store
+.claude/
+.planning/
