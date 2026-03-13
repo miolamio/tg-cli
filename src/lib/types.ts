@@ -116,6 +116,7 @@ export interface MessageItem {
   emoji?: string;
   media?: MediaInfo;  // Only present when mediaType is not null
   editDate?: string;  // ISO string when message has been edited
+  poll?: PollData;  // Present when message contains a poll
 }
 
 /** Reaction count for a message. */
@@ -343,6 +344,31 @@ export interface BlockedListItem {
 export interface BlockedListResult {
   users: BlockedListItem[];
   total: number;
+}
+
+// ---- Phase 10: Polls types ----
+
+/** Single poll option with vote data. */
+export interface PollOption {
+  text: string;
+  voters: number;
+  chosen: boolean;
+  correct: boolean;
+}
+
+/** Structured poll data extracted from MessageMediaPoll. */
+export interface PollData {
+  question: string;
+  options: PollOption[];
+  isQuiz: boolean;
+  isPublic: boolean;
+  isMultiple: boolean;
+  isClosed: boolean;
+  closePeriod: number | null;
+  closeDate: string | null;
+  totalVoters: number;
+  correctOption: number | null;
+  solution: string | null;
 }
 
 // ---- Phase 9: Contacts CRUD types ----
