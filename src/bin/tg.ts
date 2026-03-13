@@ -9,7 +9,7 @@ import { createMessageCommand } from '../commands/message/index.js';
 import { createMediaCommand } from '../commands/media/index.js';
 import { createUserCommand } from '../commands/user/index.js';
 import { createContactCommand } from '../commands/contact/index.js';
-import { setOutputMode, setJsonlMode, setFieldSelection, outputError } from '../lib/output.js';
+import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputError } from '../lib/output.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,7 +50,8 @@ program
   .option('--profile <name>', 'Named profile', 'default')
   .option('--config <path>', 'Config file path')
   .option('--fields <fields>', 'Select output fields (comma-separated, dot notation for nested)')
-  .option('--jsonl', 'Output one JSON object per line (list commands only)');
+  .option('--jsonl', 'Output one JSON object per line (list commands only)')
+  .option('--toon', 'Token-efficient TOON output (LLM-optimized)');
 
 // Global options are parsed at any position in the command line
 
@@ -59,6 +60,17 @@ program.hook('preAction', (thisCommand) => {
   const opts = thisCommand.optsWithGlobals();
   const isHuman = opts.human === true || opts.json === false;
   setOutputMode(isHuman);
+
+  // --toon mutual exclusion checks
+  if (opts.toon && isHuman) {
+    outputError('--toon and --human are mutually exclusive', 'INVALID_OPTIONS');
+    process.exit(1);
+  }
+  if (opts.toon && opts.jsonl) {
+    outputError('--toon and --jsonl are mutually exclusive', 'INVALID_OPTIONS');
+    process.exit(1);
+  }
+  if (opts.toon) setToonMode(true);
 
   // --jsonl and --human are mutually exclusive
   if (opts.jsonl && isHuman) {

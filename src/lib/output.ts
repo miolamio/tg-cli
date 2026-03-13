@@ -2,12 +2,16 @@ import pc from 'picocolors';
 import type { SuccessEnvelope, ErrorEnvelope } from './types.js';
 import { formatData } from './format.js';
 import { pickFields, applyFieldSelection, extractListItems } from './fields.js';
+import { encodeToon } from './toon.js';
 
 /** Current output mode: false = JSON (default), true = human-readable. */
 let _humanMode = false;
 
 /** JSONL streaming mode: one JSON object per line, no envelope. */
 let _jsonlMode = false;
+
+/** TOON output mode: token-efficient LLM-optimized format. */
+let _toonMode = false;
 
 /** Field selection: comma-separated field names parsed into array. */
 let _fieldSelection: string[] | null = null;
@@ -36,6 +40,15 @@ export function setJsonlMode(enabled: boolean): void {
 }
 
 /**
+ * Enable or disable TOON output mode.
+ * In TOON mode, output is encoded as Token-Oriented Object Notation
+ * for optimal LLM context window usage.
+ */
+export function setToonMode(enabled: boolean): void {
+  _toonMode = enabled;
+}
+
+/**
  * Set the field selection filter.
  * Fields are applied to output data to reduce noise.
  */
@@ -53,6 +66,16 @@ export function setFieldSelection(fields: string[] | null): void {
  * - JSON mode: writes envelope, applying field selection if set.
  */
 export function outputSuccess<T>(data: T): void {
+  // TOON mode: encode full envelope through TOON (highest priority)
+  if (_toonMode) {
+    const filteredData = _fieldSelection
+      ? applyFieldSelection(data, _fieldSelection) as T
+      : data;
+    const envelope = { ok: true, data: filteredData };
+    process.stdout.write(encodeToon(envelope) + '\n');
+    return;
+  }
+
   // JSONL mode: one object per line, no envelope
   if (_jsonlMode) {
     // Special case: { messages, notFound } shape from `message get`
@@ -115,6 +138,13 @@ export function outputSuccess<T>(data: T): void {
  * In JSONL mode: errors always go to stderr (no envelope).
  */
 export function outputError(error: string, code?: string): void {
+  // TOON mode: encode error as TOON to stdout (highest priority)
+  if (_toonMode) {
+    const envelope = { ok: false, error, ...(code && { code }) };
+    process.stdout.write(encodeToon(envelope) + '\n');
+    return;
+  }
+
   if (_jsonlMode) {
     // JSONL mode: errors to stderr only, no envelope
     const suffix = code ? ` [${code}]` : '';

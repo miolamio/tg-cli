@@ -10,6 +10,7 @@ export interface GlobalOptions {
   config?: string;
   fields?: string;
   jsonl?: boolean;
+  toon?: boolean;
 }
 
 /**
