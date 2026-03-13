@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-13T09:08:59.650Z"
-last_activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-13T09:36:48.839Z"
+last_activity: 2026-03-13 — Completed Phase 8 Plan 1 (types, profile, block, unblock)
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_plans: 19
+  completed_plans: 18
+  percent: 95
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Claude Code agents can authenticate as a Telegram user and search across groups to find and extract specific information
-**Current focus:** Phase 7 complete — Message Write Operations (edit, delete, pin, unpin)
+**Current focus:** Phase 8 in progress — User Profiles & Block/Unblock
 
 ## Current Position
 
-Phase: 7 of 11 (Message Write Operations)
-Plan: 2 of 2
-Status: Phase 7 complete
-Last activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
+Phase: 8 of 11 (User Profiles & Block/Unblock)
+Plan: 1 of 2
+Status: Plan 1 complete, Plan 2 pending
+Last activity: 2026-03-13 — Completed Phase 8 Plan 1 (types, profile, block, unblock)
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -51,9 +51,10 @@ Progress: [██████████] 100%
 
 | 06-message-read-operations | 1 | 5min | 5.0min |
 | 07-message-write-operations | 2 | 8min | 4.0min |
+| 08-user-profiles-block-unblock | 1/2 | 6min | 6.0min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 5min, 5min, 3min, 5min
+- Last 5 plans: 5min, 5min, 3min, 5min, 6min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - Phase 6: gramjs getMessages returns undefined for missing IDs (confirmed, not null) — notFound tracking works
 - Phase 7: translateTelegramError uses duck-typing for RPCError detection; editDate as optional (undefined) not nullable
 - Phase 7: Delete requires explicit --revoke/--for-me flag (safety-first); pin defaults to silent; unpin synthesizes PinResult
+- Phase 8: className-based entity validation instead of instanceof Api.User for testability
+- Phase 8: PEER_ID_INVALID changed to 'Peer not found' (shared by chat and user commands)
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:08:59.640Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-user-profiles-block-unblock/08-CONTEXT.md
+Last session: 2026-03-13T09:36:48.834Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
