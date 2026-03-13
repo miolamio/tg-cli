@@ -175,10 +175,11 @@ Plans:
   2. `--toon` is mutually exclusive with `--human` and `--jsonl` -- passing conflicting flags produces a clear error
   3. `--fields` selection works with `--toon` (field filtering applied before TOON encoding)
   4. TOON output produces measurably fewer tokens than equivalent JSON output on a benchmark of 100+ real messages (benchmark gate: minimum 20% savings)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 11 to break down)
+- [ ] 11-01-PLAN.md — TOON encoder wrapper, output pipeline integration, CLI --toon flag wiring, unit tests
+- [ ] 11-02-PLAN.md — Synthetic benchmark fixtures and benchmark gate test (minimum 20% token savings)
 
 ## Progress
 
@@ -197,4 +198,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
 | 9. Contacts CRUD | v1.1 | 0/2 | Planning | - |
 | 10. Polls | 2/2 | Complete    | 2026-03-13 | - |
-| 11. TOON Output Format | v1.1 | 0/0 | Not started | - |
+| 11. TOON Output Format | v1.1 | 0/2 | Not started | - |
