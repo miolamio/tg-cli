@@ -8,6 +8,8 @@ import type {
   DownloadResult,
   AlbumResult,
   TopicItem,
+  DeleteResult,
+  PinResult,
 } from './types.js';
 import { formatBytes } from './media-utils.js';
 
@@ -258,6 +260,36 @@ export function formatGetResult(data: { messages: MessageItem[]; notFound: numbe
 }
 
 /**
+ * Format a delete result with count, mode, and any failed entries.
+ * "Deleted 3 messages (revoke)." or "Failed: 42 (permission denied)"
+ */
+export function formatDeleteResult(result: DeleteResult): string {
+  const parts: string[] = [];
+  if (result.deleted.length > 0) {
+    parts.push(`Deleted ${result.deleted.length} message${result.deleted.length > 1 ? 's' : ''} (${result.mode}).`);
+  }
+  for (const f of result.failed) {
+    parts.push(pc.red(`Failed: ${f.id} (${f.reason})`));
+  }
+  if (parts.length === 0) {
+    parts.push('No messages deleted.');
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Format a pin/unpin result with action, message ID, chat ID, and silent indicator.
+ * "Pinned message 456 in @group (silent)" or "Unpinned message 456 in @group"
+ */
+export function formatPinResult(result: PinResult): string {
+  const action = result.action === 'pinned' ? 'Pinned' : 'Unpinned';
+  const suffix = result.action === 'pinned'
+    ? (result.silent ? ' (silent)' : ' (notified)')
+    : '';
+  return `${action} message ${result.messageId} in ${result.chatId}${suffix}`;
+}
+
+/**
  * Fallback formatter: pretty-prints any data as indented JSON.
  * Used for auth status, session export/import, join/leave confirmations, etc.
  */
@@ -353,6 +385,17 @@ export function formatData(data: unknown): string {
     if ('isBot' in first) {
       return formatMembers(obj.members as MemberItem[]);
     }
+  }
+
+  // Check for DeleteResult shape (has deleted[] + mode)
+  if (Array.isArray(obj.deleted) && 'mode' in obj) {
+    return formatDeleteResult(obj as DeleteResult);
+  }
+
+  // Check for PinResult shape (has action pinned/unpinned + messageId, but NOT emoji to avoid react conflict)
+  if ('action' in obj && 'messageId' in obj && !('emoji' in obj) &&
+      (obj.action === 'pinned' || obj.action === 'unpinned')) {
+    return formatPinResult(obj as PinResult);
   }
 
   // Fallback

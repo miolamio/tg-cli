@@ -7,9 +7,14 @@ import { messageReactAction } from './react.js';
 import { messageRepliesAction } from './replies.js';
 import { messageGetAction } from './get.js';
 import { messagePinnedAction } from './pinned.js';
+import { messageEditAction } from './edit.js';
+import { messageDeleteAction } from './delete.js';
+import { messagePinAction } from './pin.js';
+import { messageUnpinAction } from './unpin.js';
 
 /**
- * Create the `message` command group with history, search, get, pinned, send, forward, react, and replies subcommands.
+ * Create the `message` command group with history, search, get, pinned, send, forward, react, replies,
+ * edit, delete, pin, and unpin subcommands.
  *
  * Usage:
  *   tg message history <chat>               - Read message history from a chat
@@ -20,6 +25,10 @@ import { messagePinnedAction } from './pinned.js';
  *   tg message forward <from> <ids> <to>     - Forward messages between chats
  *   tg message react <chat> <id> <emoji>     - React to a message
  *   tg message replies <channel> <msg-ids>   - Read replies/comments on channel posts (comma-separated)
+ *   tg message edit <chat> <id> <text>       - Edit a sent message
+ *   tg message delete <chat> <ids>           - Delete messages (--revoke or --for-me required)
+ *   tg message pin <chat> <id>              - Pin a message (silent by default)
+ *   tg message unpin <chat> <id>            - Unpin a message
  */
 export function createMessageCommand(): Command {
   const message = new Command('message')
@@ -97,6 +106,38 @@ export function createMessageCommand(): Command {
     .option('--limit <n>', 'Max replies per post', '50')
     .option('--offset <n>', 'Skip replies', '0')
     .action(messageRepliesAction);
+
+  message
+    .command('edit')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<msg-id>', 'Message ID')
+    .argument('<text>', 'New message text (use - for stdin)')
+    .description('Edit a sent message')
+    .action(messageEditAction);
+
+  message
+    .command('delete')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<ids>', 'Message IDs (comma-separated, max 100)')
+    .description('Delete messages')
+    .option('--revoke', 'Delete for everyone')
+    .option('--for-me', 'Delete only for self')
+    .action(messageDeleteAction);
+
+  message
+    .command('pin')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<msg-id>', 'Message ID')
+    .description('Pin a message in a chat')
+    .option('--notify', 'Notify members (silent by default)')
+    .action(messagePinAction);
+
+  message
+    .command('unpin')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<msg-id>', 'Message ID')
+    .description('Unpin a message from a chat')
+    .action(messageUnpinAction);
 
   return message;
 }

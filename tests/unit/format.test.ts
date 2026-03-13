@@ -26,6 +26,8 @@ import {
   formatDownloadResult,
   formatUploadResult,
   formatGetResult,
+  formatDeleteResult,
+  formatPinResult,
 } from '../../src/lib/format.js';
 import type {
   MessageItem,
@@ -35,6 +37,8 @@ import type {
   SearchResultItem,
   DownloadResult,
   AlbumResult,
+  DeleteResult,
+  PinResult,
 } from '../../src/lib/types.js';
 
 describe('formatMessages', () => {
@@ -624,5 +628,84 @@ describe('formatUploadResult', () => {
     const result = formatUploadResult(msg);
     expect(result).toContain('Alice');
     expect(result).toContain('sent photo');
+  });
+});
+
+describe('formatDeleteResult', () => {
+  it('formats deleted IDs with mode', () => {
+    const data: DeleteResult = { deleted: [1, 2, 3], failed: [], mode: 'revoke' };
+    const result = formatDeleteResult(data);
+    expect(result).toBe('Deleted 3 messages (revoke).');
+  });
+
+  it('formats single deleted message without plural', () => {
+    const data: DeleteResult = { deleted: [42], failed: [], mode: 'for-me' };
+    const result = formatDeleteResult(data);
+    expect(result).toBe('Deleted 1 message (for-me).');
+  });
+
+  it('formats failed entries in red', () => {
+    const data: DeleteResult = {
+      deleted: [1],
+      failed: [{ id: 2, reason: 'permission denied' }],
+      mode: 'revoke',
+    };
+    const result = formatDeleteResult(data);
+    expect(result).toContain('Deleted 1 message (revoke).');
+    expect(result).toContain('Failed: 2 (permission denied)');
+  });
+
+  it('shows "No messages deleted." when both empty', () => {
+    const data: DeleteResult = { deleted: [], failed: [], mode: 'revoke' };
+    const result = formatDeleteResult(data);
+    expect(result).toBe('No messages deleted.');
+  });
+});
+
+describe('formatPinResult', () => {
+  it('formats pinned + silent', () => {
+    const data: PinResult = { messageId: 456, chatId: '@group', action: 'pinned', silent: true };
+    const result = formatPinResult(data);
+    expect(result).toBe('Pinned message 456 in @group (silent)');
+  });
+
+  it('formats pinned + notified', () => {
+    const data: PinResult = { messageId: 456, chatId: '@group', action: 'pinned', silent: false };
+    const result = formatPinResult(data);
+    expect(result).toBe('Pinned message 456 in @group (notified)');
+  });
+
+  it('formats unpinned (no silent field)', () => {
+    const data: PinResult = { messageId: 456, chatId: '@group', action: 'unpinned' };
+    const result = formatPinResult(data);
+    expect(result).toBe('Unpinned message 456 in @group');
+  });
+});
+
+describe('formatData - DeleteResult and PinResult dispatch', () => {
+  it('dispatches DeleteResult shape to formatDeleteResult', () => {
+    const data: DeleteResult = { deleted: [10, 20], failed: [], mode: 'revoke' };
+    const result = formatData(data);
+    expect(result).toBe('Deleted 2 messages (revoke).');
+  });
+
+  it('dispatches PinResult shape to formatPinResult', () => {
+    const data: PinResult = { messageId: 42, chatId: '123', action: 'pinned', silent: true };
+    const result = formatData(data);
+    expect(result).toBe('Pinned message 42 in 123 (silent)');
+  });
+
+  it('dispatches unpinned PinResult shape to formatPinResult', () => {
+    const data: PinResult = { messageId: 42, chatId: '123', action: 'unpinned' };
+    const result = formatData(data);
+    expect(result).toBe('Unpinned message 42 in 123');
+  });
+
+  it('does not confuse react result (has emoji + action) with PinResult', () => {
+    const data = { messageId: 42, chatId: '123', emoji: '👍', action: 'added' };
+    const result = formatData(data);
+    // Should fall through to generic JSON, NOT formatPinResult
+    expect(result).toContain('"emoji"');
+    expect(result).toContain('"action"');
   });
 });

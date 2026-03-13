@@ -55,6 +55,34 @@ export function setFieldSelection(fields: string[] | null): void {
 export function outputSuccess<T>(data: T): void {
   // JSONL mode: one object per line, no envelope
   if (_jsonlMode) {
+    // Special case: { messages, notFound } shape from `message get`
+    // Stream found messages to stdout, report notFound IDs to stderr
+    const obj = data as Record<string, unknown>;
+    if (obj != null && typeof obj === 'object' && Array.isArray(obj.messages) && Array.isArray(obj.notFound)) {
+      for (const item of obj.messages as unknown[]) {
+        const filtered = _fieldSelection ? pickFields(item, _fieldSelection) : item;
+        process.stdout.write(JSON.stringify(filtered) + '\n');
+      }
+      if ((obj.notFound as number[]).length > 0) {
+        process.stderr.write(`Not found: ${(obj.notFound as number[]).join(', ')}\n`);
+      }
+      return;
+    }
+
+    // Special case: DeleteResult shape { deleted[], failed[], mode }
+    // Stream each deleted/failed ID as a separate JSONL line
+    if (obj != null && typeof obj === 'object' && Array.isArray(obj.deleted) && Array.isArray(obj.failed) && 'mode' in obj) {
+      for (const id of obj.deleted as number[]) {
+        const entry = _fieldSelection ? pickFields({ id, status: 'deleted' }, _fieldSelection) : { id, status: 'deleted' };
+        process.stdout.write(JSON.stringify(entry) + '\n');
+      }
+      for (const f of obj.failed as { id: number; reason: string }[]) {
+        const entry = _fieldSelection ? pickFields({ id: f.id, status: 'failed', reason: f.reason }, _fieldSelection) : { id: f.id, status: 'failed', reason: f.reason };
+        process.stdout.write(JSON.stringify(entry) + '\n');
+      }
+      return;
+    }
+
     const items = extractListItems(data);
     if (items !== null) {
       for (const item of items) {
