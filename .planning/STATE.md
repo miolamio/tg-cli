@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
 stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-03-13T07:30:02.369Z"
+last_updated: "2026-03-13T07:33:54.736Z"
 last_activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
 progress:
   total_phases: 11
