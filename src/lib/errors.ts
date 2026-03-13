@@ -78,6 +78,14 @@ const TELEGRAM_ERROR_MAP: Record<string, string> = {
   'CONTACT_NAME_EMPTY': 'First name is required',
   'CONTACT_REQ_MISSING': 'Contact request required',
   'SEARCH_QUERY_EMPTY': 'Search query cannot be empty',
+  // Poll error codes
+  'POLL_ANSWERS_INVALID': 'Invalid poll: need 2-10 answer options',
+  'POLL_OPTION_DUPLICATE': 'Duplicate poll option',
+  'POLL_OPTION_INVALID': 'Poll option text is invalid or too long',
+  'POLL_QUESTION_INVALID': 'Poll question is invalid or too long',
+  'QUIZ_CORRECT_ANSWERS_EMPTY': 'Quiz poll requires a correct answer',
+  'QUIZ_CORRECT_ANSWERS_TOO_MUCH': 'Quiz poll allows only one correct answer',
+  'CHAT_SEND_POLL_FORBIDDEN': 'You cannot send polls in this chat',
 };
 
 /**

@@ -5,6 +5,8 @@ import type {
   ChatListItem,
   MediaInfo,
   MessageItem,
+  PollData,
+  PollOption,
   ReactionCount,
   SearchResultItem,
   MemberItem,
@@ -85,6 +87,10 @@ export function detectMedia(media: any): { mediaType: string | null; emoji?: str
       return { mediaType: 'document' };
     }
     return { mediaType: 'document' };
+  }
+
+  if (media instanceof Api.MessageMediaPoll) {
+    return { mediaType: 'poll' };
   }
 
   // Fallback for other media types
@@ -180,6 +186,60 @@ export function extractMediaInfo(media: any): MediaInfo | null {
 }
 
 /**
+ * Extract structured poll data from a MessageMediaPoll.
+ *
+ * Returns null if the media is not a MessageMediaPoll.
+ * Maps poll answers to PollOption[] with vote counts matched via Buffer.equals
+ * on option bytes. Derives correctOption as 1-based index from the first
+ * option where correct === true.
+ */
+export function extractPollData(media: any): PollData | null {
+  if (!(media instanceof Api.MessageMediaPoll)) return null;
+
+  const poll = media.poll;
+  const results = (media as any).results;
+
+  const options: PollOption[] = (poll as any).answers.map((answer: any) => {
+    const optionBytes = Buffer.from(answer.option);
+    // Find matching voter result
+    const voterResult = results?.results?.find(
+      (r: any) => Buffer.from(r.option).equals(optionBytes),
+    );
+    return {
+      text: answer.text?.text ?? answer.text ?? '',
+      voters: voterResult?.voters ?? 0,
+      chosen: voterResult?.chosen ?? false,
+      correct: voterResult?.correct ?? false,
+    };
+  });
+
+  // Derive correctOption: 1-based index of first correct option
+  let correctOption: number | null = null;
+  for (let i = 0; i < options.length; i++) {
+    if (options[i].correct) {
+      correctOption = i + 1;
+      break;
+    }
+  }
+
+  return {
+    question: (poll as any).question?.text ?? '',
+    options,
+    isQuiz: !!(poll as any).quiz,
+    isPublic: !!(poll as any).publicVoters,
+    isMultiple: !!(poll as any).multipleChoice,
+    isClosed: !!(poll as any).closed,
+    closePeriod: (poll as any).closePeriod ?? null,
+    closeDate: (poll as any).closeDate
+      ? new Date((poll as any).closeDate * 1000).toISOString()
+      : null,
+    totalVoters: results?.totalVoters ?? 0,
+    correctOption,
+    solution: results?.solution ?? null,
+  };
+}
+
+/**
  * Extract reaction counts from a message's reactions object.
  */
 function extractReactions(reactions: any): ReactionCount[] {
@@ -270,6 +330,12 @@ export function serializeMessage(
     if (mediaInfo) {
       item.media = mediaInfo;
     }
+  }
+
+  // Populate poll data when message contains a poll
+  const pollData = extractPollData((msg as any).media);
+  if (pollData) {
+    item.poll = pollData;
   }
 
   return item;
