@@ -21,10 +21,14 @@ export async function messageUnpinAction(this: Command, chat: string, msgId: str
   const opts = this.optsWithGlobals() as GlobalOptions;
   const { profile } = opts;
 
-  // Parse and validate message ID
+  // Parse and validate message ID (strict: digits only, positive)
+  if (!/^\d+$/.test(msgId)) {
+    outputError('Invalid message ID: must be a positive integer', 'INVALID_MESSAGE_ID');
+    return;
+  }
   const messageId = parseInt(msgId, 10);
-  if (isNaN(messageId)) {
-    outputError('Invalid message ID: must be a number', 'INVALID_MESSAGE_ID');
+  if (messageId <= 0) {
+    outputError('Invalid message ID: must be a positive integer', 'INVALID_MESSAGE_ID');
     return;
   }
 

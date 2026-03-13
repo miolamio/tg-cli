@@ -164,6 +164,28 @@ describe('messagePinAction', () => {
     expect(mockPinMessage).not.toHaveBeenCalled();
   });
 
+  it('outputs INVALID_MESSAGE_ID for mixed string like "12abc"', async () => {
+    const ctx = createMockCommandContext();
+    await messagePinAction.call(ctx as any, 'testchat', '12abc');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_MESSAGE_ID',
+    );
+    expect(mockPinMessage).not.toHaveBeenCalled();
+  });
+
+  it('outputs INVALID_MESSAGE_ID for zero', async () => {
+    const ctx = createMockCommandContext();
+    await messagePinAction.call(ctx as any, 'testchat', '0');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_MESSAGE_ID',
+    );
+    expect(mockPinMessage).not.toHaveBeenCalled();
+  });
+
   it('translates RPCError via translateTelegramError', async () => {
     mockPinMessage.mockRejectedValueOnce({ errorMessage: 'CHAT_ADMIN_REQUIRED' });
 

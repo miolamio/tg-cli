@@ -226,6 +226,40 @@ describe('messageGetAction', () => {
     expect(data.notFound).toEqual([100, 101, 102]);
   });
 
+  it('falls back to buildEntityMap when _sender is missing', async () => {
+    const entityUser = { id: BigInt(789), firstName: 'Entity', lastName: 'User' };
+    mockBuildEntityMap.mockReturnValueOnce(new Map([['789', entityUser]]));
+
+    const messages = [
+      createMockMessage({ id: 100, _sender: null, fromId: { userId: BigInt(789) } }),
+    ];
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext();
+    await messageGetAction.call(ctx as any, 'mychat', '100');
+
+    expect(mockBuildEntityMap).toHaveBeenCalledWith(messages);
+    // serializeMessage should receive the entity from the map, not null
+    expect(mockSerializeMessage).toHaveBeenCalledWith(
+      messages[0],
+      entityUser,
+    );
+  });
+
+  it('passes undefined sender when neither _sender nor entity map has data', async () => {
+    mockBuildEntityMap.mockReturnValueOnce(new Map());
+
+    const messages = [
+      createMockMessage({ id: 100, _sender: null, fromId: { userId: BigInt(999) } }),
+    ];
+    mockGetMessages.mockResolvedValueOnce(messages);
+
+    const ctx = createMockCommandContext();
+    await messageGetAction.call(ctx as any, 'mychat', '100');
+
+    expect(mockSerializeMessage).toHaveBeenCalledWith(messages[0], undefined);
+  });
+
   it('unauthenticated returns NOT_AUTHENTICATED', async () => {
     mockStoreWithLock.mockImplementationOnce(async (_profile: string, fn: (s: string | null) => Promise<any>) => {
       return fn(null);

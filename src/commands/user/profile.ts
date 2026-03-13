@@ -6,43 +6,8 @@ import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { buildUserProfile } from '../../lib/user-profile.js';
 import type { GlobalOptions, UserProfile, UserProfileResult } from '../../lib/types.js';
-
-/**
- * Map a gramjs user status object to a lastSeen string.
- *
- * Returns:
- * - "online" for UserStatusOnline
- * - ISO timestamp for UserStatusOffline (from wasOnline)
- * - "recently" for UserStatusRecently
- * - "within_week" for UserStatusLastWeek
- * - "within_month" for UserStatusLastMonth
- * - "long_time_ago" for UserStatusEmpty
- * - null for unknown/missing status
- */
-function mapUserStatus(status: any): string | null {
-  if (!status || !status.className) return null;
-
-  switch (status.className) {
-    case 'UserStatusOnline':
-      return 'online';
-    case 'UserStatusOffline':
-      return status.wasOnline
-        ? new Date(status.wasOnline * 1000).toISOString()
-        : null;
-    case 'UserStatusRecently':
-      return 'recently';
-    case 'UserStatusLastWeek':
-      return 'within_week';
-    case 'UserStatusLastMonth':
-      return 'within_month';
-    case 'UserStatusEmpty':
-      return 'long_time_ago';
-    default:
-      return null;
-  }
-}
 
 /**
  * Action handler for `tg user profile <users>`.
@@ -63,6 +28,11 @@ export async function userProfileAction(this: Command, usersInput: string): Prom
 
   if (inputs.length === 0) {
     outputError('No users specified', 'INVALID_INPUT');
+    return;
+  }
+
+  if (inputs.length > 50) {
+    outputError('Too many users (max 50)', 'TOO_MANY_USERS');
     return;
   }
 
@@ -87,8 +57,7 @@ export async function userProfileAction(this: Command, usersInput: string): Prom
             const entity = await resolveEntity(client, input);
 
             // Validate entity is a User (not Channel/Chat)
-            // Use className check (gramjs entities always have className property)
-            if ((entity as any).className !== 'User') {
+            if (!(entity instanceof Api.User)) {
               notFound.push(input);
               continue;
             }
@@ -100,65 +69,10 @@ export async function userProfileAction(this: Command, usersInput: string): Prom
               new Api.users.GetFullUser({ id: user }),
             );
 
-            const fullUser = (result as any).fullUser;
-            const userFromResult = (result as any).users?.[0] ?? user;
+            const fullUser = result.fullUser;
+            const userFromResult = (result.users?.[0] ?? user) as Api.User;
 
-            // Fetch photo count
-            let photoCount = 0;
-            try {
-              const photosResult = await client.invoke(
-                new Api.photos.GetUserPhotos({
-                  userId: user,
-                  offset: 0,
-                  maxId: BigInt(0) as any,
-                  limit: 1,
-                }),
-              );
-              photoCount = (photosResult as any).count
-                ?? (photosResult as any).photos?.length
-                ?? 0;
-            } catch {
-              // Fall back: if user has a profile photo, report 1
-              const photo = (userFromResult as any).photo;
-              if (photo && photo.className !== 'UserProfilePhotoEmpty') {
-                photoCount = 1;
-              }
-            }
-
-            const isBot = !!(userFromResult as any).bot;
-
-            // Map status - null for bots
-            const lastSeen = isBot ? null : mapUserStatus((userFromResult as any).status);
-
-            // Phone: restricted indicator for non-bots with missing phone
-            const phone = (userFromResult as any).phone ?? (isBot ? null : '[restricted]');
-
-            const profileData: UserProfile = {
-              id: bigIntToString((userFromResult as any).id),
-              firstName: (userFromResult as any).firstName ?? null,
-              lastName: (userFromResult as any).lastName ?? null,
-              username: (userFromResult as any).username ?? null,
-              phone,
-              bio: fullUser.about ?? null,
-              photoCount,
-              lastSeen,
-              isBot,
-              blocked: !!fullUser.blocked,
-              commonChatsCount: fullUser.commonChatsCount ?? 0,
-              premium: !!(userFromResult as any).premium,
-              verified: !!(userFromResult as any).verified,
-              mutualContact: !!(userFromResult as any).mutualContact,
-              langCode: (userFromResult as any).langCode ?? null,
-            };
-
-            // Bot-specific fields
-            if (isBot) {
-              profileData.botInlinePlaceholder =
-                (userFromResult as any).botInlinePlaceholder ?? undefined;
-              profileData.supportsInline =
-                !!(userFromResult as any).botInlinePlaceholder;
-            }
-
+            const profileData = await buildUserProfile(client, user, fullUser, userFromResult);
             profiles.push(profileData);
           } catch {
             notFound.push(input);

@@ -24,6 +24,11 @@ export async function userBlockedAction(this: Command): Promise<void> {
   const limit = parseInt(opts.limit ?? '50', 10);
   const offset = parseInt(opts.offset ?? '0', 10);
 
+  if (isNaN(limit) || isNaN(offset)) {
+    outputError('Invalid limit or offset: must be a number', 'INVALID_INPUT');
+    return;
+  }
+
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
@@ -54,15 +59,13 @@ export async function userBlockedAction(this: Command): Promise<void> {
         for (const entry of (result as any).blocked ?? []) {
           const userId = bigIntToString(entry.peerId.userId);
           const user = userMap.get(userId);
-          if (user) {
-            users.push({
-              id: userId,
-              firstName: user.firstName ?? null,
-              lastName: user.lastName ?? null,
-              username: user.username ?? null,
-              isBot: !!user.bot,
-            });
-          }
+          users.push({
+            id: userId,
+            firstName: user?.firstName ?? null,
+            lastName: user?.lastName ?? null,
+            username: user?.username ?? null,
+            isBot: !!user?.bot,
+          });
         }
 
         const output: BlockedListResult = { users, total };

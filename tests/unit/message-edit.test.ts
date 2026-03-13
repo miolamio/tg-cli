@@ -178,6 +178,39 @@ describe('messageEditAction', () => {
     expect(mockEditMessage).not.toHaveBeenCalled();
   });
 
+  it('outputs INVALID_MESSAGE_ID for mixed string like "12abc"', async () => {
+    const ctx = createMockCommandContext();
+    await messageEditAction.call(ctx as any, 'testchat', '12abc', 'new text');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_MESSAGE_ID',
+    );
+    expect(mockEditMessage).not.toHaveBeenCalled();
+  });
+
+  it('outputs INVALID_MESSAGE_ID for zero', async () => {
+    const ctx = createMockCommandContext();
+    await messageEditAction.call(ctx as any, 'testchat', '0', 'new text');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_MESSAGE_ID',
+    );
+    expect(mockEditMessage).not.toHaveBeenCalled();
+  });
+
+  it('outputs INVALID_MESSAGE_ID for negative number', async () => {
+    const ctx = createMockCommandContext();
+    await messageEditAction.call(ctx as any, 'testchat', '-5', 'new text');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid message ID'),
+      'INVALID_MESSAGE_ID',
+    );
+    expect(mockEditMessage).not.toHaveBeenCalled();
+  });
+
   it('outputs EMPTY_MESSAGE for empty text', async () => {
     const ctx = createMockCommandContext();
     await messageEditAction.call(ctx as any, 'testchat', '42', '');

@@ -75,12 +75,21 @@ export async function messageGetAction(
         const found: MessageItem[] = [];
         const notFound: number[] = [];
 
+        // Build entity map as fallback for sender resolution
+        const entityMap = buildEntityMap(result);
+
         // Iterate by index to preserve input order
         for (let i = 0; i < numericIds.length; i++) {
           const msg = result[i];
           if (msg) {
-            // Use _sender populated by gramjs _finishInit
-            const senderEntity = (msg as any)._sender;
+            // Prefer _sender from gramjs _finishInit, fall back to entity map
+            let senderEntity = (msg as any)._sender;
+            if (!senderEntity) {
+              const senderId = (msg as any).fromId?.userId ?? (msg as any).fromId?.channelId ?? (msg as any).fromId?.chatId;
+              if (senderId) {
+                senderEntity = entityMap.get(senderId.toString());
+              }
+            }
             found.push(serializeMessage(msg, senderEntity));
           } else {
             notFound.push(numericIds[i]);

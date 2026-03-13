@@ -118,6 +118,17 @@ describe('messageDeleteAction', () => {
     expect(mockDeleteMessages).not.toHaveBeenCalled();
   });
 
+  it('outputs INVALID_OPTIONS when both --revoke and --for-me are set', async () => {
+    const ctx = createMockCommandContext({ revoke: true, forMe: true });
+    await messageDeleteAction.call(ctx as any, 'testchat', '1,2,3');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      '--revoke and --for-me are mutually exclusive',
+      'INVALID_OPTIONS',
+    );
+    expect(mockDeleteMessages).not.toHaveBeenCalled();
+  });
+
   it('calls client.deleteMessages with revoke: true when --revoke is set', async () => {
     const ctx = createMockCommandContext({ revoke: true });
     await messageDeleteAction.call(ctx as any, 'testchat', '10,20');
@@ -170,6 +181,17 @@ describe('messageDeleteAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('abc'),
+      'INVALID_MSG_ID',
+    );
+    expect(mockDeleteMessages).not.toHaveBeenCalled();
+  });
+
+  it('rejects mixed strings like "12abc" as invalid IDs', async () => {
+    const ctx = createMockCommandContext({ revoke: true });
+    await messageDeleteAction.call(ctx as any, 'testchat', '12abc');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('12abc'),
       'INVALID_MSG_ID',
     );
     expect(mockDeleteMessages).not.toHaveBeenCalled();

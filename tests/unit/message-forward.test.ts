@@ -17,10 +17,28 @@ const {
   mockConnect,
   mockDestroy,
   mockForwardMessages,
+  MockMediaPhoto,
+  MockMediaDocument,
+  MockMediaPoll,
+  MockAttrSticker,
+  MockAttrVideo,
+  MockAttrAudio,
+  MockAttrFilename,
+  MockAttrImageSize,
+  MockActionChatCreate,
 } = vi.hoisted(() => ({
   mockConnect: vi.fn().mockResolvedValue(undefined),
   mockDestroy: vi.fn().mockResolvedValue(undefined),
   mockForwardMessages: vi.fn().mockResolvedValue([]),
+  MockMediaPhoto: class {},
+  MockMediaDocument: class {},
+  MockMediaPoll: class {},
+  MockAttrSticker: class { alt = ''; },
+  MockAttrVideo: class {},
+  MockAttrAudio: class { voice = false; },
+  MockAttrFilename: class { fileName = ''; },
+  MockAttrImageSize: class { w = 0; h = 0; },
+  MockActionChatCreate: class {},
 }));
 
 const mockClientInstance = {
@@ -34,7 +52,17 @@ vi.mock('telegram', () => ({
   sessions: {
     StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
   },
-  Api: {},
+  Api: {
+    MessageMediaPhoto: MockMediaPhoto,
+    MessageMediaDocument: MockMediaDocument,
+    MessageMediaPoll: MockMediaPoll,
+    DocumentAttributeSticker: MockAttrSticker,
+    DocumentAttributeVideo: MockAttrVideo,
+    DocumentAttributeAudio: MockAttrAudio,
+    DocumentAttributeFilename: MockAttrFilename,
+    DocumentAttributeImageSize: MockAttrImageSize,
+    MessageActionChatCreate: MockActionChatCreate,
+  },
 }));
 
 // Mock config

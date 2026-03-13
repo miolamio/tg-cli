@@ -10,12 +10,29 @@ vi.mock('../../src/lib/output.js', () => ({
   logStatus: vi.fn(),
 }));
 
-// Hoisted mock state for telegram client
-const { mockConnect, mockDestroy, mockInvoke } = vi.hoisted(() => ({
-  mockConnect: vi.fn().mockResolvedValue(undefined),
-  mockDestroy: vi.fn().mockResolvedValue(undefined),
-  mockInvoke: vi.fn().mockResolvedValue(true),
-}));
+// Hoisted mock state for telegram client and entity classes
+const { mockConnect, mockDestroy, mockInvoke, MockUser, MockChannel, MockChat } = vi.hoisted(() => {
+  class MockUser {
+    className = 'User';
+    constructor(data: any) { Object.assign(this, data); }
+  }
+  class MockChannel {
+    className = 'Channel';
+    constructor(data: any) { Object.assign(this, data); }
+  }
+  class MockChat {
+    className = 'Chat';
+    constructor(data: any) { Object.assign(this, data); }
+  }
+  return {
+    mockConnect: vi.fn().mockResolvedValue(undefined),
+    mockDestroy: vi.fn().mockResolvedValue(undefined),
+    mockInvoke: vi.fn().mockResolvedValue(true),
+    MockUser,
+    MockChannel,
+    MockChat,
+  };
+});
 
 const mockClientInstance = {
   connect: mockConnect,
@@ -23,40 +40,20 @@ const mockClientInstance = {
   invoke: mockInvoke,
 };
 
-vi.mock('telegram', () => {
-  class MockUser {
-    className = 'User';
-    constructor(data: any) {
-      Object.assign(this, data);
-    }
-  }
-  class MockChannel {
-    className = 'Channel';
-    constructor(data: any) {
-      Object.assign(this, data);
-    }
-  }
-  class MockChat {
-    className = 'Chat';
-    constructor(data: any) {
-      Object.assign(this, data);
-    }
-  }
-  return {
-    TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
-    sessions: {
-      StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
+vi.mock('telegram', () => ({
+  TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
+  sessions: {
+    StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
+  },
+  Api: {
+    User: MockUser,
+    Channel: MockChannel,
+    Chat: MockChat,
+    contacts: {
+      Block: vi.fn(),
     },
-    Api: {
-      User: MockUser,
-      Channel: MockChannel,
-      Chat: MockChat,
-      contacts: {
-        Block: vi.fn(),
-      },
-    },
-  };
-});
+  },
+}));
 
 // Mock config
 vi.mock('../../src/lib/config.js', () => ({
@@ -128,8 +125,7 @@ describe('userBlockAction', () => {
   });
 
   it('blocks a user successfully', async () => {
-    const { Api } = require('telegram');
-    const user = new Api.User({});
+    const user = new MockUser({});
     Object.assign(user, {
       id: BigInt(100),
       firstName: 'Alice',
@@ -151,9 +147,8 @@ describe('userBlockAction', () => {
   });
 
   it('errors with NOT_A_USER for channel entities', async () => {
-    const { Api } = require('telegram');
-    const channel = new Api.Channel({});
-    Object.assign(channel, { id: BigInt(300), className: 'Channel' });
+    const channel = new MockChannel({});
+    Object.assign(channel, { id: BigInt(300) });
 
     mockResolveEntity.mockResolvedValueOnce(channel);
 
@@ -168,9 +163,8 @@ describe('userBlockAction', () => {
   });
 
   it('errors with NOT_A_USER for chat entities', async () => {
-    const { Api } = require('telegram');
-    const chat = new Api.Chat({});
-    Object.assign(chat, { id: BigInt(400), className: 'Chat' });
+    const chat = new MockChat({});
+    Object.assign(chat, { id: BigInt(400) });
 
     mockResolveEntity.mockResolvedValueOnce(chat);
 
@@ -184,8 +178,7 @@ describe('userBlockAction', () => {
   });
 
   it('translates RPCError via translateTelegramError', async () => {
-    const { Api } = require('telegram');
-    const user = new Api.User({});
+    const user = new MockUser({});
     Object.assign(user, { id: BigInt(100), firstName: 'Alice', username: 'alice' });
     mockResolveEntity.mockResolvedValueOnce(user);
 
@@ -201,8 +194,7 @@ describe('userBlockAction', () => {
   });
 
   it('handles idempotent blocking (already blocked succeeds)', async () => {
-    const { Api } = require('telegram');
-    const user = new Api.User({});
+    const user = new MockUser({});
     Object.assign(user, { id: BigInt(100), firstName: 'Alice', username: 'alice' });
     mockResolveEntity.mockResolvedValueOnce(user);
     // Telegram returns true even if already blocked

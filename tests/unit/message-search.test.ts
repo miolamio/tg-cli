@@ -29,13 +29,30 @@ const mockClientInstance = {
   getMessages: mockGetMessages,
 };
 
-// Hoisted mock filter classes for FILTER_MAP
+// Hoisted mock classes for telegram Api
 const {
   MockInputMessagesFilterPhotos,
-} = vi.hoisted(() => {
-  class MockInputMessagesFilterPhotos {}
-  return { MockInputMessagesFilterPhotos };
-});
+  MockMediaPhoto,
+  MockMediaDocument,
+  MockMediaPoll,
+  MockAttrSticker,
+  MockAttrVideo,
+  MockAttrAudio,
+  MockAttrFilename,
+  MockAttrImageSize,
+  MockActionChatCreate,
+} = vi.hoisted(() => ({
+  MockInputMessagesFilterPhotos: class {},
+  MockMediaPhoto: class {},
+  MockMediaDocument: class {},
+  MockMediaPoll: class {},
+  MockAttrSticker: class { alt = ''; },
+  MockAttrVideo: class {},
+  MockAttrAudio: class { voice = false; },
+  MockAttrFilename: class { fileName = ''; },
+  MockAttrImageSize: class { w = 0; h = 0; },
+  MockActionChatCreate: class {},
+}));
 
 vi.mock('telegram', () => ({
   TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
@@ -51,6 +68,15 @@ vi.mock('telegram', () => ({
     InputMessagesFilterMusic: class {},
     InputMessagesFilterGif: class {},
     InputMessagesFilterRoundVideo: class {},
+    MessageMediaPhoto: MockMediaPhoto,
+    MessageMediaDocument: MockMediaDocument,
+    MessageMediaPoll: MockMediaPoll,
+    DocumentAttributeSticker: MockAttrSticker,
+    DocumentAttributeVideo: MockAttrVideo,
+    DocumentAttributeAudio: MockAttrAudio,
+    DocumentAttributeFilename: MockAttrFilename,
+    DocumentAttributeImageSize: MockAttrImageSize,
+    MessageActionChatCreate: MockActionChatCreate,
   },
 }));
 

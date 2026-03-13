@@ -34,10 +34,14 @@ export async function messageEditAction(this: Command, chat: string, msgId: stri
   const opts = this.optsWithGlobals() as GlobalOptions;
   const { profile } = opts;
 
-  // Parse message ID as integer
+  // Parse and validate message ID (strict: digits only, positive)
+  if (!/^\d+$/.test(msgId)) {
+    outputError('Invalid message ID: must be a positive integer', 'INVALID_MESSAGE_ID');
+    return;
+  }
   const messageId = parseInt(msgId, 10);
-  if (isNaN(messageId)) {
-    outputError('Invalid message ID: must be a number', 'INVALID_MESSAGE_ID');
+  if (messageId <= 0) {
+    outputError('Invalid message ID: must be a positive integer', 'INVALID_MESSAGE_ID');
     return;
   }
 
@@ -77,7 +81,7 @@ export async function messageEditAction(this: Command, chat: string, msgId: stri
           text,
         });
 
-        const serialized = serializeMessage(editedMsg as any);
+        const serialized = serializeMessage(editedMsg as any, (editedMsg as any)._sender);
         outputSuccess(serialized);
       });
     });

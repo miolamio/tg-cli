@@ -293,6 +293,22 @@ describe('outputSuccess in JSONL mode', () => {
     expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '100', firstName: 'Alice' });
   });
 
+  it('reports notFound to stderr for profiles shape', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    outputSuccess({ profiles: [{ id: '100', firstName: 'Alice' }], notFound: ['bob', 'carol'] });
+
+    // profiles streamed to stdout
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '100', firstName: 'Alice' });
+
+    // notFound reported to stderr
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const stderrWritten = stderrSpy.mock.calls[0][0] as string;
+    expect(stderrWritten).toContain('bob');
+    expect(stderrWritten).toContain('carol');
+    stderrSpy.mockRestore();
+  });
+
   it('works with users array (LIST_KEYS includes users)', () => {
     outputSuccess({ users: [{ id: '1', firstName: 'Dave', isBot: false }], total: 1 });
 

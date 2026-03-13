@@ -11,19 +11,7 @@ vi.mock('../../src/lib/output.js', () => ({
 }));
 
 // Hoisted mock state for telegram client
-const { mockConnect, mockDestroy, mockInvoke } = vi.hoisted(() => ({
-  mockConnect: vi.fn().mockResolvedValue(undefined),
-  mockDestroy: vi.fn().mockResolvedValue(undefined),
-  mockInvoke: vi.fn().mockResolvedValue(undefined),
-}));
-
-const mockClientInstance = {
-  connect: mockConnect,
-  destroy: mockDestroy,
-  invoke: mockInvoke,
-};
-
-vi.mock('telegram', () => {
+const { mockConnect, mockDestroy, mockInvoke, MockUser, MockChannel } = vi.hoisted(() => {
   class MockUser {
     className = 'User';
     constructor(data: any) {
@@ -37,32 +25,46 @@ vi.mock('telegram', () => {
     }
   }
   return {
-    TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
-    sessions: {
-      StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
-    },
-    Api: {
-      User: MockUser,
-      Channel: MockChannel,
-      UserStatusOnline: class { className = 'UserStatusOnline'; },
-      UserStatusOffline: class {
-        className = 'UserStatusOffline';
-        wasOnline: number;
-        constructor(data: any) { this.wasOnline = data?.wasOnline ?? 0; }
-      },
-      UserStatusRecently: class { className = 'UserStatusRecently'; },
-      UserStatusLastWeek: class { className = 'UserStatusLastWeek'; },
-      UserStatusLastMonth: class { className = 'UserStatusLastMonth'; },
-      UserStatusEmpty: class { className = 'UserStatusEmpty'; },
-      users: {
-        GetFullUser: vi.fn(),
-      },
-      photos: {
-        GetUserPhotos: vi.fn(),
-      },
-    },
+    mockConnect: vi.fn().mockResolvedValue(undefined),
+    mockDestroy: vi.fn().mockResolvedValue(undefined),
+    mockInvoke: vi.fn().mockResolvedValue(undefined),
+    MockUser,
+    MockChannel,
   };
 });
+
+const mockClientInstance = {
+  connect: mockConnect,
+  destroy: mockDestroy,
+  invoke: mockInvoke,
+};
+
+vi.mock('telegram', () => ({
+  TelegramClient: vi.fn().mockImplementation(() => mockClientInstance),
+  sessions: {
+    StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
+  },
+  Api: {
+    User: MockUser,
+    Channel: MockChannel,
+    UserStatusOnline: class { className = 'UserStatusOnline'; },
+    UserStatusOffline: class {
+      className = 'UserStatusOffline';
+      wasOnline: number;
+      constructor(data: any) { this.wasOnline = data?.wasOnline ?? 0; }
+    },
+    UserStatusRecently: class { className = 'UserStatusRecently'; },
+    UserStatusLastWeek: class { className = 'UserStatusLastWeek'; },
+    UserStatusLastMonth: class { className = 'UserStatusLastMonth'; },
+    UserStatusEmpty: class { className = 'UserStatusEmpty'; },
+    users: {
+      GetFullUser: vi.fn(),
+    },
+    photos: {
+      GetUserPhotos: vi.fn(),
+    },
+  },
+}));
 
 // Mock config
 vi.mock('../../src/lib/config.js', () => ({
@@ -130,8 +132,7 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 
 // Helper to create a mock user entity returned by resolveEntity
 function createMockUserEntity(overrides: Record<string, any> = {}) {
-  const { Api } = require('telegram');
-  const user = new Api.User({});
+  const user = new MockUser({});
   Object.assign(user, {
     id: BigInt(100),
     firstName: 'Alice',
@@ -239,9 +240,8 @@ describe('userProfileAction', () => {
   });
 
   it('rejects non-User entities (channels) as notFound', async () => {
-    const { Api } = require('telegram');
-    const channel = new Api.Channel({});
-    Object.assign(channel, { id: BigInt(300), className: 'Channel' });
+    const channel = new MockChannel({});
+    Object.assign(channel, { id: BigInt(300) });
 
     mockResolveEntity.mockResolvedValueOnce(channel);
 

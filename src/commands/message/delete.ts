@@ -20,9 +20,13 @@ export async function messageDeleteAction(this: Command, chat: string, idsInput:
   const opts = this.optsWithGlobals() as GlobalOptions & { revoke?: boolean; forMe?: boolean };
   const { profile } = opts;
 
-  // Safety: require explicit mode selection
+  // Safety: require explicit mode selection, mutually exclusive
   if (!opts.revoke && !opts.forMe) {
     outputError('Specify --revoke (delete for everyone) or --for-me (delete for self)', 'DELETE_MODE_REQUIRED');
+    return;
+  }
+  if (opts.revoke && opts.forMe) {
+    outputError('--revoke and --for-me are mutually exclusive', 'INVALID_OPTIONS');
     return;
   }
 
@@ -32,8 +36,12 @@ export async function messageDeleteAction(this: Command, chat: string, idsInput:
   const invalid: string[] = [];
 
   for (const part of parts) {
+    if (!/^\d+$/.test(part)) {
+      invalid.push(part);
+      continue;
+    }
     const num = parseInt(part, 10);
-    if (isNaN(num) || num <= 0) {
+    if (num <= 0) {
       invalid.push(part);
     } else {
       numericIds.push(num);

@@ -37,8 +37,8 @@ export async function userUnblockAction(this: Command, userInput: string): Promi
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const entity = await resolveEntity(client, userInput);
 
-        // Validate entity is a User (className check works with gramjs entities)
-        if ((entity as any).className !== 'User') {
+        // Validate entity is a User (not Channel/Chat)
+        if (!(entity instanceof Api.User)) {
           outputError('Not a user: this is a group/channel', 'NOT_A_USER');
           return;
         }
@@ -48,9 +48,9 @@ export async function userUnblockAction(this: Command, userInput: string): Promi
         await client.invoke(new Api.contacts.Unblock({ id: user }));
 
         const result: BlockResult = {
-          userId: bigIntToString((user as any).id),
-          username: (user as any).username ?? null,
-          firstName: (user as any).firstName ?? null,
+          userId: bigIntToString(user.id),
+          username: user.username ?? null,
+          firstName: user.firstName ?? null,
           action: 'unblocked',
         };
 

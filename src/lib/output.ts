@@ -78,18 +78,22 @@ export function outputSuccess<T>(data: T): void {
 
   // JSONL mode: one object per line, no envelope
   if (_jsonlMode) {
-    // Special case: { messages, notFound } shape from `message get`
-    // Stream found messages to stdout, report notFound IDs to stderr
+    // Special case: shapes with notFound array ({ messages, notFound } or { profiles, notFound })
+    // Stream list items to stdout, report notFound to stderr
     const obj = data as Record<string, unknown>;
-    if (obj != null && typeof obj === 'object' && Array.isArray(obj.messages) && Array.isArray(obj.notFound)) {
-      for (const item of obj.messages as unknown[]) {
-        const filtered = _fieldSelection ? pickFields(item, _fieldSelection) : item;
-        process.stdout.write(JSON.stringify(filtered) + '\n');
+    if (obj != null && typeof obj === 'object' && Array.isArray(obj.notFound)) {
+      // Find the list key (messages, profiles, etc.)
+      const listKey = Object.keys(obj).find(k => k !== 'notFound' && Array.isArray(obj[k]));
+      if (listKey) {
+        for (const item of obj[listKey] as unknown[]) {
+          const filtered = _fieldSelection ? pickFields(item, _fieldSelection) : item;
+          process.stdout.write(JSON.stringify(filtered) + '\n');
+        }
+        if ((obj.notFound as unknown[]).length > 0) {
+          process.stderr.write(`Not found: ${(obj.notFound as unknown[]).join(', ')}\n`);
+        }
+        return;
       }
-      if ((obj.notFound as number[]).length > 0) {
-        process.stderr.write(`Not found: ${(obj.notFound as number[]).join(', ')}\n`);
-      }
-      return;
     }
 
     // Special case: DeleteResult shape { deleted[], failed[], mode }
