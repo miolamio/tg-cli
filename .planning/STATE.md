@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Новые дополнения
 status: completed
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-03-13T07:33:54.736Z"
+stopped_at: Phase 8 context gathered
+last_updated: "2026-03-13T09:08:59.650Z"
 last_activity: 2026-03-13 — Completed Phase 7 Plan 2 (delete, pin, unpin commands and CLI wiring)
 progress:
   total_phases: 11
@@ -85,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T07:30:02.019Z
-Stopped at: Completed 07-02-PLAN.md
-Resume file: .planning/phases/07-message-write-operations/07-02-SUMMARY.md
+Last session: 2026-03-13T09:08:59.640Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-user-profiles-block-unblock/08-CONTEXT.md
