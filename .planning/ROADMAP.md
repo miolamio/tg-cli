@@ -160,10 +160,11 @@ Plans:
   2. User can create a quiz poll with `--quiz --correct <index> --solution <text>` where exactly one correct answer is required
   3. User can configure poll behavior with `--multiple` (multiple choice), `--public` (non-anonymous), and `--close-in <seconds>` (auto-close timer)
   4. Client-side validation rejects invalid configurations before API call (too few/many options, missing --correct in quiz mode, option text too long)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 10 to break down)
+- [ ] 10-01-PLAN.md — Poll types (PollData, PollOption), serialization (extractPollData), error codes
+- [ ] 10-02-PLAN.md — Poll command handler with validation, human-readable formatter, CLI wiring
 
 ### Phase 11: TOON Output Format
 **Goal**: Users can use `--toon` for a token-efficient output format that reduces LLM context consumption by 30-60% on uniform data
@@ -195,5 +196,5 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
 | 8. User Profiles & Block/Unblock | 2/2 | Complete   | 2026-03-13 | - |
 | 9. Contacts CRUD | v1.1 | 0/2 | Planning | - |
-| 10. Polls | v1.1 | 0/0 | Not started | - |
+| 10. Polls | v1.1 | 0/2 | Planning | - |
 | 11. TOON Output Format | v1.1 | 0/0 | Not started | - |
