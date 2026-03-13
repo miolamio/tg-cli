@@ -115,10 +115,11 @@ Plans:
   3. User can run `tg message pin <chat> <id>` which defaults to silent (no notification) and supports `--notify` to opt in to notifying members
   4. User can run `tg message unpin <chat> <id>` to unpin a specific pinned message
   5. All four commands translate Telegram permission errors (MESSAGE_EDIT_TIME_EXPIRED, MESSAGE_AUTHOR_REQUIRED, MESSAGE_DELETE_FORBIDDEN, CHAT_ADMIN_REQUIRED) into actionable CLI messages
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — Shared types, error translation, editDate serialization, and edit command
+- [ ] 07-02-PLAN.md — Delete, pin, unpin commands with CLI wiring and human-readable formatters
 
 ### Phase 8: User Profiles & Block/Unblock
 **Goal**: Users can inspect detailed profiles for any Telegram user and manage their block list
@@ -189,7 +190,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10 → 11
 | 4. Media & Files | v1.0 | 2/2 | Complete | 2026-03-11 |
 | 5. Advanced Features & Polish | v1.0 | 3/3 | Complete | 2026-03-12 |
 | 6. Message Read Operations | v1.1 | 0/1 | Planning | - |
-| 7. Message Write Operations | v1.1 | 0/0 | Not started | - |
+| 7. Message Write Operations | v1.1 | 0/2 | Planning | - |
 | 8. User Profiles & Block/Unblock | v1.1 | 0/0 | Not started | - |
 | 9. Contacts CRUD | v1.1 | 0/0 | Not started | - |
 | 10. Polls | v1.1 | 0/0 | Not started | - |
