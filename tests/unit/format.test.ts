@@ -25,6 +25,7 @@ import {
   formatData,
   formatDownloadResult,
   formatUploadResult,
+  formatGetResult,
 } from '../../src/lib/format.js';
 import type {
   MessageItem,
@@ -493,6 +494,87 @@ describe('formatMessages - media annotations', () => {
     ];
     const result = formatMessages(messages);
     expect(result).toContain('[photo]');
+  });
+
+  it('shows "(edited)" indicator when editDate is present', () => {
+    const messages: MessageItem[] = [
+      {
+        id: 5, text: 'Updated text', date: '2026-03-11T12:30:00.000Z',
+        senderId: '123', senderName: 'Alice', replyToMsgId: null,
+        forwardFrom: null, mediaType: null, type: 'message',
+        editDate: '2026-03-11T12:35:00.000Z',
+      },
+    ];
+    const result = formatMessages(messages);
+    expect(result).toContain('(edited)');
+    expect(result).toContain('Alice');
+    expect(result).toContain('Updated text');
+  });
+
+  it('does not show "(edited)" when editDate is absent', () => {
+    const messages: MessageItem[] = [
+      {
+        id: 6, text: 'Original text', date: '2026-03-11T12:30:00.000Z',
+        senderId: '123', senderName: 'Alice', replyToMsgId: null,
+        forwardFrom: null, mediaType: null, type: 'message',
+      },
+    ];
+    const result = formatMessages(messages);
+    expect(result).not.toContain('(edited)');
+  });
+});
+
+describe('formatGetResult', () => {
+  const msg: MessageItem = {
+    id: 100, text: 'Hello', date: '2026-03-12T12:00:00.000Z',
+    senderId: '123', senderName: 'Alice', replyToMsgId: null,
+    forwardFrom: null, mediaType: null, type: 'message',
+  };
+
+  it('renders messages with notFound footer', () => {
+    const result = formatGetResult({ messages: [msg], notFound: [101, 103] });
+    expect(result).toContain('Alice');
+    expect(result).toContain('Hello');
+    expect(result).toContain('Not found: 101, 103');
+  });
+
+  it('renders messages without notFound when empty', () => {
+    const result = formatGetResult({ messages: [msg], notFound: [] });
+    expect(result).toContain('Alice');
+    expect(result).not.toContain('Not found');
+  });
+
+  it('renders "No messages found." when messages empty', () => {
+    const result = formatGetResult({ messages: [], notFound: [100, 101] });
+    expect(result).toContain('No messages found.');
+    expect(result).toContain('Not found: 100, 101');
+  });
+
+  it('renders "No messages found." with no notFound', () => {
+    const result = formatGetResult({ messages: [], notFound: [] });
+    expect(result).toBe('No messages found.');
+  });
+});
+
+describe('formatData - getResult dispatch', () => {
+  it('dispatches { messages, notFound } to formatGetResult', () => {
+    const data = {
+      messages: [{
+        id: 1, text: 'Hi', date: '2026-03-12T12:00:00.000Z',
+        senderId: '123', senderName: 'Alice', replyToMsgId: null,
+        forwardFrom: null, mediaType: null, type: 'message',
+      }],
+      notFound: [99],
+    };
+    const result = formatData(data);
+    expect(result).toContain('Alice');
+    expect(result).toContain('Not found: 99');
+  });
+
+  it('dispatches { messages: [], notFound } correctly', () => {
+    const result = formatData({ messages: [], notFound: [1, 2, 3] });
+    expect(result).toContain('No messages found.');
+    expect(result).toContain('Not found: 1, 2, 3');
   });
 });
 

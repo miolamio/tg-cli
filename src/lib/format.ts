@@ -66,9 +66,10 @@ function formatSingleMessage(m: MessageItem): string {
   const ts = pc.dim(`[${formatTimestamp(m.date)}]`);
   const sender = pc.bold(m.senderName ?? 'Unknown');
   const reply = m.replyToMsgId != null ? pc.dim(` (reply to ${m.replyToMsgId})`) : '';
+  const edited = m.editDate ? pc.dim(' (edited)') : '';
   const annotation = formatMediaAnnotation(m);
   const media = annotation ? pc.yellow(annotation) + ' ' : '';
-  return `${ts} ${sender}${reply}: ${media}${m.text}`;
+  return `${ts} ${sender}${reply}${edited}: ${media}${m.text}`;
 }
 
 /**
