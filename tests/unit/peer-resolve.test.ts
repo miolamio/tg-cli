@@ -15,7 +15,7 @@ vi.mock('telegram', () => ({
   },
 }));
 
-import { resolveEntity, extractInviteHash } from '../../src/lib/peer.js';
+import { resolveEntity, extractInviteHash, assertForum } from '../../src/lib/peer.js';
 import { TgError } from '../../src/lib/errors.js';
 
 describe('extractInviteHash', () => {
@@ -130,5 +130,101 @@ describe('resolveEntity', () => {
     mockClient.getEntity.mockResolvedValue(mockEntity);
     const result = await resolveEntity(mockClient, 'somechannel');
     expect(result).toBe(mockEntity);
+  });
+
+  it('wraps phone number getEntity errors in TgError with PEER_NOT_FOUND', async () => {
+    mockClient.getEntity.mockRejectedValue(new Error('phone not found'));
+    try {
+      await resolveEntity(mockClient, '+15551234567');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(TgError);
+      expect((err as TgError).code).toBe('PEER_NOT_FOUND');
+      expect((err as TgError).message).toContain('phone not found');
+    }
+  });
+
+  it('re-throws TgError as-is from phone number resolution', async () => {
+    const original = new TgError('custom error', 'CUSTOM');
+    mockClient.getEntity.mockRejectedValue(original);
+    try {
+      await resolveEntity(mockClient, '+15551234567');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBe(original);
+    }
+  });
+
+  it('wraps numeric ID getEntity errors in TgError with PEER_NOT_FOUND', async () => {
+    mockClient.getEntity.mockRejectedValue(new Error('id not found'));
+    try {
+      await resolveEntity(mockClient, '12345');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(TgError);
+      expect((err as TgError).code).toBe('PEER_NOT_FOUND');
+      expect((err as TgError).message).toContain('id not found');
+    }
+  });
+
+  it('re-throws TgError as-is from numeric ID resolution', async () => {
+    const original = new TgError('custom error', 'CUSTOM');
+    mockClient.getEntity.mockRejectedValue(original);
+    try {
+      await resolveEntity(mockClient, '-1001234567');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBe(original);
+    }
+  });
+
+  it('re-throws TgError as-is from username resolution', async () => {
+    const original = new TgError('custom error', 'CUSTOM');
+    mockClient.getEntity.mockRejectedValue(original);
+    try {
+      await resolveEntity(mockClient, '@someone');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBe(original);
+    }
+  });
+
+  it('re-throws TgError as-is from invite link resolution', async () => {
+    const original = new TgError('custom error', 'CUSTOM');
+    mockClient.invoke.mockRejectedValue(original);
+    try {
+      await resolveEntity(mockClient, 'https://t.me/+abc123');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBe(original);
+    }
+  });
+});
+
+describe('assertForum', () => {
+  it('does nothing when topicId is undefined', async () => {
+    await expect(assertForum({}, undefined)).resolves.toBeUndefined();
+  });
+
+  it('throws NOT_A_FORUM when entity has no className', async () => {
+    await expect(assertForum({}, 7)).rejects.toThrow(TgError);
+    try {
+      await assertForum({}, 7);
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect((err as TgError).code).toBe('NOT_A_FORUM');
+    }
+  });
+
+  it('throws NOT_A_FORUM when entity is not a Channel', async () => {
+    await expect(assertForum({ className: 'Chat' }, 7)).rejects.toThrow(TgError);
+  });
+
+  it('throws NOT_A_FORUM when Channel has forum === false', async () => {
+    await expect(assertForum({ className: 'Channel', forum: false }, 7)).rejects.toThrow(TgError);
+  });
+
+  it('passes when entity is a Channel without forum === false', async () => {
+    await expect(assertForum({ className: 'Channel', forum: true }, 7)).resolves.toBeUndefined();
   });
 });
