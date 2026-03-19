@@ -37,30 +37,18 @@ export async function chatMembersAction(this: Command, chatInput: string): Promi
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const entity = await resolveEntity(client, chatInput);
 
-        try {
-          const participants = await client.getParticipants(entity, {
-            limit,
-            offset,
-            search: opts.search,
-          });
+        const participants = await client.getParticipants(entity, {
+          limit,
+          offset,
+          search: opts.search,
+        });
 
-          const members = participants.map((p: any) => serializeMember(p as Api.User));
+        const members = participants.map((p: any) => serializeMember(p as Api.User));
 
-          outputSuccess({
-            members,
-            total: (participants as any).total ?? 0,
-          });
-        } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          if (errMsg.includes('CHAT_ADMIN_REQUIRED')) {
-            outputError(
-              'Cannot list members: admin rights required for this chat',
-              'CHAT_ADMIN_REQUIRED',
-            );
-            return;
-          }
-          throw err;
-        }
+        outputSuccess({
+          members,
+          total: (participants as any).total ?? 0,
+        });
       });
     });
   } catch (err: unknown) {

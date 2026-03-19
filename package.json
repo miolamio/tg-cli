@@ -14,7 +14,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "files": [
     "dist"
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^25.4.0",
     "@types/proper-lockfile": "^4.1.4",
+    "@vitest/coverage-v8": "^3.2.4",
     "gpt-tokenizer": "^3.4.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

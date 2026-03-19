@@ -69,8 +69,8 @@ export async function chatInviteInfoAction(this: Command, link: string): Promise
             broadcast: !!(result as any).broadcast,
           });
         } else {
-          // Unknown result type
-          outputSuccess({ result });
+          outputError('Unknown invite result type', 'UNKNOWN_INVITE_TYPE');
+          return;
         }
       });
     });

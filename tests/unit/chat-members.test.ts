@@ -200,7 +200,7 @@ describe('chatMembersAction', () => {
     await chatMembersAction.call(ctx as any, 'group');
 
     expect(mockOutputError).toHaveBeenCalledOnce();
-    expect(mockOutputError.mock.calls[0][0]).toContain('admin');
+    expect(mockOutputError.mock.calls[0][0]).toContain('CHAT_ADMIN_REQUIRED');
   });
 
   it('handles empty member list', async () => {

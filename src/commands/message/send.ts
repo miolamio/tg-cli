@@ -49,6 +49,12 @@ export async function messageSendAction(this: Command, chat: string, text: strin
     return;
   }
 
+  // Telegram message length limit
+  if (text.length > 4096) {
+    outputError('Message too long (max 4096 chars)', 'MESSAGE_TOO_LONG');
+    return;
+  }
+
   // Parse --topic as integer
   const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
   if (opts.topic && (topicId === undefined || isNaN(topicId))) {

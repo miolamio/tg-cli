@@ -37,16 +37,16 @@ export async function chatListAction(this: Command): Promise<void> {
           limit: offset + limit,
         });
 
-        // Slice from offset and take limit items
-        const sliced = dialogs.slice(offset, offset + limit);
+        // Serialize all fetched dialogs
+        let chats = dialogs.map(serializeDialog);
 
-        // Serialize each dialog
-        let chats = sliced.map(serializeDialog);
-
-        // Filter by type if specified
+        // Filter by type BEFORE pagination so counts are accurate
         if (opts.type) {
           chats = chats.filter((c) => c.type === opts.type);
         }
+
+        // Apply pagination after filtering
+        chats = chats.slice(offset, offset + limit);
 
         outputSuccess({
           chats,

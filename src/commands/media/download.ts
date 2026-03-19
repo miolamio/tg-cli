@@ -95,6 +95,16 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
             targetPath = resolve(process.cwd(), filename);
           }
 
+          // Path traversal guard: ensure target stays within expected directory
+          const allowedDir = opts.output ? resolve(opts.output) : resolve(process.cwd());
+          const baseDir = isBatch || !opts.output ? allowedDir : resolve(allowedDir, '..');
+          if (!targetPath.startsWith(baseDir)) {
+            throw new TgError(
+              `Path traversal detected: ${targetPath} is outside ${baseDir}`,
+              'PATH_TRAVERSAL',
+            );
+          }
+
           // Download with progress
           let lastProgressTime = 0;
           await client.downloadMedia(msg as any, {

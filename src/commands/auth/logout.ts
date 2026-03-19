@@ -36,7 +36,7 @@ export async function logoutAction(this: Command): Promise<void> {
 
       // Delete file without re-acquiring lock (we're already inside withLock)
       store.deleteUnlocked(profile);
-      config.delete(`profiles.${profile}` as any);
+      config.delete(`profiles.${profile}` as keyof Record<string, unknown>);
 
       logStatus('Logged out successfully.', quiet);
       outputSuccess({ loggedOut: true });
