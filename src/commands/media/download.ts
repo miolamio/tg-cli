@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { resolve, basename } from 'node:path';
+import { resolve, basename, sep } from 'node:path';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
@@ -98,7 +98,7 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
           // Path traversal guard: ensure target stays within expected directory
           const allowedDir = opts.output ? resolve(opts.output) : resolve(process.cwd());
           const baseDir = isBatch || !opts.output ? allowedDir : resolve(allowedDir, '..');
-          if (!targetPath.startsWith(baseDir)) {
+          if (targetPath !== baseDir && !targetPath.startsWith(baseDir + sep)) {
             throw new TgError(
               `Path traversal detected: ${targetPath} is outside ${baseDir}`,
               'PATH_TRAVERSAL',

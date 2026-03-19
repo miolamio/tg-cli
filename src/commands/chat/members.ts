@@ -3,7 +3,7 @@ import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
+import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMember } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
@@ -52,7 +52,7 @@ export async function chatMembersAction(this: Command, chatInput: string): Promi
       });
     });
   } catch (err: unknown) {
-    const { message, code } = formatError(err);
+    const { message, code } = translateTelegramError(err);
     outputError(message, code);
   }
 }

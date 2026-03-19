@@ -194,13 +194,15 @@ describe('chatMembersAction', () => {
   it('handles CHAT_ADMIN_REQUIRED error gracefully', async () => {
     const entity = new MockChannel({ id: BigInt(100) });
     mockResolveEntity.mockResolvedValueOnce(entity);
-    mockGetParticipants.mockRejectedValueOnce(new Error('CHAT_ADMIN_REQUIRED'));
+    // gramjs throws RPCError with errorMessage property
+    mockGetParticipants.mockRejectedValueOnce({ errorMessage: 'CHAT_ADMIN_REQUIRED' });
 
     const ctx = createMockCommandContext();
     await chatMembersAction.call(ctx as any, 'group');
 
     expect(mockOutputError).toHaveBeenCalledOnce();
-    expect(mockOutputError.mock.calls[0][0]).toContain('CHAT_ADMIN_REQUIRED');
+    expect(mockOutputError.mock.calls[0][0]).toBe('Admin privileges required');
+    expect(mockOutputError.mock.calls[0][1]).toBe('CHAT_ADMIN_REQUIRED');
   });
 
   it('handles empty member list', async () => {
