@@ -7,6 +7,7 @@ import { chatResolveAction } from './resolve.js';
 import { chatInviteInfoAction } from './invite-info.js';
 import { chatMembersAction } from './members.js';
 import { chatTopicsAction } from './topics.js';
+import { chatSearchAction } from './search.js';
 
 /**
  * Create the `chat` command group with 8 subcommands for chat discovery and management.
@@ -79,6 +80,13 @@ export function createChatCommand(): Command {
     .option('--limit <n>', 'Max topics', '50')
     .option('--offset <n>', 'Skip topics', '0')
     .action(chatTopicsAction);
+
+  chat
+    .command('search')
+    .argument('<query>', 'Search query')
+    .description('Search for public channels and groups globally')
+    .option('--limit <n>', 'Max results', '20')
+    .action(chatSearchAction);
 
   return chat;
 }
