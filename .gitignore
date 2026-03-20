@@ -1,7 +1,10 @@
 node_modules/
 dist/
+coverage/
 *.session
+*.skill
 .env
 .DS_Store
 .claude/
 .planning/
+*-workspace/

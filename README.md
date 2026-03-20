@@ -59,6 +59,7 @@ tg chat resolve <username-or-id>
 tg chat invite-info <link>
 tg chat members <chat> [--limit N] [--offset N]
 tg chat topics <chat> [--limit N]
+tg chat search <query> [--limit N]       # Search public channels/groups globally
 ```
 
 ### Messages
@@ -104,7 +105,7 @@ tg user blocked [--limit N]  # List blocked users
 tg contact list [--limit N]
 tg contact add <username-or-phone> [--first NAME] [--last NAME]
 tg contact delete <user>
-tg contact search <query> [--limit N]
+tg contact search <query> [--limit N] [--global]
 ```
 
 ## Output Modes
@@ -135,7 +136,7 @@ Designed for non-interactive automation. Export a session once, then reuse:
 ```bash
 # Initial setup (interactive)
 tg auth login
-SESSION=$(tg session export | jq -r '.data.session')
+SESSION=$(tg session export)
 
 # Reuse in scripts / agents
 echo "$SESSION" | tg session import
