@@ -31,7 +31,7 @@ async function readStdin(): Promise<string> {
  * Returns the sent message as a serialized MessageItem.
  */
 export async function messageSendAction(this: Command, chat: string, text: string): Promise<void> {
-  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string };
+  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string; commentTo?: string };
   const { profile } = opts;
 
   // Handle stdin pipe via dash placeholder
@@ -69,6 +69,13 @@ export async function messageSendAction(this: Command, chat: string, text: strin
     return;
   }
 
+  // Parse commentTo as integer (for channel post comments)
+  const commentTo = opts.commentTo ? parseInt(opts.commentTo, 10) : undefined;
+  if (opts.commentTo && (commentTo === undefined || isNaN(commentTo))) {
+    outputError('Invalid comment-to message ID: must be a number', 'INVALID_COMMENT_TO');
+    return;
+  }
+
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
@@ -94,6 +101,7 @@ export async function messageSendAction(this: Command, chat: string, text: strin
         const sentMsg = await client.sendMessage(entity, {
           message: text,
           replyTo: effectiveReplyTo,
+          ...(commentTo !== undefined && { commentTo }),
         });
 
         const serialized = serializeMessage(sentMsg as any);

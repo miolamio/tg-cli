@@ -81,6 +81,7 @@ export function createMessageCommand(): Command {
     .description('Send a text message to a chat')
     .option('--reply-to <msgId>', 'Reply to message ID')
     .option('--topic <topicId>', 'Forum topic ID')
+    .option('--comment-to <postId>', 'Comment on a channel post')
     .action(messageSendAction);
 
   message
