@@ -53,7 +53,8 @@ program
   .option('--config <path>', 'Config file path')
   .option('--fields <fields>', 'Select output fields (comma-separated, dot notation for nested)')
   .option('--jsonl', 'Output one JSON object per line (list commands only)')
-  .option('--toon', 'Token-efficient TOON output (LLM-optimized)');
+  .option('--toon', 'Token-efficient TOON output (LLM-optimized)')
+  .option('--daemon', 'Route command through persistent daemon connection');
 
 // Global options are parsed at any position in the command line
 

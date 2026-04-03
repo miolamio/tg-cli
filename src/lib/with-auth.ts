@@ -6,6 +6,8 @@ import { outputError } from './output.js';
 import { formatError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
 import { validateProfile } from './validate.js';
+import { DaemonPaths } from './daemon/pid.js';
+import { DaemonServer } from './daemon/server.js';
 
 /**
  * Minimal options required by withAuth.
@@ -14,6 +16,7 @@ import { validateProfile } from './validate.js';
 export interface WithAuthOptions {
   profile: string;
   config?: string;
+  daemon?: boolean;
   [key: string]: unknown;
 }
 
@@ -40,7 +43,42 @@ export async function withAuth(
   }
 
   const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  const configDir = config.path.replace(/[/\\][^/\\]+$/, '');
+
+  // Daemon mode: start daemon if needed and use its client
+  if (opts.daemon) {
+    const paths = new DaemonPaths(configDir, opts.profile);
+
+    if (!paths.socketExists()) {
+      // Auto-start daemon
+      const store = new SessionStore(configDir);
+      const sessionString = await store.load(opts.profile);
+      if (!sessionString) {
+        outputError('Not logged in. Run: tg auth login', ErrorCode.NOT_AUTHENTICATED);
+        return;
+      }
+
+      const { apiId, apiHash } = getCredentialsOrThrow(config);
+
+      try {
+        const server = new DaemonServer(paths, { apiId, apiHash, sessionString });
+        await server.start();
+
+        const client = server.getClient();
+        if (client) await fn(client);
+      } catch (err: unknown) {
+        const { message, code } = formatError(err);
+        outputError(message, code);
+      }
+      return;
+    }
+
+    // Daemon already running — fall through to direct connection
+    // (daemon proxy for arbitrary callbacks is not implemented yet)
+  }
+
+  // Direct connection (current behavior)
+  const store = new SessionStore(configDir);
 
   try {
     await store.withLock(opts.profile, async (sessionString) => {
