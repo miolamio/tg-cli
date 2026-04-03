@@ -1,5 +1,6 @@
 // src/lib/daemon/server.ts
 import { createServer, type Server, type Socket } from 'node:net';
+import { chmodSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { TelegramClient } from 'telegram';
 import { DaemonPaths } from './pid.js';
@@ -59,6 +60,9 @@ export class DaemonServer {
       this.server!.on('error', reject);
     });
 
+    // Restrict socket to owner-only access (prevent other local users from connecting)
+    chmodSync(this.paths.socketPath, 0o600);
+
     this.paths.writePid(process.pid);
     this.startTime = Date.now();
     this.resetIdle();
@@ -90,9 +94,20 @@ export class DaemonServer {
   }
 
   private handleConnection(socket: Socket): void {
+    // Guard against oversized messages (local DoS via memory exhaustion)
+    const MAX_LINE_BYTES = 1_048_576; // 1 MB
+    let bytesReceived = 0;
+    socket.on('data', (chunk) => {
+      bytesReceived += chunk.length;
+      if (bytesReceived > MAX_LINE_BYTES) {
+        socket.destroy(new Error('Message too large'));
+      }
+    });
+
     const rl = createInterface({ input: socket });
 
     rl.on('line', async (line) => {
+      bytesReceived = 0; // Reset after line is consumed
       this.resetIdle();
 
       let id: number | null = null;

@@ -1,7 +1,10 @@
 import { TgError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
 
-const OPENTELE_URL = 'https://raw.githubusercontent.com/thedemons/opentele/main/src/api.py';
+// Pinned to specific commit SHA for supply-chain safety.
+// Update this SHA when upgrading to a newer opentele version.
+const OPENTELE_COMMIT = '1a6f0816eac47ff3cb907af72ed9f8cbbbe8fba0';
+const OPENTELE_URL = `https://raw.githubusercontent.com/thedemons/opentele/${OPENTELE_COMMIT}/src/api.py`;
 
 /** Cache TTL: 30 days in milliseconds. */
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -47,8 +50,9 @@ export function parseApiPy(content: string): Map<string, PresetCredentials> {
     const [, className, apiIdStr, apiHash] = match;
     const apiId = parseInt(apiIdStr, 10);
 
-    // Filter test keys
+    // Filter test keys and invalid ranges
     if (TEST_API_IDS.has(apiId)) continue;
+    if (apiId <= 0 || apiId > 1_000_000) continue;
 
     const presetName = PRESET_NAME_MAP[className] ?? className.toLowerCase();
     result.set(presetName, { apiId, apiHash });

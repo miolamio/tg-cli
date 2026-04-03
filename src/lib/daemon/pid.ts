@@ -34,11 +34,11 @@ export class DaemonPaths {
     }
   }
 
-  /** Ensure the daemon directory exists. */
+  /** Ensure the daemon directory exists with owner-only access. */
   ensureDir(): void {
     const dir = dirname(this.socketPath);
     if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
   }
 
@@ -48,12 +48,15 @@ export class DaemonPaths {
     writeFileSync(this.pidPath, String(pid), 'utf-8');
   }
 
-  /** Read the stored PID, or null if file doesn't exist. */
+  /** Read the stored PID, or null if file doesn't exist or PID is invalid. */
   readPid(): number | null {
     if (!existsSync(this.pidPath)) return null;
     const content = readFileSync(this.pidPath, 'utf-8').trim();
     const pid = parseInt(content, 10);
-    return isNaN(pid) ? null : pid;
+    // Reject non-positive, NaN, and implausibly large PIDs to prevent
+    // process.kill(0) (kill process group) or kill(-1) (kill all user procs)
+    if (isNaN(pid) || pid <= 0 || pid > 4_194_304) return null;
+    return pid;
   }
 
   /** Check whether the socket file exists. */

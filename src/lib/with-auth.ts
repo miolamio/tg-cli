@@ -50,22 +50,22 @@ export async function withAuth(
     const paths = new DaemonPaths(configDir, opts.profile);
 
     if (!paths.socketExists()) {
-      // Auto-start daemon
+      // Auto-start daemon with proper session locking
       const store = new SessionStore(configDir);
-      const sessionString = await store.load(opts.profile);
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', ErrorCode.NOT_AUTHENTICATED);
-        return;
-      }
-
-      const { apiId, apiHash } = await getCredentialsOrThrow(config);
-
       try {
-        const server = new DaemonServer(paths, { apiId, apiHash, sessionString });
-        await server.start();
+        await store.withLock(opts.profile, async (sessionString) => {
+          if (!sessionString) {
+            outputError('Not logged in. Run: tg auth login', ErrorCode.NOT_AUTHENTICATED);
+            return;
+          }
 
-        const client = server.getClient();
-        if (client) await fn(client);
+          const { apiId, apiHash } = await getCredentialsOrThrow(config);
+          const server = new DaemonServer(paths, { apiId, apiHash, sessionString });
+          await server.start();
+
+          const client = server.getClient();
+          if (client) await fn(client);
+        });
       } catch (err: unknown) {
         const { message, code } = formatError(err);
         outputError(message, code);

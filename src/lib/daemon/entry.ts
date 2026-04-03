@@ -8,6 +8,15 @@ const apiHash = process.env.TG_DAEMON_API_HASH!;
 const sessionString = process.env.TG_DAEMON_SESSION!;
 const idleTimeout = parseInt(process.env.TG_DAEMON_IDLE_TIMEOUT!, 10);
 
+// Clear sensitive data from process environment immediately.
+// Prevents exposure via /proc/<pid>/environ or ps -eww.
+delete process.env.TG_DAEMON_SESSION;
+delete process.env.TG_DAEMON_API_HASH;
+delete process.env.TG_DAEMON_API_ID;
+delete process.env.TG_DAEMON_CONFIG_DIR;
+delete process.env.TG_DAEMON_PROFILE;
+delete process.env.TG_DAEMON_IDLE_TIMEOUT;
+
 const paths = new DaemonPaths(configDir, profile);
 const server = new DaemonServer(paths, { apiId, apiHash, sessionString }, { idleTimeout });
 
