@@ -1,9 +1,6 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
-import { outputSuccess, outputError } from '../../lib/output.js';
-import { translateTelegramError } from '../../lib/errors.js';
+import { withAuth } from '../../lib/with-auth.js';
+import { outputSuccess } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMember } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
@@ -17,42 +14,24 @@ import type { Api } from 'telegram';
  */
 export async function chatMembersAction(this: Command, chatInput: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { limit: string; offset: string; search?: string };
-  const { profile } = opts;
 
   const limit = parseInt(opts.limit, 10) || 50;
   const offset = parseInt(opts.offset, 10) || 0;
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chatInput);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
-
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chatInput);
-
-        const participants = await client.getParticipants(entity, {
-          limit,
-          offset,
-          search: opts.search,
-        });
-
-        const members = participants.map((p: any) => serializeMember(p as Api.User));
-
-        outputSuccess({
-          members,
-          total: (participants as any).total ?? 0,
-        });
-      });
+    const participants = await client.getParticipants(entity, {
+      limit,
+      offset,
+      search: opts.search,
     });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+
+    const members = participants.map((p: any) => serializeMember(p as Api.User));
+
+    outputSuccess({
+      members,
+      total: (participants as any).total ?? 0,
+    });
+  });
 }
