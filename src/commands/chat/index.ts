@@ -8,6 +8,9 @@ import { chatInviteInfoAction } from './invite-info.js';
 import { chatMembersAction } from './members.js';
 import { chatTopicsAction } from './topics.js';
 import { chatSearchAction } from './search.js';
+import { chatCreateAction } from './create.js';
+import { chatEditAction } from './edit.js';
+import { chatKickAction } from './kick.js';
 
 /**
  * Create the `chat` command group with 8 subcommands for chat discovery and management.
@@ -87,6 +90,29 @@ export function createChatCommand(): Command {
     .description('Search for public channels and groups globally')
     .option('--limit <n>', 'Max results', '20')
     .action(chatSearchAction);
+
+  chat
+    .command('create')
+    .argument('<title>', 'Chat title')
+    .description('Create a new group, supergroup, or channel')
+    .option('--type <type>', 'Chat type: group, supergroup, channel', 'supergroup')
+    .option('--description <text>', 'Chat description')
+    .action(chatCreateAction);
+
+  chat
+    .command('edit')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .description('Edit chat title or description')
+    .option('--title <text>', 'New title')
+    .option('--description <text>', 'New description')
+    .action(chatEditAction);
+
+  chat
+    .command('kick')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .argument('<user>', 'User ID, username, or @username')
+    .description('Kick a user from a group or channel')
+    .action(chatKickAction);
 
   return chat;
 }
