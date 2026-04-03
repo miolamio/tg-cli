@@ -136,6 +136,9 @@ export class DaemonServer {
         setTimeout(() => this.stop(), 100);
         return { shuttingDown: true };
 
+      case 'subscribe':
+        return { subscribed: true, chat: params.chat, topic: params.topic ?? null };
+
       default:
         throw Object.assign(new Error(`Unknown method: ${method}`), { code: -32601 });
     }

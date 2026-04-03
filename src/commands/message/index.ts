@@ -12,10 +12,11 @@ import { messageDeleteAction } from './delete.js';
 import { messagePinAction } from './pin.js';
 import { messageUnpinAction } from './unpin.js';
 import { messagePollAction } from './poll.js';
+import { messageWatchAction } from './watch.js';
 
 /**
  * Create the `message` command group with history, search, get, pinned, send, forward, react, replies,
- * edit, delete, pin, unpin, and poll subcommands.
+ * edit, delete, pin, unpin, poll, and watch subcommands.
  *
  * Usage:
  *   tg message history <chat>               - Read message history from a chat
@@ -155,6 +156,13 @@ export function createMessageCommand(): Command {
     .option('--public', 'Show voter names (non-anonymous)')
     .option('--close-in <seconds>', 'Auto-close after N seconds')
     .action(messagePollAction);
+
+  message
+    .command('watch')
+    .argument('<chat>', 'Chat ID, username, or @username')
+    .description('Watch for new messages in real-time (requires daemon)')
+    .option('--topic <topicId>', 'Forum topic ID')
+    .action(messageWatchAction);
 
   return message;
 }
