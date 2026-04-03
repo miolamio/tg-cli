@@ -1,11 +1,9 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { bigIntToString } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, PinResult } from '../../lib/types.js';
 
 /**
@@ -19,7 +17,6 @@ import type { GlobalOptions, PinResult } from '../../lib/types.js';
  */
 export async function messagePinAction(this: Command, chat: string, msgId: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { notify?: boolean };
-  const { profile } = opts;
 
   // Parse and validate message ID (strict: digits only, positive)
   if (!/^\d+$/.test(msgId)) {
@@ -34,34 +31,22 @@ export async function messagePinAction(this: Command, chat: string, msgId: strin
 
   const notify = opts.notify ?? false;
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    try {
+      await client.pinMessage(entity, messageId, { notify });
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        await client.pinMessage(entity, messageId, { notify });
-
-        const result: PinResult = {
-          messageId,
-          chatId: bigIntToString((entity as any).id),
-          action: 'pinned',
-          silent: !notify,
-        };
-        outputSuccess(result);
-      });
-    });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+      const result: PinResult = {
+        messageId,
+        chatId: bigIntToString((entity as any).id),
+        action: 'pinned',
+        silent: !notify,
+      };
+      outputSuccess(result);
+    } catch (err: unknown) {
+      const { message, code } = translateTelegramError(err);
+      outputError(message, code);
+    }
+  });
 }

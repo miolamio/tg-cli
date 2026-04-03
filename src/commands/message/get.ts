@@ -1,12 +1,9 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { buildEntityMap } from '../../lib/entity-map.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 
 /**
@@ -23,7 +20,6 @@ export async function messageGetAction(
   idsInput: string,
 ): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
-  const { profile } = opts;
 
   // Parse comma-separated message IDs
   const parts = idsInput.split(',').map(s => s.trim());
@@ -54,53 +50,36 @@ export async function messageGetAction(
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chatInput);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    // getMessages returns array where missing entries are undefined
+    const result = await client.getMessages(entity, { ids: numericIds });
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+    const found: MessageItem[] = [];
+    const notFound: number[] = [];
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chatInput);
+    // Build entity map as fallback for sender resolution
+    const entityMap = buildEntityMap(result);
 
-        // getMessages returns array where missing entries are undefined
-        const result = await client.getMessages(entity, { ids: numericIds });
-
-        const found: MessageItem[] = [];
-        const notFound: number[] = [];
-
-        // Build entity map as fallback for sender resolution
-        const entityMap = buildEntityMap(result);
-
-        // Iterate by index to preserve input order
-        for (let i = 0; i < numericIds.length; i++) {
-          const msg = result[i];
-          if (msg) {
-            // Prefer _sender from gramjs _finishInit, fall back to entity map
-            let senderEntity = (msg as any)._sender;
-            if (!senderEntity) {
-              const senderId = (msg as any).fromId?.userId ?? (msg as any).fromId?.channelId ?? (msg as any).fromId?.chatId;
-              if (senderId) {
-                senderEntity = entityMap.get(senderId.toString());
-              }
-            }
-            found.push(serializeMessage(msg, senderEntity));
-          } else {
-            notFound.push(numericIds[i]);
+    // Iterate by index to preserve input order
+    for (let i = 0; i < numericIds.length; i++) {
+      const msg = result[i];
+      if (msg) {
+        // Prefer _sender from gramjs _finishInit, fall back to entity map
+        let senderEntity = (msg as any)._sender;
+        if (!senderEntity) {
+          const senderId = (msg as any).fromId?.userId ?? (msg as any).fromId?.channelId ?? (msg as any).fromId?.chatId;
+          if (senderId) {
+            senderEntity = entityMap.get(senderId.toString());
           }
         }
+        found.push(serializeMessage(msg, senderEntity));
+      } else {
+        notFound.push(numericIds[i]);
+      }
+    }
 
-        outputSuccess({ messages: found, notFound });
-      });
-    });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+    outputSuccess({ messages: found, notFound });
+  });
 }

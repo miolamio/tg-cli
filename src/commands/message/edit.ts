@@ -1,11 +1,9 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -32,7 +30,6 @@ async function readStdin(): Promise<string> {
  */
 export async function messageEditAction(this: Command, chat: string, msgId: string, text: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
-  const { profile } = opts;
 
   // Parse and validate message ID (strict: digits only, positive)
   if (!/^\d+$/.test(msgId)) {
@@ -66,33 +63,21 @@ export async function messageEditAction(this: Command, chat: string, msgId: stri
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
-
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
-        const editedMsg = await client.editMessage(entity, {
-          message: messageId,
-          text,
-        });
-
-        const serialized = serializeMessage(editedMsg as any, (editedMsg as any)._sender);
-        outputSuccess(serialized);
+    try {
+      // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
+      const editedMsg = await client.editMessage(entity, {
+        message: messageId,
+        text,
       });
-    });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+
+      const serialized = serializeMessage(editedMsg as any, (editedMsg as any)._sender);
+      outputSuccess(serialized);
+    } catch (err: unknown) {
+      const { message, code } = translateTelegramError(err);
+      outputError(message, code);
+    }
+  });
 }
