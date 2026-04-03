@@ -58,7 +58,7 @@ export async function withAuth(
         return;
       }
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
       try {
         const server = new DaemonServer(paths, { apiId, apiHash, sessionString });
@@ -87,7 +87,7 @@ export async function withAuth(
         return;
       }
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         await fn(client);

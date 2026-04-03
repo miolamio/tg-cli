@@ -44,7 +44,7 @@ export async function daemonStartAction(this: Command): Promise<void> {
     return;
   }
 
-  const { apiId, apiHash } = getCredentialsOrThrow(config);
+  const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
   if (opts.foreground) {
     logStatus('Starting daemon in foreground...', quiet);

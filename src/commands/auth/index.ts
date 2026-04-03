@@ -18,6 +18,7 @@ export function createAuthCommand(): Command {
   auth
     .command('login')
     .description('Log in with phone number + code + optional 2FA')
+    .option('--client <name>', 'Use official client preset (desktop, android, ios, macos, web-z)')
     .action(loginAction);
 
   auth

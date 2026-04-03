@@ -28,7 +28,7 @@ export async function logoutAction(this: Command): Promise<void> {
         return;
       }
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         logStatus('Logging out...', quiet);
