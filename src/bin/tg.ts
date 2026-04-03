@@ -10,6 +10,7 @@ import { createMediaCommand } from '../commands/media/index.js';
 import { createUserCommand } from '../commands/user/index.js';
 import { createContactCommand } from '../commands/contact/index.js';
 import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputError } from '../lib/output.js';
+import { ErrorCode } from '../lib/error-codes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,18 +64,18 @@ program.hook('preAction', (thisCommand) => {
 
   // --toon mutual exclusion checks
   if (opts.toon && isHuman) {
-    outputError('--toon and --human are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--toon and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
   if (opts.toon && opts.jsonl) {
-    outputError('--toon and --jsonl are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--toon and --jsonl are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
   if (opts.toon) setToonMode(true);
 
   // --jsonl and --human are mutually exclusive
   if (opts.jsonl && isHuman) {
-    outputError('--jsonl and --human are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--jsonl and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
 

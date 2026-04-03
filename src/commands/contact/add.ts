@@ -1,12 +1,10 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { buildUserProfile } from '../../lib/user-profile.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -32,86 +30,74 @@ function isPhoneInput(input: string): boolean {
  */
 export async function contactAddAction(this: Command, input: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { firstName?: string; lastName?: string };
-  const { profile, firstName, lastName } = opts;
+  const { firstName, lastName } = opts;
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    let targetUser: Api.User;
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
-
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        let targetUser: Api.User;
-
-        if (isPhoneInput(input)) {
-          // Phone route: ImportContacts
-          if (!firstName) {
-            outputError('--first-name is required when adding by phone number', 'MISSING_FIRST_NAME');
-            return;
-          }
-
-          const phoneNumber = input.startsWith('+') ? input : `+${input}`;
-
-          const importResult = await client.invoke(
-            new Api.contacts.ImportContacts({
-              contacts: [
-                new Api.InputPhoneContact({
-                  clientId: BigInt(Math.floor(Math.random() * 2 ** 32)) as any,
-                  phone: phoneNumber,
-                  firstName,
-                  lastName: lastName ?? '',
-                }),
-              ],
-            }),
-          );
-
-          if (importResult.users.length === 0) {
-            outputError('Phone number not found on Telegram', 'PHONE_NOT_FOUND');
-            return;
-          }
-
-          targetUser = importResult.users[0] as Api.User;
-        } else {
-          // Username/ID route: resolveEntity + AddContact
-          const entity = await resolveEntity(client, input);
-
-          if (!(entity instanceof Api.User)) {
-            outputError('Not a user: this is a group/channel', 'NOT_A_USER');
-            return;
-          }
-
-          targetUser = entity;
-
-          await client.invoke(
-            new Api.contacts.AddContact({
-              id: entity,
-              firstName: entity.firstName ?? '',
-              lastName: entity.lastName ?? '',
-              phone: '',
-            }),
-          );
+    try {
+      if (isPhoneInput(input)) {
+        // Phone route: ImportContacts
+        if (!firstName) {
+          outputError('--first-name is required when adding by phone number', 'MISSING_FIRST_NAME');
+          return;
         }
 
-        // Fetch full profile for the response
-        const fullResult = await client.invoke(
-          new Api.users.GetFullUser({ id: targetUser }),
+        const phoneNumber = input.startsWith('+') ? input : `+${input}`;
+
+        const importResult = await client.invoke(
+          new Api.contacts.ImportContacts({
+            contacts: [
+              new Api.InputPhoneContact({
+                clientId: BigInt(Math.floor(Math.random() * 2 ** 32)) as any,
+                phone: phoneNumber,
+                firstName,
+                lastName: lastName ?? '',
+              }),
+            ],
+          }),
         );
 
-        const fullUser = fullResult.fullUser;
-        const userFromResult = (fullResult.users?.[0] ?? targetUser) as Api.User;
+        if (importResult.users.length === 0) {
+          outputError('Phone number not found on Telegram', 'PHONE_NOT_FOUND');
+          return;
+        }
 
-        const profileData = await buildUserProfile(client, targetUser, fullUser, userFromResult);
-        outputSuccess(profileData);
-      });
-    });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+        targetUser = importResult.users[0] as Api.User;
+      } else {
+        // Username/ID route: resolveEntity + AddContact
+        const entity = await resolveEntity(client, input);
+
+        if (!(entity instanceof Api.User)) {
+          outputError('Not a user: this is a group/channel', 'NOT_A_USER');
+          return;
+        }
+
+        targetUser = entity;
+
+        await client.invoke(
+          new Api.contacts.AddContact({
+            id: entity,
+            firstName: entity.firstName ?? '',
+            lastName: entity.lastName ?? '',
+            phone: '',
+          }),
+        );
+      }
+
+      // Fetch full profile for the response
+      const fullResult = await client.invoke(
+        new Api.users.GetFullUser({ id: targetUser }),
+      );
+
+      const fullUser = fullResult.fullUser;
+      const userFromResult = (fullResult.users?.[0] ?? targetUser) as Api.User;
+
+      const profileData = await buildUserProfile(client, targetUser, fullUser, userFromResult);
+      outputSuccess(profileData);
+    } catch (err: unknown) {
+      const { message, code } = translateTelegramError(err);
+      outputError(message, code);
+    }
+  });
 }

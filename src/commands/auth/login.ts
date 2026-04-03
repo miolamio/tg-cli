@@ -5,6 +5,7 @@ import { createClientForAuth } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -25,7 +26,7 @@ export async function loginAction(this: Command): Promise<void> {
   if (!process.stdin.isTTY) {
     outputError(
       'Interactive login requires a terminal (TTY). Use `tg session import` for non-interactive auth.',
-      'NOT_INTERACTIVE',
+      ErrorCode.NOT_INTERACTIVE,
     );
     return;
   }
