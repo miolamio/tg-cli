@@ -16,6 +16,7 @@ export { SessionStore } from './lib/session-store.js';
 
 // Client lifecycle
 export { withClient } from './lib/client.js';
+export { withAuth } from './lib/with-auth.js';
 
 // Types
 export type {
