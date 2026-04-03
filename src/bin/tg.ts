@@ -9,7 +9,10 @@ import { createMessageCommand } from '../commands/message/index.js';
 import { createMediaCommand } from '../commands/media/index.js';
 import { createUserCommand } from '../commands/user/index.js';
 import { createContactCommand } from '../commands/contact/index.js';
+import { createDaemonCommand } from '../commands/daemon/index.js';
+import { createCompletionCommand } from '../commands/completion/index.js';
 import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputError } from '../lib/output.js';
+import { ErrorCode } from '../lib/error-codes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,7 +54,8 @@ program
   .option('--config <path>', 'Config file path')
   .option('--fields <fields>', 'Select output fields (comma-separated, dot notation for nested)')
   .option('--jsonl', 'Output one JSON object per line (list commands only)')
-  .option('--toon', 'Token-efficient TOON output (LLM-optimized)');
+  .option('--toon', 'Token-efficient TOON output (LLM-optimized)')
+  .option('--daemon', 'Route command through persistent daemon connection');
 
 // Global options are parsed at any position in the command line
 
@@ -63,18 +67,18 @@ program.hook('preAction', (thisCommand) => {
 
   // --toon mutual exclusion checks
   if (opts.toon && isHuman) {
-    outputError('--toon and --human are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--toon and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
   if (opts.toon && opts.jsonl) {
-    outputError('--toon and --jsonl are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--toon and --jsonl are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
   if (opts.toon) setToonMode(true);
 
   // --jsonl and --human are mutually exclusive
   if (opts.jsonl && isHuman) {
-    outputError('--jsonl and --human are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--jsonl and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     process.exit(1);
   }
 
@@ -110,6 +114,14 @@ program.addCommand(userCmd);
 const contactCmd = createContactCommand();
 contactCmd.helpGroup('Contact');
 program.addCommand(contactCmd);
+
+const daemonCmd = createDaemonCommand();
+daemonCmd.helpGroup('Daemon');
+program.addCommand(daemonCmd);
+
+const completionCmd = createCompletionCommand();
+completionCmd.helpGroup('Utility');
+program.addCommand(completionCmd);
 
 // Aliases (Phase 2+): tg ls -> chat list, tg s -> message search
 

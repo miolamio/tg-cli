@@ -1,12 +1,9 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { bigIntToString } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -20,7 +17,6 @@ import type { GlobalOptions } from '../../lib/types.js';
  */
 export async function messageReactAction(this: Command, chat: string, msgId: string, emoji: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { remove?: boolean };
-  const { profile } = opts;
   const remove = opts.remove ?? false;
 
   // Parse and validate message ID
@@ -30,44 +26,27 @@ export async function messageReactAction(this: Command, chat: string, msgId: str
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    // CRITICAL: reaction MUST be Api.ReactionEmoji[], NOT plain string (pitfall #1)
+    const reaction = remove
+      ? []
+      : [new Api.ReactionEmoji({ emoticon: emoji })];
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+    await client.invoke(
+      new Api.messages.SendReaction({
+        peer: entity,
+        msgId: messageId,
+        reaction,
+      }),
+    );
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        // CRITICAL: reaction MUST be Api.ReactionEmoji[], NOT plain string (pitfall #1)
-        const reaction = remove
-          ? []
-          : [new Api.ReactionEmoji({ emoticon: emoji })];
-
-        await client.invoke(
-          new Api.messages.SendReaction({
-            peer: entity,
-            msgId: messageId,
-            reaction,
-          }),
-        );
-
-        outputSuccess({
-          messageId,
-          chatId: bigIntToString((entity as any).id),
-          emoji,
-          action: remove ? 'removed' : 'added',
-        });
-      });
+    outputSuccess({
+      messageId,
+      chatId: bigIntToString((entity as any).id),
+      emoji,
+      action: remove ? 'removed' : 'added',
     });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+  });
 }

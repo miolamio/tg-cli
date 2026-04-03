@@ -1,13 +1,10 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { buildEntityMap } from '../../lib/entity-map.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 
 /**
@@ -38,7 +35,6 @@ export async function messageRepliesAction(
     limit: string;
     offset: string;
   };
-  const { profile } = opts;
 
   const limit = parseInt(opts.limit, 10) || 50;
   const offset = parseInt(opts.offset, 10) || 0;
@@ -67,78 +63,61 @@ export async function messageRepliesAction(
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, channelInput);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    // Single post — original simple output
+    if (msgIds.length === 1) {
+      const result = await client.invoke(
+        new Api.messages.GetReplies({
+          peer: entity,
+          msgId: msgIds[0],
+          limit,
+          addOffset: offset,
+        }),
+      );
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, channelInput);
-
-        // Single post — original simple output
-        if (msgIds.length === 1) {
-          const result = await client.invoke(
-            new Api.messages.GetReplies({
-              peer: entity,
-              msgId: msgIds[0],
-              limit,
-              addOffset: offset,
-            }),
-          );
-
-          outputSuccess({
-            messages: serializeReplies(result),
-            total: (result as any).count ?? 0,
-            postId: msgIds[0],
-          });
-          return;
-        }
-
-        // Batch mode — iterate over post IDs within one connection
-        const posts: Array<{
-          postId: number;
-          messages: MessageItem[];
-          total: number;
-        }> = [];
-
-        for (const msgId of msgIds) {
-          try {
-            const result = await client.invoke(
-              new Api.messages.GetReplies({
-                peer: entity,
-                msgId,
-                limit,
-                addOffset: offset,
-              }),
-            );
-
-            posts.push({
-              postId: msgId,
-              messages: serializeReplies(result),
-              total: (result as any).count ?? 0,
-            });
-          } catch (err: any) {
-            // Skip posts that fail (e.g. MSG_ID_INVALID) but continue batch
-            posts.push({
-              postId: msgId,
-              messages: [],
-              total: 0,
-            });
-          }
-        }
-
-        outputSuccess({ posts });
+      outputSuccess({
+        messages: serializeReplies(result),
+        total: (result as any).count ?? 0,
+        postId: msgIds[0],
       });
-    });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+      return;
+    }
+
+    // Batch mode — iterate over post IDs within one connection
+    const posts: Array<{
+      postId: number;
+      messages: MessageItem[];
+      total: number;
+    }> = [];
+
+    for (const msgId of msgIds) {
+      try {
+        const result = await client.invoke(
+          new Api.messages.GetReplies({
+            peer: entity,
+            msgId,
+            limit,
+            addOffset: offset,
+          }),
+        );
+
+        posts.push({
+          postId: msgId,
+          messages: serializeReplies(result),
+          total: (result as any).count ?? 0,
+        });
+      } catch (err: any) {
+        // Skip posts that fail (e.g. MSG_ID_INVALID) but continue batch
+        posts.push({
+          postId: msgId,
+          messages: [],
+          total: 0,
+        });
+      }
+    }
+
+    outputSuccess({ posts });
+  });
 }

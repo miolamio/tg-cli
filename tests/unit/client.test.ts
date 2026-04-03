@@ -143,6 +143,48 @@ describe('withClient', () => {
 
     vi.useRealTimers();
   });
+
+  it('retries on network error up to configured retries', async () => {
+    const networkErr = new Error('ECONNRESET');
+    (networkErr as any).code = 'ECONNRESET';
+    let callCount = 0;
+    const fn = vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount < 3) throw networkErr;
+      return 'success';
+    });
+
+    const result = await withClient(opts, fn, { retries: 3, retryDelay: 10 });
+    expect(result).toBe('success');
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry non-retryable errors', async () => {
+    const { TgError: ActualTgError } = await import('../../src/lib/errors.js');
+    const tgErr = new ActualTgError('Peer not found', 'PEER_NOT_FOUND');
+    const fn = vi.fn().mockRejectedValue(tgErr);
+
+    await expect(withClient(opts, fn, { retries: 3, retryDelay: 10 })).rejects.toThrow('Peer not found');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws after exhausting all retries', async () => {
+    const networkErr = new Error('ECONNRESET');
+    (networkErr as any).code = 'ECONNRESET';
+    const fn = vi.fn().mockRejectedValue(networkErr);
+
+    await expect(withClient(opts, fn, { retries: 2, retryDelay: 10 })).rejects.toThrow('ECONNRESET');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('defaults to no retries when retries option is not set', async () => {
+    const networkErr = new Error('ECONNRESET');
+    (networkErr as any).code = 'ECONNRESET';
+    const fn = vi.fn().mockRejectedValue(networkErr);
+
+    await expect(withClient(opts, fn)).rejects.toThrow('ECONNRESET');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('createClientForAuth', () => {

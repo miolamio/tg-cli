@@ -1,10 +1,8 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, DeleteResult } from '../../lib/types.js';
 
 /**
@@ -18,7 +16,6 @@ import type { GlobalOptions, DeleteResult } from '../../lib/types.js';
  */
 export async function messageDeleteAction(this: Command, chat: string, idsInput: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { revoke?: boolean; forMe?: boolean };
-  const { profile } = opts;
 
   // Safety: require explicit mode selection, mutually exclusive
   if (!opts.revoke && !opts.forMe) {
@@ -65,34 +62,22 @@ export async function messageDeleteAction(this: Command, chat: string, idsInput:
 
   const mode: 'revoke' | 'for-me' = opts.revoke ? 'revoke' : 'for-me';
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    try {
+      await client.deleteMessages(entity, numericIds, { revoke: mode === 'revoke' });
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        await client.deleteMessages(entity, numericIds, { revoke: mode === 'revoke' });
-
-        // If no error thrown, all deletions succeeded
-        const result: DeleteResult = {
-          deleted: numericIds,
-          failed: [],
-          mode,
-        };
-        outputSuccess(result);
-      });
-    });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+      // If no error thrown, all deletions succeeded
+      const result: DeleteResult = {
+        deleted: numericIds,
+        failed: [],
+        mode,
+      };
+      outputSuccess(result);
+    } catch (err: unknown) {
+      const { message, code } = translateTelegramError(err);
+      outputError(message, code);
+    }
+  });
 }

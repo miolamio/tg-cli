@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { createConfig } from '../../lib/config.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions, ProfileData } from '../../lib/types.js';
 
 /**
@@ -24,7 +25,7 @@ export async function exportAction(this: Command): Promise<void> {
   const sessionString = await store.load(profile);
 
   if (!sessionString) {
-    outputError(`No session found for profile '${profile}'`, 'NO_SESSION');
+    outputError(`No session found for profile '${profile}'`, ErrorCode.NO_SESSION);
     return;
   }
 

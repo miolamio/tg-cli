@@ -11,6 +11,7 @@ export interface GlobalOptions {
   fields?: string;
   jsonl?: boolean;
   toon?: boolean;
+  daemon?: boolean;
 }
 
 /**

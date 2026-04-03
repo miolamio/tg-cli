@@ -27,7 +27,7 @@ export async function statusAction(this: Command): Promise<void> {
         return;
       }
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         const authorized = await client.checkAuthorization();

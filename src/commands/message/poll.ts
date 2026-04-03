@@ -1,13 +1,11 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { generateRandomLong } from 'telegram/Helpers.js';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -107,7 +105,6 @@ export function validatePollOpts(opts: Pick<PollOpts, 'question' | 'option' | 'q
  */
 export async function messagePollAction(this: Command, chat: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & PollOpts;
-  const { profile } = opts;
 
   // Client-side validation
   const validation = validatePollOpts(opts);
@@ -116,56 +113,44 @@ export async function messagePollAction(this: Command, chat: string): Promise<vo
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    try {
+      // Build poll answers
+      const answers = opts.option.map((text, i) => new Api.PollAnswer({
+        text: new Api.TextWithEntities({ text, entities: [] }),
+        option: Buffer.from(String(i)),
+      }));
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const closeInSeconds = opts.closeIn ? parseInt(opts.closeIn, 10) : undefined;
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        // Build poll answers
-        const answers = opts.option.map((text, i) => new Api.PollAnswer({
-          text: new Api.TextWithEntities({ text, entities: [] }),
-          option: Buffer.from(String(i)),
-        }));
-
-        const closeInSeconds = opts.closeIn ? parseInt(opts.closeIn, 10) : undefined;
-
-        const poll = new Api.Poll({
-          id: generateRandomLong(),
-          question: new Api.TextWithEntities({ text: opts.question, entities: [] }),
-          answers,
-          quiz: opts.quiz || undefined,
-          publicVoters: opts.public || undefined,
-          multipleChoice: opts.multiple || undefined,
-          closePeriod: closeInSeconds || undefined,
-        });
-
-        const correctIdx = opts.correct ? parseInt(opts.correct, 10) - 1 : undefined;
-        const inputMedia = new Api.InputMediaPoll({
-          poll,
-          correctAnswers: opts.quiz && correctIdx !== undefined
-            ? [Buffer.from(String(correctIdx))]
-            : undefined,
-          solution: opts.solution || undefined,
-          solutionEntities: opts.solution ? [] : undefined,
-        });
-
-        const sentMsg = await client.sendFile(entity, { file: inputMedia });
-        const serialized = serializeMessage(sentMsg as any);
-        outputSuccess(serialized);
+      const poll = new Api.Poll({
+        id: generateRandomLong(),
+        question: new Api.TextWithEntities({ text: opts.question, entities: [] }),
+        answers,
+        quiz: opts.quiz || undefined,
+        publicVoters: opts.public || undefined,
+        multipleChoice: opts.multiple || undefined,
+        closePeriod: closeInSeconds || undefined,
       });
-    });
-  } catch (err: unknown) {
-    const { message, code } = translateTelegramError(err);
-    outputError(message, code);
-  }
+
+      const correctIdx = opts.correct ? parseInt(opts.correct, 10) - 1 : undefined;
+      const inputMedia = new Api.InputMediaPoll({
+        poll,
+        correctAnswers: opts.quiz && correctIdx !== undefined
+          ? [Buffer.from(String(correctIdx))]
+          : undefined,
+        solution: opts.solution || undefined,
+        solutionEntities: opts.solution ? [] : undefined,
+      });
+
+      const sentMsg = await client.sendFile(entity, { file: inputMedia });
+      const serialized = serializeMessage(sentMsg as any);
+      outputSuccess(serialized);
+    } catch (err: unknown) {
+      const { message, code } = translateTelegramError(err);
+      outputError(message, code);
+    }
+  });
 }

@@ -1,11 +1,8 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -32,7 +29,6 @@ async function readStdin(): Promise<string> {
  */
 export async function messageSendAction(this: Command, chat: string, text: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string; commentTo?: string };
-  const { profile } = opts;
 
   // Handle stdin pipe via dash placeholder
   if (text === '-') {
@@ -76,40 +72,23 @@ export async function messageSendAction(this: Command, chat: string, text: strin
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    // Forum guard: reject --topic on non-forum chats
+    await assertForum(entity, topicId);
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+    // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
+    const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chat);
-
-        // Forum guard: reject --topic on non-forum chats
-        await assertForum(entity, topicId);
-
-        // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
-        const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
-
-        // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
-        const sentMsg = await client.sendMessage(entity, {
-          message: text,
-          replyTo: effectiveReplyTo,
-          ...(commentTo !== undefined && { commentTo }),
-        });
-
-        const serialized = serializeMessage(sentMsg as any);
-        outputSuccess(serialized);
-      });
+    // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
+    const sentMsg = await client.sendMessage(entity, {
+      message: text,
+      replyTo: effectiveReplyTo,
+      ...(commentTo !== undefined && { commentTo }),
     });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+
+    const serialized = serializeMessage(sentMsg as any);
+    outputSuccess(serialized);
+  });
 }

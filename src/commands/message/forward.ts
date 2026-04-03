@@ -1,11 +1,8 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -21,7 +18,6 @@ import type { GlobalOptions } from '../../lib/types.js';
  */
 export async function messageForwardAction(this: Command, fromChat: string, msgIds: string, toChat: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
-  const { profile } = opts;
 
   // Parse and validate comma-separated message IDs
   const parts = msgIds.split(',').map(s => s.trim());
@@ -47,38 +43,21 @@ export async function messageForwardAction(this: Command, fromChat: string, msgI
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const fromEntity = await resolveEntity(client, fromChat);
+    const toEntity = await resolveEntity(client, toChat);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
-
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
-
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const fromEntity = await resolveEntity(client, fromChat);
-        const toEntity = await resolveEntity(client, toChat);
-
-        // MUST pass fromPeer when using integer IDs (pitfall #2 from research)
-        const forwarded = await client.forwardMessages(toEntity, {
-          messages: ids,
-          fromPeer: fromEntity,
-        });
-
-        const messages = forwarded.map((msg: any) => serializeMessage(msg));
-
-        outputSuccess({
-          forwarded: messages.length,
-          messages,
-        });
-      });
+    // MUST pass fromPeer when using integer IDs (pitfall #2 from research)
+    const forwarded = await client.forwardMessages(toEntity, {
+      messages: ids,
+      fromPeer: fromEntity,
     });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+
+    const messages = forwarded.map((msg: any) => serializeMessage(msg));
+
+    outputSuccess({
+      forwarded: messages.length,
+      messages,
+    });
+  });
 }

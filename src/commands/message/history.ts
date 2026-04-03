@@ -1,11 +1,8 @@
 import type { Command } from 'commander';
-import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
-import { withClient } from '../../lib/client.js';
-import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { formatError } from '../../lib/errors.js';
 import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
+import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 
 /**
@@ -26,8 +23,6 @@ export async function messageHistoryAction(this: Command, chatInput: string): Pr
     until?: string;
     topic?: string;
   };
-  const { profile } = opts;
-
   const limit = parseInt(opts.limit, 10) || 50;
   const offset = parseInt(opts.offset, 10) || 0;
 
@@ -38,63 +33,46 @@ export async function messageHistoryAction(this: Command, chatInput: string): Pr
     return;
   }
 
-  const config = createConfig(opts.config);
-  const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
+  await withAuth(opts, async (client) => {
+    const entity = await resolveEntity(client, chatInput);
 
-  try {
-    await store.withLock(profile, async (sessionString) => {
-      if (!sessionString) {
-        outputError('Not logged in. Run: tg auth login', 'NOT_AUTHENTICATED');
-        return;
-      }
+    // Forum guard: reject --topic on non-forum chats
+    await assertForum(entity, topicId);
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+    // Build getMessages parameters
+    const params: Record<string, any> = {
+      limit,
+      addOffset: offset,
+    };
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
-        const entity = await resolveEntity(client, chatInput);
+    // --topic: scope messages to a specific forum topic
+    if (topicId !== undefined) {
+      params.replyTo = topicId;
+    }
 
-        // Forum guard: reject --topic on non-forum chats
-        await assertForum(entity, topicId);
+    // --until: server-side date filter via offsetDate
+    if (opts.until) {
+      params.offsetDate = Math.floor(new Date(opts.until).getTime() / 1000);
+    }
 
-        // Build getMessages parameters
-        const params: Record<string, any> = {
-          limit,
-          addOffset: offset,
-        };
+    const messages = await client.getMessages(entity, params);
 
-        // --topic: scope messages to a specific forum topic
-        if (topicId !== undefined) {
-          params.replyTo = topicId;
-        }
+    // Serialize messages
+    let serialized: MessageItem[] = messages.map((msg: any) =>
+      serializeMessage(msg),
+    );
 
-        // --until: server-side date filter via offsetDate
-        if (opts.until) {
-          params.offsetDate = Math.floor(new Date(opts.until).getTime() / 1000);
-        }
+    // --since: post-filter messages after the given date
+    if (opts.since) {
+      const sinceMs = new Date(opts.since).getTime();
+      serialized = serialized.filter(
+        (m) => new Date(m.date).getTime() >= sinceMs,
+      );
+    }
 
-        const messages = await client.getMessages(entity, params);
-
-        // Serialize messages
-        let serialized: MessageItem[] = messages.map((msg: any) =>
-          serializeMessage(msg),
-        );
-
-        // --since: post-filter messages after the given date
-        if (opts.since) {
-          const sinceMs = new Date(opts.since).getTime();
-          serialized = serialized.filter(
-            (m) => new Date(m.date).getTime() >= sinceMs,
-          );
-        }
-
-        outputSuccess({
-          messages: serialized,
-          total: (messages as any).total ?? 0,
-        });
-      });
+    outputSuccess({
+      messages: serialized,
+      total: (messages as any).total ?? 0,
     });
-  } catch (err: unknown) {
-    const { message, code } = formatError(err);
-    outputError(message, code);
-  }
+  });
 }

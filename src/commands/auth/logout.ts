@@ -5,6 +5,7 @@ import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -23,11 +24,11 @@ export async function logoutAction(this: Command): Promise<void> {
   try {
     await store.withLock(profile, async (sessionString) => {
       if (!sessionString) {
-        outputError('Not logged in', 'NOT_LOGGED_IN');
+        outputError('Not logged in', ErrorCode.NOT_LOGGED_IN);
         return;
       }
 
-      const { apiId, apiHash } = getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         logStatus('Logging out...', quiet);

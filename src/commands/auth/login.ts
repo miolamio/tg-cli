@@ -5,6 +5,7 @@ import { createClientForAuth } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -18,20 +19,20 @@ import type { GlobalOptions } from '../../lib/types.js';
  * Saves the resulting session string to disk on success.
  */
 export async function loginAction(this: Command): Promise<void> {
-  const opts = this.optsWithGlobals() as GlobalOptions;
+  const opts = this.optsWithGlobals() as GlobalOptions & { client?: string };
   const { profile, quiet } = opts;
 
   // Fail fast when not running in an interactive terminal
   if (!process.stdin.isTTY) {
     outputError(
       'Interactive login requires a terminal (TTY). Use `tg session import` for non-interactive auth.',
-      'NOT_INTERACTIVE',
+      ErrorCode.NOT_INTERACTIVE,
     );
     return;
   }
 
   const config = createConfig(opts.config);
-  const { apiId, apiHash } = getCredentialsOrThrow(config);
+  const { apiId, apiHash } = await getCredentialsOrThrow(config, opts.client);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
   const prompt = createPrompt();
 
