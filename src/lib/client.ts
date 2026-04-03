@@ -18,6 +18,28 @@ export interface ClientOptions {
 export interface WithClientOptions {
   /** Timeout in milliseconds. Defaults to 120_000 (2 minutes). */
   timeout?: number;
+  /** Number of retry attempts. Default 0 (no retry). */
+  retries?: number;
+  /** Base delay in ms between retries (doubles each attempt). Default 1000. */
+  retryDelay?: number;
+}
+
+/**
+ * Determine if an error is retryable (network/transient errors only).
+ * TgError and its subclasses are never retryable (they represent app-level errors).
+ * Telegram RPCErrors are not retryable (they represent API rejection).
+ */
+function isRetryable(err: unknown): boolean {
+  if (err instanceof TgError) return false;
+  if (err instanceof Error) {
+    const code = (err as any).code;
+    if (typeof code === 'string' && ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'EAI_AGAIN'].includes(code)) {
+      return true;
+    }
+    // gramjs FloodWaitError has .seconds
+    if (typeof (err as any).seconds === 'number') return true;
+  }
+  return false;
 }
 
 /**
@@ -64,7 +86,21 @@ export async function withClient<T>(
     return await Promise.race([
       (async () => {
         await client.connect();
-        return await fn(client);
+        const maxAttempts = (options?.retries ?? 0) || 1;
+        const baseDelay = options?.retryDelay ?? 1000;
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            return await fn(client);
+          } catch (err) {
+            lastError = err;
+            if (!isRetryable(err) || attempt === maxAttempts) throw err;
+            const delay = baseDelay * Math.pow(2, attempt - 1);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+        throw lastError;
       })(),
       timeoutPromise,
     ]);
