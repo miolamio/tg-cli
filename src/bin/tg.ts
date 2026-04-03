@@ -9,6 +9,7 @@ import { createMessageCommand } from '../commands/message/index.js';
 import { createMediaCommand } from '../commands/media/index.js';
 import { createUserCommand } from '../commands/user/index.js';
 import { createContactCommand } from '../commands/contact/index.js';
+import { createDaemonCommand } from '../commands/daemon/index.js';
 import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputError } from '../lib/output.js';
 import { ErrorCode } from '../lib/error-codes.js';
 
@@ -111,6 +112,10 @@ program.addCommand(userCmd);
 const contactCmd = createContactCommand();
 contactCmd.helpGroup('Contact');
 program.addCommand(contactCmd);
+
+const daemonCmd = createDaemonCommand();
+daemonCmd.helpGroup('Daemon');
+program.addCommand(daemonCmd);
 
 // Aliases (Phase 2+): tg ls -> chat list, tg s -> message search
 
