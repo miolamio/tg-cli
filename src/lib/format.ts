@@ -471,6 +471,15 @@ export function formatData(data: unknown): string {
 
   const obj = data as Record<string, any>;
 
+  if (Array.isArray(obj.errors)) {
+    const { errors, partial: _partial, ...successfulData } = obj;
+    const formatted = formatData(successfulData);
+    const failures = errors.map((failure: { input: string; error: string; code: string }) =>
+      `Failed ${failure.input}: ${failure.error} [${failure.code}]`,
+    );
+    return [formatted, ...failures].filter(Boolean).join('\n');
+  }
+
   // Check for UserProfileResult shape (profiles[] + notFound[])
   if (Array.isArray(obj.profiles) && Array.isArray(obj.notFound)) {
     return formatUserProfile(obj.profiles as UserProfile[], obj.notFound as string[]);

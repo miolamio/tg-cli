@@ -64,10 +64,10 @@ vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
 }));
 
-const mockBigIntToString = vi.fn((val: any) => val?.toString() ?? '');
-vi.mock('../../src/lib/serialize.js', () => ({
-  bigIntToString: (val: any) => mockBigIntToString(val),
-}));
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/serialize.js')>();
+  return actual;
+});
 
 import { chatResolveAction } from '../../src/commands/chat/resolve.js';
 
@@ -123,6 +123,7 @@ describe('chatResolveAction', () => {
     await chatResolveAction.call(ctx as any, '@mychan');
 
     const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.id).toBe('-100456');
     expect(data.type).toBe('channel');
     expect(data.title).toBe('My Channel');
   });
@@ -141,6 +142,7 @@ describe('chatResolveAction', () => {
     await chatResolveAction.call(ctx as any, '@sg');
 
     const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.id).toBe('-100789');
     expect(data.type).toBe('supergroup');
   });
 
@@ -157,6 +159,7 @@ describe('chatResolveAction', () => {
     await chatResolveAction.call(ctx as any, '111');
 
     const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.id).toBe('-111');
     expect(data.type).toBe('group');
     expect(data.title).toBe('Old Group');
     expect(data.username).toBeNull();

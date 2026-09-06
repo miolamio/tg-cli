@@ -3,8 +3,9 @@ import { Api } from 'telegram';
 import { withAuth } from '../../lib/with-auth.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { markedPeerId } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Action handler for `tg chat leave <chat>`.
@@ -34,14 +35,14 @@ export async function chatLeaveAction(this: Command, chatInput: string): Promise
         }),
       );
     } else {
-      outputError('Cannot leave a user chat', 'INVALID_CHAT_TYPE');
+      outputError('Cannot leave a user chat', ErrorCode.INVALID_CHAT_TYPE);
       return;
     }
 
     outputSuccess({
       left: true,
       chat: {
-        id: bigIntToString((entity as any).id),
+        id: markedPeerId(entity),
         title: (entity as any).title ?? '',
       },
     });

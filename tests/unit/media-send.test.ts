@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolve } from 'node:path';
 
 // ---- Mocks ----
@@ -140,6 +140,8 @@ function createMockCommandContext(args: string[], opts: Record<string, any> = {}
 }
 
 describe('mediaSendAction', () => {
+  const originalExitCode = process.exitCode;
+  afterEach(() => { process.exitCode = originalExitCode; });
   beforeEach(() => {
     vi.clearAllMocks();
     mockAccess.mockResolvedValue(undefined);
@@ -172,21 +174,12 @@ describe('mediaSendAction', () => {
   });
 
   it('sends album (multiple files) and returns album result', async () => {
-    // For album, sendFile returns last message
-    mockSendFile.mockResolvedValueOnce({
-      id: 103,
-      message: '',
-      date: 1710150900,
-      media: { _type: 'photo' },
-    });
-
-    // Re-fetch album messages
     const albumMsgs = [
       { id: 101, message: '', date: 1710150900, media: {} },
-      { id: 102, message: '', date: 1710150900, media: {} },
-      { id: 103, message: '', date: 1710150900, media: {} },
+      { id: 104, message: '', date: 1710150900, media: {} },
+      { id: 109, message: '', date: 1710150900, media: {} },
     ];
-    mockGetMessages.mockResolvedValueOnce(albumMsgs);
+    mockSendFile.mockResolvedValueOnce(albumMsgs);
 
     const ctx = createMockCommandContext(['testchat', 'a.jpg', 'b.jpg', 'c.jpg']);
     await mediaSendAction.call(ctx as any);
@@ -272,29 +265,18 @@ describe('mediaSendAction', () => {
     expect(mockSendFile).not.toHaveBeenCalled();
   });
 
-  it('includes warning when album re-fetch returns partial results', async () => {
-    mockSendFile.mockResolvedValueOnce({
-      id: 103,
-      message: '',
-      date: 1710150900,
-      media: { _type: 'photo' },
-    });
-
-    // Only 2 of 3 messages returned (one gap)
-    const albumMsgs = [
+  it('reports only messages returned by Telegram when album response is partial', async () => {
+    mockSendFile.mockResolvedValueOnce([
       { id: 101, message: '', date: 1710150900, media: {} },
-      null,
-      { id: 103, message: '', date: 1710150900, media: {} },
-    ];
-    mockGetMessages.mockResolvedValueOnce(albumMsgs);
-
+      { id: 109, message: '', date: 1710150900, media: {} },
+    ]);
     const ctx = createMockCommandContext(['testchat', 'a.jpg', 'b.jpg', 'c.jpg']);
     await mediaSendAction.call(ctx as any);
-
-    expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const result = mockOutputSuccess.mock.calls[0][0];
     expect(result.sent).toBe(2);
-    expect(result.warning).toMatch(/Only 2 of 3/);
+    expect(result.messages.map((m: any) => m.id)).toEqual([101, 109]);
+    expect(result.warning).toMatch(/2 messages for 3 files/);
+    expect(mockGetMessages).not.toHaveBeenCalled();
   });
 
   it('returns INVALID_REPLY_TO error for non-numeric --reply-to', async () => {
@@ -341,16 +323,14 @@ describe('mediaSendAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
   });
 
-  it('--topic overrides --reply-to', async () => {
+  it('rejects combining --topic and --reply-to', async () => {
     const ctx = createMockCommandContext(['testchat', 'photo.jpg'], { topic: '42', replyTo: '99' });
     await mediaSendAction.call(ctx as any);
-
-    expect(mockSendFile).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        replyTo: 42,
-      }),
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--topic and --reply-to'),
+      'INVALID_OPTIONS',
     );
+    expect(mockSendFile).not.toHaveBeenCalled();
   });
 
   it('returns error when --topic used on non-forum chat', async () => {

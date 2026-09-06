@@ -159,7 +159,7 @@ describe('chatInfoAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
 
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data.id).toBe('100');
+    expect(data.id).toBe('-100100');
     expect(data.title).toBe('My Channel');
     expect(data.type).toBe('channel');
     expect(data.username).toBe('mychan');
@@ -192,7 +192,7 @@ describe('chatInfoAction', () => {
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.type).toBe('supergroup');
     expect(data.slowmodeSeconds).toBe(30);
-    expect(data.migratedFrom).toBe('50');
+    expect(data.migratedFrom).toBe('-50');
   });
 
   it('returns basic group info via GetFullChat', async () => {
@@ -212,7 +212,7 @@ describe('chatInfoAction', () => {
     await chatInfoAction.call(ctx as any, '200');
 
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data.id).toBe('200');
+    expect(data.id).toBe('-200');
     expect(data.title).toBe('My Group');
     expect(data.type).toBe('group');
     expect(data.description).toBe('Group description');
@@ -274,6 +274,6 @@ describe('chatInfoAction', () => {
     await chatInfoAction.call(ctx as any, 'nonexistent');
 
     expect(mockOutputError).toHaveBeenCalledOnce();
-    expect(mockOutputError).toHaveBeenCalledWith('Peer not found', undefined);
+    expect(mockOutputError).toHaveBeenCalledWith('Peer not found', 'UNKNOWN_ERROR');
   });
 });

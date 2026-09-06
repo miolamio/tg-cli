@@ -26,6 +26,7 @@ export interface JsonRpcError {
 
 export type JsonRpcMessage =
   | { type: 'request'; method: string; params: Record<string, unknown>; id: number }
+  | { type: 'notification'; method: string; params: Record<string, unknown> }
   | { type: 'response'; result: unknown; id: number }
   | { type: 'error'; error: { code: number; message: string; data?: unknown }; id: number | null };
 
@@ -41,6 +42,11 @@ export function encodeError(code: number, message: string, data: unknown, id: nu
   return JSON.stringify({ jsonrpc: '2.0', error: { code, message, data }, id });
 }
 
+/** Server-push event. No `id` — JSON-RPC notification. */
+export function encodeNotification(method: string, params: Record<string, unknown>): string {
+  return JSON.stringify({ jsonrpc: '2.0', method, params });
+}
+
 export function parseMessage(raw: string): JsonRpcMessage {
   let msg: any;
   try {
@@ -54,6 +60,9 @@ export function parseMessage(raw: string): JsonRpcMessage {
   }
 
   if ('method' in msg) {
+    if (msg.id === undefined || msg.id === null) {
+      return { type: 'notification', method: msg.method, params: msg.params ?? {} };
+    }
     return { type: 'request', method: msg.method, params: msg.params ?? {}, id: msg.id };
   }
   if ('result' in msg) {

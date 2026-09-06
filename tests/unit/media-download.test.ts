@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolve } from 'node:path';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 
 // ---- Mocks ----
 
@@ -251,7 +253,7 @@ describe('mediaDownloadAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message ID'),
-      'INVALID_ID',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockGetMessages).not.toHaveBeenCalled();
   });
@@ -284,17 +286,100 @@ describe('mediaDownloadAction', () => {
     const mockMsg = createMockMessageWithMedia(333, { _type: 'photo' });
     mockGetMessages.mockResolvedValueOnce([mockMsg]);
 
-    const ctx = createMockCommandContext(['testchat', '333'], { output: '/tmp/custom-photo.jpg' });
+    const dest = join(tmpdir(), `tg-custom-${process.pid}.jpg`);
+    const ctx = createMockCommandContext(['testchat', '333'], { output: dest });
     await mediaDownloadAction.call(ctx as any);
 
     expect(mockDownloadMedia).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ outputFile: resolve('/tmp/custom-photo.jpg') }),
+      expect.objectContaining({ outputFile: resolve(dest) }),
     );
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const result = mockOutputSuccess.mock.calls[0][0];
-    expect(result.path).toBe(resolve('/tmp/custom-photo.jpg'));
-    // filename should match the actual saved path, not the Telegram metadata name
-    expect(result.filename).toBe('custom-photo.jpg');
+    expect(result.path).toBe(resolve(dest));
+    expect(result.filename).toBe(`tg-custom-${process.pid}.jpg`);
+  });
+
+  it('batch download collects failed ids instead of aborting', async () => {
+    const photoA = createMockMessageWithMedia(100, { _type: 'photo' });
+    const text = createMockMessageWithMedia(200, null);
+    const photoB = createMockMessageWithMedia(300, { _type: 'photo' });
+    mockGetMessages
+      .mockResolvedValueOnce([photoA])
+      .mockResolvedValueOnce([text])
+      .mockResolvedValueOnce([photoB]);
+    mockDetectMedia.mockImplementation((media: any) => {
+      if (!media) return { mediaType: null };
+      return { mediaType: media._type ?? 'photo' };
+    });
+
+    const ctx = createMockCommandContext(['testchat', '100,200,300']);
+    await mediaDownloadAction.call(ctx as any);
+
+    expect(mockDownloadMedia).toHaveBeenCalledTimes(2);
+    expect(mockOutputError).not.toHaveBeenCalled();
+    expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    const result = mockOutputSuccess.mock.calls[0][0];
+    expect(result.downloaded).toBe(2);
+    expect(result.files).toHaveLength(2);
+    expect(result.failed).toEqual([
+      expect.objectContaining({ messageId: 200, code: 'NO_MEDIA' }),
+    ]);
+  });
+
+  it('rejects poll and sticker as not downloadable', async () => {
+    const poll = createMockMessageWithMedia(10, { _type: 'poll' });
+    mockGetMessages.mockResolvedValueOnce([poll]);
+    mockDetectMedia.mockReturnValueOnce({ mediaType: 'poll' });
+
+    const ctx = createMockCommandContext(['testchat', '10']);
+    await mediaDownloadAction.call(ctx as any);
+
+    expect(mockDownloadMedia).not.toHaveBeenCalled();
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('no downloadable media'),
+      'NO_MEDIA',
+    );
+  });
+
+  describe('overwrite guard', () => {
+    let dir: string;
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'tg-dl-'));
+    });
+
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('refuses an existing file without --force', async () => {
+      const dest = join(dir, 'exists.jpg');
+      writeFileSync(dest, 'already here');
+      const mockMsg = createMockMessageWithMedia(333, { _type: 'photo' });
+      mockGetMessages.mockResolvedValueOnce([mockMsg]);
+
+      const ctx = createMockCommandContext(['testchat', '333'], { output: dest });
+      await mediaDownloadAction.call(ctx as any);
+
+      expect(mockDownloadMedia).not.toHaveBeenCalled();
+      expect(mockOutputError).toHaveBeenCalledWith(
+        expect.stringContaining('File exists'),
+        'FILE_EXISTS',
+      );
+    });
+
+    it('overwrites an existing file with --force', async () => {
+      const dest = join(dir, 'exists.jpg');
+      writeFileSync(dest, 'already here');
+      const mockMsg = createMockMessageWithMedia(333, { _type: 'photo' });
+      mockGetMessages.mockResolvedValueOnce([mockMsg]);
+
+      const ctx = createMockCommandContext(['testchat', '333'], { output: dest, force: true });
+      await mediaDownloadAction.call(ctx as any);
+
+      expect(mockDownloadMedia).toHaveBeenCalled();
+      expect(mockOutputSuccess).toHaveBeenCalledOnce();
+    });
   });
 });

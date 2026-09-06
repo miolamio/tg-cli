@@ -1,7 +1,8 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { outputSuccess, outputError } from '../../lib/output.js';
-import { translateTelegramError } from '../../lib/errors.js';
+import { translateTelegramError, formatError } from '../../lib/errors.js';
+import { validatePagination } from '../../lib/validate.js';
 import { bigIntToString } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, BlockedListItem, BlockedListResult } from '../../lib/types.js';
@@ -18,11 +19,13 @@ import type { GlobalOptions, BlockedListItem, BlockedListResult } from '../../li
 export async function userBlockedAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { limit?: string; offset?: string };
 
-  const limit = parseInt(opts.limit ?? '50', 10);
-  const offset = parseInt(opts.offset ?? '0', 10);
-
-  if (isNaN(limit) || isNaN(offset)) {
-    outputError('Invalid limit or offset: must be a number', 'INVALID_INPUT');
+  let limit: number;
+  let offset: number;
+  try {
+    ({ limit, offset } = validatePagination({ limit: opts.limit, offset: opts.offset }));
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 

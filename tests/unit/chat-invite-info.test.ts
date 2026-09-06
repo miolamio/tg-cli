@@ -77,9 +77,10 @@ vi.mock('../../src/lib/peer.js', () => ({
 }));
 
 const mockBigIntToString = vi.fn((val: any) => val?.toString() ?? '');
-vi.mock('../../src/lib/serialize.js', () => ({
-  bigIntToString: (val: any) => mockBigIntToString(val),
-}));
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/serialize.js')>();
+  return { ...actual, bigIntToString: (val: any) => mockBigIntToString(val) };
+});
 
 import { chatInviteInfoAction } from '../../src/commands/chat/invite-info.js';
 

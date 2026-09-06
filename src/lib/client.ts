@@ -1,5 +1,7 @@
 import { TelegramClient, sessions } from 'telegram';
 import { TgError } from './errors.js';
+import { ErrorCode } from './error-codes.js';
+import { createGramjsLogger } from './gramjs-logger.js';
 
 const { StringSession } = sessions;
 
@@ -18,10 +20,12 @@ export interface ClientOptions {
 export interface WithClientOptions {
   /** Timeout in milliseconds. Defaults to 120_000 (2 minutes). */
   timeout?: number;
-  /** Number of retry attempts. Default 0 (no retry). */
+  /** Additional attempts after a retryable failure. Default 0 (one attempt). */
   retries?: number;
   /** Base delay in ms between retries (doubles each attempt). Default 1000. */
   retryDelay?: number;
+  /** Keep session ownership until all started work and teardown have finished. */
+  holdUntil?: (cleanup: Promise<unknown>) => void;
 }
 
 /**
@@ -36,10 +40,25 @@ function isRetryable(err: unknown): boolean {
     if (typeof code === 'string' && ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'EAI_AGAIN'].includes(code)) {
       return true;
     }
-    // gramjs FloodWaitError has .seconds
-    if (typeof (err as any).seconds === 'number') return true;
   }
   return false;
+}
+
+/** A retry wait owns its timer and removes it as soon as the deadline fires. */
+function waitForRetry(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
 }
 
 /**
@@ -49,6 +68,11 @@ function isRetryable(err: unknown): boolean {
  * - Sets a configurable safety timeout (default 120s) that rejects with a structured TgError
  * - Connects, runs the callback, and destroys the client in a finally block
  * - Uses destroy() (not disconnect()) to avoid zombie _updateLoop
+ * - Aborts the callback signal at the deadline and cancels pending retries.
+ *   An already running callback must observe the signal before further work;
+ *   JavaScript cannot forcibly cancel an arbitrary promise or undo an RPC.
+ *   A late completion is destroyed again. When holdUntil is supplied, session
+ *   ownership remains held until that cleanup succeeds, even after TIMEOUT.
  *
  * @param opts - Client connection options
  * @param fn - Async function to execute with the connected client
@@ -57,24 +81,34 @@ function isRetryable(err: unknown): boolean {
  */
 export async function withClient<T>(
   opts: ClientOptions,
-  fn: (client: TelegramClient) => Promise<T>,
+  fn: (client: TelegramClient, signal: AbortSignal) => Promise<T>,
   options?: WithClientOptions,
 ): Promise<T> {
   const timeoutMs = options?.timeout ?? 120_000;
   const timeoutSeconds = Math.round(timeoutMs / 1000);
+  const retries = options?.retries ?? 0;
+  const baseDelay = options?.retryDelay ?? 1000;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647
+    || !Number.isSafeInteger(retries) || retries < 0
+    || !Number.isFinite(baseDelay) || baseDelay < 0 || baseDelay > 2_147_483_647) {
+    throw new TgError('Invalid client timeout or retry options', ErrorCode.INVALID_OPTIONS);
+  }
 
   const session = new StringSession(opts.sessionString);
   const client = new TelegramClient(session, opts.apiId, opts.apiHash, {
     connectionRetries: 3,
     retryDelay: 1000,
     floodSleepThreshold: 60,
+    baseLogger: createGramjsLogger([opts.apiHash, opts.sessionString]),
   });
 
+  const cancellation = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      client.destroy().catch(() => {});
-      reject(new TgError(`Client operation timed out after ${timeoutSeconds} seconds`, 'TIMEOUT'));
+      const error = new TgError(`Client operation timed out after ${timeoutSeconds} seconds`, ErrorCode.TIMEOUT);
+      cancellation.abort(error);
+      reject(error);
     }, timeoutMs);
   });
 
@@ -82,32 +116,50 @@ export async function withClient<T>(
   // (Promise.race handles this, but detection can race in some runtimes)
   timeoutPromise.catch(() => {});
 
-  try {
-    return await Promise.race([
-      (async () => {
-        await client.connect();
-        const maxAttempts = (options?.retries ?? 0) || 1;
-        const baseDelay = options?.retryDelay ?? 1000;
-        let lastError: unknown;
+  // Defer execution to a microtask so the ownership hook is registered before
+  // connect or user work starts. Operation failure does not mean cleanup failed.
+  const operation = Promise.resolve().then(async () => {
+    await client.connect();
+    for (let attempt = 0; ; attempt++) {
+      cancellation.signal.throwIfAborted();
+      try {
+        const result = await fn(client, cancellation.signal);
+        cancellation.signal.throwIfAborted();
+        return result;
+      } catch (err) {
+        cancellation.signal.throwIfAborted();
+        if (!isRetryable(err) || attempt >= retries) throw err;
+        const backoff = Math.min(baseDelay * Math.pow(2, attempt), 2_147_483_647);
+        await waitForRetry(backoff, cancellation.signal);
+      }
+    }
+  });
 
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            return await fn(client);
-          } catch (err) {
-            lastError = err;
-            if (!isRetryable(err) || attempt === maxAttempts) throw err;
-            const delay = baseDelay * Math.pow(2, attempt - 1);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-        throw lastError;
-      })(),
-      timeoutPromise,
-    ]);
+  type TeardownResult = { ok: true } | { ok: false; error: unknown };
+  let finishTeardown!: (result: TeardownResult) => void;
+  const teardown = new Promise<TeardownResult>(resolve => { finishTeardown = resolve; });
+  const cleanup = Promise.all([operation.then(() => {}, () => {}), teardown]).then(async ([, result]) => {
+    // An SDK connect or callback can outlive the immediate timeout teardown.
+    // Final destruction runs after every started operation has settled.
+    if (cancellation.signal.aborted) await client.destroy();
+    if (!result.ok) throw result.error;
+  });
+  // Consumers without an ownership hook still get late cleanup, without an
+  // unhandled rejection. A lock owner receives the original success/failure.
+  cleanup.catch(() => {});
+  options?.holdUntil?.(cleanup);
+
+  try {
+    return await Promise.race([operation, timeoutPromise]);
   } finally {
     clearTimeout(timeoutId!);
     // Use destroy() NOT disconnect() -- avoids zombie _updateLoop
-    await client.destroy().catch(() => {});
+    try {
+      await client.destroy();
+      finishTeardown({ ok: true });
+    } catch (error) {
+      finishTeardown({ ok: false, error });
+    }
   }
 }
 
@@ -131,6 +183,7 @@ export async function createClientForAuth(
     connectionRetries: 3,
     retryDelay: 1000,
     floodSleepThreshold: 60,
+    baseLogger: createGramjsLogger([apiHash]),
   });
 
   return client;

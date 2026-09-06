@@ -6,7 +6,8 @@ import { Api } from 'telegram';
  * Processes entities from end to start (descending offset) to avoid
  * offset shifts when replacing substrings with longer Markdown syntax.
  *
- * Handles: Bold, Italic, Code, Pre, TextUrl, Strike, Blockquote, MentionName.
+ * Handles: Bold, Italic, Code, Pre, TextUrl, Strike, Blockquote, MentionName,
+ * Spoiler, Underline, CustomEmoji.
  * Mention and Url entities are kept as-is (already readable).
  */
 export function entitiesToMarkdown(
@@ -46,6 +47,13 @@ export function entitiesToMarkdown(
         .join('\n');
     } else if (entity instanceof Api.MessageEntityMentionName) {
       replacement = `[${substr}](tg://user?id=${(entity as any).userId})`;
+    } else if (entity instanceof Api.MessageEntitySpoiler) {
+      replacement = `||${substr}||`;
+    } else if (entity instanceof Api.MessageEntityUnderline) {
+      replacement = `<u>${substr}</u>`;
+    } else if (entity instanceof Api.MessageEntityCustomEmoji) {
+      const id = (entity as any).documentId;
+      replacement = `![${substr}](tg://emoji?id=${id})`;
     }
     // Mention, Url, and other entities are kept as-is
 

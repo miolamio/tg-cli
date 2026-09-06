@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock telegram Api classes for entity type checking (instanceof)
-const { MockBold, MockItalic, MockCode, MockPre, MockTextUrl, MockStrike, MockBlockquote, MockMentionName } = vi.hoisted(() => {
+const {
+  MockBold, MockItalic, MockCode, MockPre, MockTextUrl, MockStrike,
+  MockBlockquote, MockMentionName, MockSpoiler, MockUnderline, MockCustomEmoji,
+} = vi.hoisted(() => {
   class MockBold { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockItalic { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockCode { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
@@ -10,7 +13,13 @@ const { MockBold, MockItalic, MockCode, MockPre, MockTextUrl, MockStrike, MockBl
   class MockStrike { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockBlockquote { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
   class MockMentionName { offset: number; length: number; userId: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; this.userId = args.userId; } }
-  return { MockBold, MockItalic, MockCode, MockPre, MockTextUrl, MockStrike, MockBlockquote, MockMentionName };
+  class MockSpoiler { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
+  class MockUnderline { offset: number; length: number; constructor(args: any) { this.offset = args.offset; this.length = args.length; } }
+  class MockCustomEmoji { offset: number; length: number; documentId: string; constructor(args: any) { this.offset = args.offset; this.length = args.length; this.documentId = args.documentId; } }
+  return {
+    MockBold, MockItalic, MockCode, MockPre, MockTextUrl, MockStrike,
+    MockBlockquote, MockMentionName, MockSpoiler, MockUnderline, MockCustomEmoji,
+  };
 });
 
 vi.mock('telegram', () => ({
@@ -23,6 +32,9 @@ vi.mock('telegram', () => ({
     MessageEntityStrike: MockStrike,
     MessageEntityBlockquote: MockBlockquote,
     MessageEntityMentionName: MockMentionName,
+    MessageEntitySpoiler: MockSpoiler,
+    MessageEntityUnderline: MockUnderline,
+    MessageEntityCustomEmoji: MockCustomEmoji,
   },
 }));
 
@@ -115,5 +127,23 @@ describe('entitiesToMarkdown', () => {
     ];
     const result = entitiesToMarkdown('abcdef', entities as any);
     expect(result).toBe('**abc**_def_');
+  });
+
+  it('converts spoiler entity to ||text||', () => {
+    const entities = [new MockSpoiler({ offset: 0, length: 6 })];
+    const result = entitiesToMarkdown('secret revealed', entities as any);
+    expect(result).toBe('||secret|| revealed');
+  });
+
+  it('converts underline entity to <u>text</u>', () => {
+    const entities = [new MockUnderline({ offset: 0, length: 4 })];
+    const result = entitiesToMarkdown('note this', entities as any);
+    expect(result).toBe('<u>note</u> this');
+  });
+
+  it('converts custom emoji to a tg://emoji markdown image', () => {
+    const entities = [new MockCustomEmoji({ offset: 0, length: 2, documentId: '99' })];
+    const result = entitiesToMarkdown('👋 hi', entities as any);
+    expect(result).toBe('![👋](tg://emoji?id=99) hi');
   });
 });

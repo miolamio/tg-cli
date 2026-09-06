@@ -82,7 +82,8 @@ const mockSerializeMessage = vi.fn().mockImplementation((msg: any, _sender?: any
   mediaType: null,
   type: 'message',
 }));
-vi.mock('../../src/lib/serialize.js', () => ({
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/serialize.js')>()),
   serializeMessage: (...args: any[]) => mockSerializeMessage(...args),
 }));
 
@@ -178,7 +179,7 @@ describe('messageGetAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message IDs'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockGetMessages).not.toHaveBeenCalled();
   });

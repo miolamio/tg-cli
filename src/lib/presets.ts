@@ -1,5 +1,6 @@
 import { TgError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
+import { logStatus } from './output.js';
 
 // Pinned to specific commit SHA for supply-chain safety.
 // Update this SHA when upgrading to a newer opentele version.
@@ -83,7 +84,7 @@ export async function fetchAndCachePresets(
     // Try stale cache as fallback
     const cached = config.get('presets') as Record<string, CachedPreset> | undefined;
     if (cached && Object.keys(cached).length > 0) {
-      process.stderr.write('Warning: Failed to fetch fresh presets, using cached values\n');
+      logStatus('Warning: Failed to fetch fresh presets, using cached values');
       const map = new Map<string, PresetCredentials>();
       for (const [name, data] of Object.entries(cached)) {
         map.set(name, { apiId: data.apiId, apiHash: data.apiHash });

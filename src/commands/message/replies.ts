@@ -2,10 +2,13 @@ import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { serializeMessage } from '../../lib/serialize.js';
+import { messagePeerMarkedId, serializeMessage } from '../../lib/serialize.js';
 import { buildEntityMap } from '../../lib/entity-map.js';
 import { withAuth } from '../../lib/with-auth.js';
-import type { GlobalOptions, MessageItem } from '../../lib/types.js';
+import { parseMessageIds, validatePagination } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
+import { batchError, outputBatchResult } from '../../lib/batch-results.js';
+import type { BatchItemError, GlobalOptions, MessageItem } from '../../lib/types.js';
 
 /**
  * Serialize messages from a GetReplies result, resolving sender names.
@@ -13,8 +16,8 @@ import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 function serializeReplies(result: any): MessageItem[] {
   const entityMap = buildEntityMap(result);
   return result.messages.map((msg: any) => {
-    const senderId = msg.fromId?.userId ?? msg.fromId?.channelId ?? msg.fromId?.chatId;
-    const senderEntity = senderId ? entityMap.get(senderId.toString()) : undefined;
+    const senderId = messagePeerMarkedId({ peerId: msg.fromId });
+    const senderEntity = entityMap.get(senderId);
     return serializeMessage(msg, senderEntity);
   });
 }
@@ -36,30 +39,15 @@ export async function messageRepliesAction(
     offset: string;
   };
 
-  const limit = parseInt(opts.limit, 10) || 50;
-  const offset = parseInt(opts.offset, 10) || 0;
-
-  // Parse comma-separated message IDs (same pattern as forward command)
-  const parts = msgIdsInput.split(',').map(s => s.trim());
-  const msgIds: number[] = [];
-  const invalid: string[] = [];
-
-  for (const part of parts) {
-    const num = parseInt(part, 10);
-    if (isNaN(num) || num <= 0) {
-      invalid.push(part);
-    } else {
-      msgIds.push(num);
-    }
-  }
-
-  if (invalid.length > 0) {
-    outputError(`Invalid message IDs: ${invalid.join(', ')}`, 'INVALID_MSG_ID');
-    return;
-  }
-
-  if (msgIds.length === 0) {
-    outputError('No message IDs provided', 'INVALID_MSG_ID');
+  let limit: number;
+  let offset: number;
+  let msgIds: number[];
+  try {
+    ({ limit, offset } = validatePagination({ limit: opts.limit, offset: opts.offset }));
+    msgIds = parseMessageIds(msgIdsInput);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 
@@ -91,6 +79,7 @@ export async function messageRepliesAction(
       messages: MessageItem[];
       total: number;
     }> = [];
+    const errors: BatchItemError[] = [];
 
     for (const msgId of msgIds) {
       try {
@@ -108,16 +97,11 @@ export async function messageRepliesAction(
           messages: serializeReplies(result),
           total: (result as any).count ?? 0,
         });
-      } catch (err: any) {
-        // Skip posts that fail (e.g. MSG_ID_INVALID) but continue batch
-        posts.push({
-          postId: msgId,
-          messages: [],
-          total: 0,
-        });
+      } catch (err: unknown) {
+        errors.push(batchError(String(msgId), err));
       }
     }
 
-    outputSuccess({ posts });
+    outputBatchResult({ posts }, errors);
   });
 }

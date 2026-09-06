@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- Mocks ----
 
@@ -63,7 +63,8 @@ vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
 }));
 
-vi.mock('../../src/lib/serialize.js', () => ({
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/serialize.js')>()),
   serializeMessage: vi.fn((msg: any, sender?: any) => ({
     id: String(msg.id),
     text: msg.message ?? '',
@@ -124,6 +125,8 @@ function createMockMessage(id: number, text = 'reply') {
 }
 
 describe('messageRepliesAction', () => {
+  const originalExitCode = process.exitCode;
+  afterEach(() => { process.exitCode = originalExitCode; });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -163,7 +166,7 @@ describe('messageRepliesAction', () => {
     expect(data.posts[1].total).toBe(3);
   });
 
-  it('batch with error on one post → partial results (empty messages)', async () => {
+  it('batch with error on one post preserves successes and reports the failure', async () => {
     const result1 = createMockReplyResult([createMockMessage(1)], 5);
     mockInvoke
       .mockResolvedValueOnce(result1)
@@ -173,10 +176,11 @@ describe('messageRepliesAction', () => {
     await messageRepliesAction.call(ctx as any, '@channel', '10,99');
 
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data.posts).toHaveLength(2);
+    expect(data.posts).toHaveLength(1);
     expect(data.posts[0].messages).toHaveLength(1);
-    expect(data.posts[1].messages).toHaveLength(0);
-    expect(data.posts[1].total).toBe(0);
+    expect(data.partial).toBe(true);
+    expect(data.errors).toEqual([{ input: '99', error: 'MSG_ID_INVALID', code: 'UNKNOWN_ERROR' }]);
+    expect(process.exitCode).toBe(1);
   });
 
   it('invalid message ID (non-number) → error', async () => {
@@ -185,7 +189,7 @@ describe('messageRepliesAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message IDs'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockInvoke).not.toHaveBeenCalled();
   });
@@ -196,7 +200,7 @@ describe('messageRepliesAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message IDs'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
   });
 
@@ -206,7 +210,7 @@ describe('messageRepliesAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message IDs'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
   });
 

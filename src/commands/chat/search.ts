@@ -1,8 +1,10 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { withAuth } from '../../lib/with-auth.js';
-import { outputSuccess } from '../../lib/output.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { outputSuccess, outputError } from '../../lib/output.js';
+import { markedPeerId } from '../../lib/serialize.js';
+import { validatePagination } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -26,7 +28,14 @@ function chatType(entity: any): string {
 export async function chatSearchAction(this: Command, query: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { limit?: string };
 
-  const limit = parseInt(opts.limit ?? '20', 10);
+  let limit: number;
+  try {
+    ({ limit } = validatePagination({ limit: opts.limit }, 20));
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
+    return;
+  }
 
   await withAuth(opts, async (client) => {
     const found = await client.invoke(
@@ -36,7 +45,7 @@ export async function chatSearchAction(this: Command, query: string): Promise<vo
     const chats = ((found as any).chats ?? [])
       .filter((c: any) => c.className === 'Channel' || c.className === 'Chat')
       .map((c: any) => ({
-        id: bigIntToString(c.id),
+        id: markedPeerId(c),
         title: c.title ?? '',
         type: chatType(c),
         username: c.username ?? null,

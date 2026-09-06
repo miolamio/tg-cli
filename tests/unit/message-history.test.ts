@@ -137,6 +137,12 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 }
 
 describe('messageHistoryAction', () => {
+  it('rejects an explicitly empty topic before connecting', async () => {
+    await messageHistoryAction.call(createMockCommandContext({ topic: '' }) as any, 'testchat');
+    expect(mockOutputError).toHaveBeenCalledWith(expect.any(String), 'INVALID_TOPIC_ID');
+    expect(mockResolveEntity).not.toHaveBeenCalled();
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -197,6 +203,26 @@ describe('messageHistoryAction', () => {
     const data = mockOutputSuccess.mock.calls[0][0];
     // Should include only messages on or after March 12
     expect(data.messages.every((m: any) => new Date(m.date).getTime() >= new Date('2024-03-12T00:00:00Z').getTime())).toBe(true);
+  });
+
+  it('rejects invalid --since without calling Telegram', async () => {
+    const ctx = createMockCommandContext({ since: 'not-a-date' });
+    await messageHistoryAction.call(ctx as any, 'testchat');
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--since'),
+      'INVALID_INPUT',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid --until without calling Telegram', async () => {
+    const ctx = createMockCommandContext({ until: 'garbage' });
+    await messageHistoryAction.call(ctx as any, 'testchat');
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--until'),
+      'INVALID_INPUT',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
   });
 
   it('sets offsetDate when --until is provided', async () => {

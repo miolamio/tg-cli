@@ -4,6 +4,7 @@ import {
   encodeRequest,
   encodeResponse,
   encodeError,
+  encodeNotification,
   parseMessage,
 } from '../../src/lib/daemon/protocol.js';
 
@@ -57,5 +58,22 @@ describe('daemon protocol', () => {
 
   it('throws on missing jsonrpc field', () => {
     expect(() => parseMessage(JSON.stringify({ method: 'ping' }))).toThrow();
+  });
+
+  it('encodes a JSON-RPC notification with no id', () => {
+    const msg = encodeNotification('message', { id: 1, text: 'hi' });
+    const parsed = JSON.parse(msg);
+    expect(parsed.jsonrpc).toBe('2.0');
+    expect(parsed.method).toBe('message');
+    expect(parsed.params.text).toBe('hi');
+    expect(parsed).not.toHaveProperty('id');
+  });
+
+  it('parses a notification (method, no id) separately from a request', () => {
+    const raw = JSON.stringify({ jsonrpc: '2.0', method: 'message', params: { id: 7 } });
+    const msg = parseMessage(raw);
+    expect(msg.type).toBe('notification');
+    expect((msg as any).method).toBe('message');
+    expect((msg as any).params.id).toBe(7);
   });
 });

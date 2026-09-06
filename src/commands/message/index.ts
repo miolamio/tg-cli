@@ -57,7 +57,15 @@ export function createMessageCommand(): Command {
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
     .option('--topic <topicId>', 'Forum topic ID (single --chat only)')
-    .addHelpText('after', '\nValid filters: photos, videos, photo_video, documents, urls, gifs, voice, music, round, round_voice, chat_photos, phone_calls, mentions, geo, contacts, pinned')
+    .option('--public', 'Search public channel posts by hashtag (including channels you have not joined)')
+    .option('--peer <chat>', 'Public-search pagination peer (nextOffsetPeer from the previous page)')
+    .option('--after <msgId>', 'Public-search pagination message id (nextOffsetId)')
+    .addHelpText('after', `
+Valid filters: photos, videos, photo_video, documents, urls, gifs, voice, music, round, round_voice, chat_photos, phone_calls, mentions, geo, contacts, pinned
+
+Public hashtag search (gramjs layer 198; full-text query needs a newer telegram package):
+  tg message search --public --query bitcoin
+  tg message search --public --query bitcoin --offset <nextRate> --peer <nextOffsetPeer> --after <nextOffsetId>`)
     .action(messageSearchAction);
 
   message

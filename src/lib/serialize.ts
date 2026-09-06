@@ -23,6 +23,64 @@ export function bigIntToString(val: any): string {
 }
 
 /**
+ * Stable peer id matching `dialog.id` / `utils.getPeerId`:
+ * users unmarked, basic chats `-{id}`, channels `-100{id}`.
+ */
+export function markedPeerId(entity: any): string {
+  const raw = bigIntToString(entity?.id);
+  if (!raw) return '';
+  if (raw.startsWith('-')) return raw;
+  const cls = entity?.className ?? entity?.constructor?.name ?? '';
+  if (
+    cls === 'Channel' || cls === 'ChannelForbidden'
+    || entity?.megagroup || entity?.broadcast
+  ) {
+    return `-100${raw}`;
+  }
+  if (cls === 'Chat' || cls === 'ChatForbidden') {
+    return `-${raw}`;
+  }
+  return raw;
+}
+
+/**
+ * Marked peer id from a gramjs message / update (users unmarked,
+ * basic chats `-{id}`, channels `-100{id}`). Empty if unknown.
+ */
+export function messagePeerMarkedId(msg: any): string {
+  const peer = msg?.peerId;
+  if (peer) {
+    if (peer.channelId != null) {
+      const raw = bigIntToString(peer.channelId);
+      return raw.startsWith('-') ? raw : `-100${raw}`;
+    }
+    if (peer.chatId != null) {
+      const raw = bigIntToString(peer.chatId);
+      return raw.startsWith('-') ? raw : `-${raw}`;
+    }
+    if (peer.userId != null) return bigIntToString(peer.userId);
+  }
+  if (msg?.chatId != null) return bigIntToString(msg.chatId);
+  return '';
+}
+
+export function serializeChatPhoto(photo: any): { hasPhoto: boolean } | null {
+  if (!photo) return null;
+  const name = photo.className ?? photo.constructor?.name ?? '';
+  if (name.includes('Empty')) return null;
+  return { hasPhoto: true };
+}
+
+export function serializeBannedRights(rights: any): Record<string, boolean> | null {
+  if (!rights || typeof rights !== 'object') return null;
+  const out: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(rights)) {
+    if (typeof value === 'boolean') out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
  * Extract username from a dialog entity (User, Chat, or Channel).
  */
 function entityUsername(entity: any): string | null {
@@ -47,7 +105,7 @@ function dialogType(dialog: Dialog): ChatListItem['type'] {
  */
 export function serializeDialog(dialog: Dialog): ChatListItem {
   return {
-    id: bigIntToString(dialog.id),
+    id: bigIntToString(dialog.id) || markedPeerId((dialog as any).entity),
     title: dialog.title ?? dialog.name ?? '',
     type: dialogType(dialog),
     username: entityUsername(dialog.entity),
@@ -194,7 +252,7 @@ export function extractMediaInfo(media: any): MediaInfo | null {
  * option where correct === true.
  */
 export function extractPollData(media: any): PollData | null {
-  if (!(media instanceof Api.MessageMediaPoll)) return null;
+  if (!media || !(media instanceof Api.MessageMediaPoll)) return null;
 
   const poll = media.poll;
   const results = (media as any).results;
@@ -298,7 +356,7 @@ export function serializeMessage(
     text,
     date: msg.date ? new Date(msg.date * 1000).toISOString() : new Date().toISOString(),
     senderId: (msg as any).senderId ? bigIntToString((msg as any).senderId) : null,
-    senderName: senderName(senderEntity),
+    senderName: senderName(senderEntity ?? (msg as any)._sender),
     replyToMsgId: (msg as any).replyTo?.replyToMsgId ?? null,
     forwardFrom: forwardFromName((msg as any).fwdFrom),
     mediaType,
@@ -369,8 +427,7 @@ function extractPeerId(fromId: any): string {
 /**
  * Serialize a gramjs ForumTopic to a TopicItem for JSON output.
  *
- * Maps gramjs fields: topMessage -> messageCount, closed -> isClosed, pinned -> isPinned.
- * iconEmojiId is converted to string representation if present, null otherwise.
+ * Maps gramjs fields: topMessage -> topMessageId, closed -> isClosed, pinned -> isPinned.
  */
 export function serializeTopic(topic: any): TopicItem {
   return {
@@ -379,7 +436,7 @@ export function serializeTopic(topic: any): TopicItem {
     iconEmoji: topic.iconEmojiId != null ? topic.iconEmojiId.toString() : null,
     creationDate: topic.date ? new Date(topic.date * 1000).toISOString() : new Date().toISOString(),
     creatorId: extractPeerId(topic.fromId),
-    messageCount: topic.topMessage ?? 0,
+    topMessageId: topic.topMessage ?? 0,
     isClosed: !!topic.closed,
     isPinned: !!topic.pinned,
   };

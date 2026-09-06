@@ -9,7 +9,7 @@ describe('buildEntityMap', () => {
         { id: { toString: () => '200' }, firstName: 'Bob' },
       ],
       chats: [
-        { id: { toString: () => '300' }, title: 'Group' },
+        { id: { toString: () => '300' }, title: 'Group', className: 'Chat' },
       ],
     };
 
@@ -17,14 +17,14 @@ describe('buildEntityMap', () => {
     expect(map.size).toBe(3);
     expect(map.get('100')?.firstName).toBe('Alice');
     expect(map.get('200')?.firstName).toBe('Bob');
-    expect(map.get('300')?.title).toBe('Group');
+    expect(map.get('-300')?.title).toBe('Group');
   });
 
   it('handles undefined users', () => {
-    const result = { chats: [{ id: { toString: () => '1' }, title: 'C' }] };
+    const result = { chats: [{ id: { toString: () => '1' }, title: 'C', className: 'Channel' }] };
     const map = buildEntityMap(result);
     expect(map.size).toBe(1);
-    expect(map.get('1')?.title).toBe('C');
+    expect(map.get('-1001')?.title).toBe('C');
   });
 
   it('handles undefined chats', () => {
@@ -53,14 +53,15 @@ describe('buildEntityMap', () => {
     expect(map.has('9007199254740993')).toBe(true);
   });
 
-  it('last entry wins when same ID appears in users and chats', () => {
+  it('keeps users, chats and channels with the same raw ID distinct', () => {
     const result = {
       users: [{ id: { toString: () => '1' }, firstName: 'User' }],
-      chats: [{ id: { toString: () => '1' }, title: 'Chat' }],
+      chats: [{ id: { toString: () => '1' }, title: 'Chat', className: 'Chat' }, { id: { toString: () => '1' }, title: 'Channel', className: 'Channel' }],
     };
     const map = buildEntityMap(result);
-    expect(map.size).toBe(1);
-    // chats iterated after users, so chat overwrites user
-    expect(map.get('1')?.title).toBe('Chat');
+    expect(map.size).toBe(3);
+    expect(map.get('1')?.firstName).toBe('User');
+    expect(map.get('-1')?.title).toBe('Chat');
+    expect(map.get('-1001')?.title).toBe('Channel');
   });
 });

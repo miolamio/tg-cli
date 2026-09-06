@@ -1,3 +1,5 @@
+import { ErrorCode } from './error-codes.js';
+
 /**
  * Base error class for tg-cli.
  * All custom errors extend this for consistent error handling.
@@ -5,7 +7,7 @@
 export class TgError extends Error {
   readonly code: string;
 
-  constructor(message: string, code: string = 'TG_ERROR') {
+  constructor(message: string, code: string = ErrorCode.TG_ERROR) {
     super(message);
     this.name = 'TgError';
     this.code = code;
@@ -17,7 +19,7 @@ export class TgError extends Error {
  */
 export class CredentialError extends TgError {
   constructor(message: string) {
-    super(message, 'CREDENTIAL_ERROR');
+    super(message, ErrorCode.CREDENTIAL_ERROR);
     this.name = 'CredentialError';
   }
 }
@@ -27,7 +29,7 @@ export class CredentialError extends TgError {
  */
 export class SessionError extends TgError {
   constructor(message: string) {
-    super(message, 'SESSION_ERROR');
+    super(message, ErrorCode.SESSION_ERROR);
     this.name = 'SessionError';
   }
 }
@@ -40,7 +42,7 @@ export class FloodWaitError extends TgError {
   readonly seconds: number;
 
   constructor(seconds: number) {
-    super(`Rate limited. Retry after ${seconds} seconds.`, 'FLOOD_WAIT');
+    super(`Rate limited. Retry after ${seconds} seconds.`, ErrorCode.FLOOD_WAIT);
     this.name = 'FloodWaitError';
     this.seconds = seconds;
   }
@@ -55,6 +57,9 @@ export function formatError(err: unknown): { message: string; code?: string } {
     return { message: err.message, code: err.code };
   }
   if (err instanceof Error) {
+    if ('code' in err && err.code === 'ELOCKED') {
+      return { message: 'Session profile is busy. Wait for the running command or stop its daemon.', code: ErrorCode.SESSION_ERROR };
+    }
     return { message: err.message };
   }
   return { message: String(err) };
@@ -78,6 +83,8 @@ const TELEGRAM_ERROR_MAP: Record<string, string> = {
   'CONTACT_NAME_EMPTY': 'First name is required',
   'CONTACT_REQ_MISSING': 'Contact request required',
   'SEARCH_QUERY_EMPTY': 'Search query cannot be empty',
+  'PREMIUM_ACCOUNT_REQUIRED': 'Telegram Premium is required for this search',
+  'OFFSET_PEER_ID_INVALID': 'Invalid pagination peer. Pass nextOffsetPeer from the previous page',
   // Poll error codes
   'POLL_ANSWERS_INVALID': 'Invalid poll: need 2-10 answer options',
   'POLL_OPTION_DUPLICATE': 'Duplicate poll option',
@@ -102,5 +109,5 @@ export function translateTelegramError(err: unknown): { message: string; code: s
     return { message: humanMessage, code: errorMessage };
   }
   const result = formatError(err);
-  return { message: result.message, code: result.code ?? 'UNKNOWN_ERROR' };
+  return { message: result.message, code: result.code ?? ErrorCode.UNKNOWN_ERROR };
 }

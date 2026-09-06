@@ -1,6 +1,6 @@
 // tests/unit/daemon-pid.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DaemonPaths } from '../../src/lib/daemon/pid.js';
@@ -26,6 +26,12 @@ describe('DaemonPaths', () => {
     expect(paths.pidPath).toBe(join(tempDir, 'daemon', 'default.pid'));
   });
 
+  it('strips path traversal from the profile name', () => {
+    const sneaky = new DaemonPaths(tempDir, '../tmp/evil');
+    expect(sneaky.socketPath).toBe(join(tempDir, 'daemon', 'evil.sock'));
+    expect(sneaky.socketPath).not.toContain('..');
+  });
+
   it('validates socket path length for AF_UNIX limit', () => {
     expect(() => paths.validateSocketPath()).not.toThrow();
   });
@@ -41,7 +47,19 @@ describe('DaemonPaths', () => {
     expect(paths.readPid()).toBe(12345);
   });
 
+  it('writePidExclusive fails if the pid file already exists', () => {
+    expect(paths.writePidExclusive(1)).toBe(true);
+    expect(paths.writePidExclusive(2)).toBe(false);
+    expect(paths.readPid()).toBe(1);
+  });
+
   it('returns null when PID file does not exist', () => {
+    expect(paths.readPid()).toBeNull();
+  });
+
+  it.each(['123junk', '1.5', '-1', '0', '4194305', '1e3', ''])('rejects malformed or unsafe pid %j', (value) => {
+    paths.ensureDir();
+    writeFileSync(paths.pidPath, value);
     expect(paths.readPid()).toBeNull();
   });
 
@@ -53,5 +71,21 @@ describe('DaemonPaths', () => {
 
   it('checks if socket file exists', () => {
     expect(paths.socketExists()).toBe(false);
+  });
+
+  it('cleanupOwned unlinks socket then pid only when the file still has our pid', () => {
+    paths.writePidExclusive(111);
+    writeFileSync(paths.socketPath, '');
+    paths.cleanupOwned(111);
+    expect(paths.readPid()).toBeNull();
+    expect(paths.socketExists()).toBe(false);
+  });
+
+  it('cleanupOwned does not unlink a successor pid or socket', () => {
+    paths.writePidExclusive(222);
+    writeFileSync(paths.socketPath, '');
+    paths.cleanupOwned(111);
+    expect(paths.readPid()).toBe(222);
+    expect(paths.socketExists()).toBe(true);
   });
 });

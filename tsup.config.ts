@@ -1,18 +1,31 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
-  entry: {
-    'bin/tg': 'src/bin/tg.ts',
-    'lib/daemon/entry': 'src/lib/daemon/entry.ts',
-  },
-  format: ['esm'],
-  target: 'node20',
-  clean: true,
+const shared = {
+  format: ['esm'] as const,
+  target: 'node20' as const,
   sourcemap: true,
-  dts: false,
   shims: false,
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
   external: ['telegram'],
-});
+};
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: { 'bin/tg': 'src/bin/tg.ts' },
+    clean: true,
+    dts: false,
+    banner: { js: '#!/usr/bin/env node' },
+  },
+  {
+    ...shared,
+    entry: { 'lib/daemon/entry': 'src/lib/daemon/entry.ts' },
+    clean: false,
+    dts: false,
+  },
+  {
+    ...shared,
+    entry: { index: 'src/index.ts' },
+    clean: false,
+    dts: true,
+  },
+]);

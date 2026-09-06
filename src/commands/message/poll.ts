@@ -6,7 +6,9 @@ import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions } from '../../lib/types.js';
+import { parseIntegerOption } from '../../lib/validate.js';
 
 /**
  * Options for the poll subcommand.
@@ -31,27 +33,27 @@ interface PollOpts {
 export function validatePollOpts(opts: Pick<PollOpts, 'question' | 'option' | 'quiz' | 'correct' | 'solution' | 'multiple' | 'closeIn'>): { error: string; code: string } | null {
   // Question validation
   if (!opts.question || opts.question.trim().length === 0) {
-    return { error: 'Poll question cannot be empty', code: 'EMPTY_QUESTION' };
+    return { error: 'Poll question cannot be empty', code: ErrorCode.EMPTY_QUESTION };
   }
   if (opts.question.length > 300) {
-    return { error: 'Question too long (max 300 chars)', code: 'QUESTION_TOO_LONG' };
+    return { error: 'Question too long (max 300 chars)', code: ErrorCode.QUESTION_TOO_LONG };
   }
 
   // Options count validation
   if (opts.option.length < 2) {
-    return { error: 'Poll requires 2-10 options', code: 'TOO_FEW_OPTIONS' };
+    return { error: 'Poll requires 2-10 options', code: ErrorCode.TOO_FEW_OPTIONS };
   }
   if (opts.option.length > 10) {
-    return { error: 'Poll requires 2-10 options', code: 'TOO_MANY_OPTIONS' };
+    return { error: 'Poll requires 2-10 options', code: ErrorCode.TOO_MANY_OPTIONS };
   }
 
   // Individual option validation
   for (const opt of opts.option) {
     if (!opt || opt.trim().length === 0) {
-      return { error: 'Poll option cannot be empty', code: 'EMPTY_OPTION' };
+      return { error: 'Poll option cannot be empty', code: ErrorCode.EMPTY_OPTION };
     }
     if (opt.length > 100) {
-      return { error: 'Option too long (max 100 chars)', code: 'OPTION_TOO_LONG' };
+      return { error: 'Option too long (max 100 chars)', code: ErrorCode.OPTION_TOO_LONG };
     }
   }
 
@@ -59,35 +61,37 @@ export function validatePollOpts(opts: Pick<PollOpts, 'question' | 'option' | 'q
   const seen = new Set<string>();
   for (const opt of opts.option) {
     if (seen.has(opt)) {
-      return { error: `Duplicate option text: '${opt}'`, code: 'DUPLICATE_OPTION' };
+      return { error: `Duplicate option text: '${opt}'`, code: ErrorCode.DUPLICATE_OPTION };
     }
     seen.add(opt);
   }
 
   // Quiz constraints
   if (opts.quiz && !opts.correct) {
-    return { error: 'Quiz mode requires --correct <index>', code: 'QUIZ_MISSING_CORRECT' };
+    return { error: 'Quiz mode requires --correct <index>', code: ErrorCode.QUIZ_MISSING_CORRECT };
   }
   if (opts.solution && !opts.quiz) {
-    return { error: '--solution requires --quiz mode', code: 'SOLUTION_WITHOUT_QUIZ' };
+    return { error: '--solution requires --quiz mode', code: ErrorCode.SOLUTION_WITHOUT_QUIZ };
   }
   if (opts.quiz && opts.multiple) {
-    return { error: 'Quiz mode cannot use --multiple', code: 'QUIZ_MULTIPLE_CONFLICT' };
+    return { error: 'Quiz mode cannot use --multiple', code: ErrorCode.QUIZ_MULTIPLE_CONFLICT };
   }
 
   // --correct range validation
-  if (opts.correct) {
-    const idx = parseInt(opts.correct, 10);
-    if (isNaN(idx) || idx < 1 || idx > opts.option.length) {
-      return { error: `Correct index must be 1-${opts.option.length}`, code: 'INVALID_CORRECT_INDEX' };
+  if (opts.correct !== undefined) {
+    try {
+      parseIntegerOption(opts.correct, 'Correct index', { min: 1, max: opts.option.length });
+    } catch {
+      return { error: `Correct index must be 1-${opts.option.length}`, code: ErrorCode.INVALID_CORRECT_INDEX };
     }
   }
 
   // --close-in validation
-  if (opts.closeIn) {
-    const seconds = parseInt(opts.closeIn, 10);
-    if (isNaN(seconds) || seconds <= 0) {
-      return { error: 'Close-in seconds must be > 0', code: 'INVALID_CLOSE_IN' };
+  if (opts.closeIn !== undefined) {
+    try {
+      parseIntegerOption(opts.closeIn, 'Close-in seconds', { min: 1 });
+    } catch {
+      return { error: 'Close-in seconds must be > 0', code: ErrorCode.INVALID_CLOSE_IN };
     }
   }
 
@@ -123,7 +127,7 @@ export async function messagePollAction(this: Command, chat: string): Promise<vo
         option: Buffer.from(String(i)),
       }));
 
-      const closeInSeconds = opts.closeIn ? parseInt(opts.closeIn, 10) : undefined;
+      const closeInSeconds = opts.closeIn !== undefined ? Number(opts.closeIn.trim()) : undefined;
 
       const poll = new Api.Poll({
         id: generateRandomLong(),
@@ -135,7 +139,7 @@ export async function messagePollAction(this: Command, chat: string): Promise<vo
         closePeriod: closeInSeconds || undefined,
       });
 
-      const correctIdx = opts.correct ? parseInt(opts.correct, 10) - 1 : undefined;
+      const correctIdx = opts.correct !== undefined ? Number(opts.correct.trim()) - 1 : undefined;
       const inputMedia = new Api.InputMediaPoll({
         poll,
         correctAnswers: opts.quiz && correctIdx !== undefined
@@ -146,6 +150,10 @@ export async function messagePollAction(this: Command, chat: string): Promise<vo
       });
 
       const sentMsg = await client.sendFile(entity, { file: inputMedia });
+      if (!sentMsg) {
+        outputError('Telegram did not return the sent poll result; retrying may create a duplicate.', ErrorCode.MESSAGE_RESULT_UNAVAILABLE);
+        return;
+      }
       const serialized = serializeMessage(sentMsg as any);
       outputSuccess(serialized);
     } catch (err: unknown) {

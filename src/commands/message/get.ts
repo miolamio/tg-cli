@@ -1,9 +1,11 @@
 import type { Command } from 'commander';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { serializeMessage } from '../../lib/serialize.js';
+import { messagePeerMarkedId, serializeMessage } from '../../lib/serialize.js';
 import { buildEntityMap } from '../../lib/entity-map.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { parseMessageIds } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions, MessageItem } from '../../lib/types.js';
 
 /**
@@ -21,32 +23,12 @@ export async function messageGetAction(
 ): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
 
-  // Parse comma-separated message IDs
-  const parts = idsInput.split(',').map(s => s.trim());
-  const numericIds: number[] = [];
-  const invalid: string[] = [];
-
-  for (const part of parts) {
-    const num = parseInt(part, 10);
-    if (isNaN(num) || num <= 0) {
-      invalid.push(part);
-    } else {
-      numericIds.push(num);
-    }
-  }
-
-  if (invalid.length > 0) {
-    outputError(`Invalid message IDs: ${invalid.join(', ')}`, 'INVALID_MSG_ID');
-    return;
-  }
-
-  if (numericIds.length === 0) {
-    outputError('No message IDs provided', 'INVALID_MSG_ID');
-    return;
-  }
-
-  if (numericIds.length > 100) {
-    outputError(`Maximum 100 IDs per request (got ${numericIds.length})`, 'TOO_MANY_IDS');
+  let numericIds: number[];
+  try {
+    numericIds = parseMessageIds(idsInput);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 
@@ -69,9 +51,9 @@ export async function messageGetAction(
         // Prefer _sender from gramjs _finishInit, fall back to entity map
         let senderEntity = (msg as any)._sender;
         if (!senderEntity) {
-          const senderId = (msg as any).fromId?.userId ?? (msg as any).fromId?.channelId ?? (msg as any).fromId?.chatId;
+          const senderId = messagePeerMarkedId({ peerId: (msg as any).fromId });
           if (senderId) {
-            senderEntity = entityMap.get(senderId.toString());
+            senderEntity = entityMap.get(senderId);
           }
         }
         found.push(serializeMessage(msg, senderEntity));

@@ -3,6 +3,7 @@ import { createConfig } from '../../lib/config.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { ErrorCode } from '../../lib/error-codes.js';
+import { refuseDirectConnectIfDaemon } from '../../lib/daemon/guard.js';
 import type { GlobalOptions, ProfileData } from '../../lib/types.js';
 
 /**
@@ -18,6 +19,7 @@ import type { GlobalOptions, ProfileData } from '../../lib/types.js';
 export async function exportAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
   const { profile, quiet } = opts;
+  if (await refuseDirectConnectIfDaemon(opts)) return;
 
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
@@ -29,13 +31,17 @@ export async function exportAction(this: Command): Promise<void> {
     return;
   }
 
-  // Check if --json was explicitly passed on the CLI vs being the app default.
-  // Export's special behavior: raw string for piping unless user explicitly wants JSON.
-  const jsonSource = this.parent?.getOptionValueSource('json');
+  // Raw string is the default (piping). Structured modes still go through outputSuccess.
+  const jsonSource = this.getOptionValueSourceWithGlobals('json');
   const jsonExplicit = jsonSource === 'cli';
+  const structured =
+    jsonExplicit ||
+    opts.human === true ||
+    opts.json === false ||
+    !!opts.toon ||
+    !!opts.jsonl;
 
-  if (jsonExplicit) {
-    // JSON envelope mode: include metadata
+  if (structured) {
     const profileData = config.get(`profiles.${profile}`) as ProfileData | undefined;
     outputSuccess({
       session: sessionString,
@@ -43,7 +49,6 @@ export async function exportAction(this: Command): Promise<void> {
       created: profileData?.created,
     });
   } else {
-    // Raw string mode (default for export): ideal for piping
     logStatus('Exporting session...', quiet);
     process.stdout.write(sessionString + '\n');
   }

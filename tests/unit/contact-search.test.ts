@@ -51,6 +51,7 @@ vi.mock('telegram', () => ({
     Chat: MockChat,
     contacts: {
       Search: vi.fn(),
+      GetContacts: vi.fn(),
     },
     users: {
       GetFullUser: vi.fn(),
@@ -167,11 +168,12 @@ describe('contactSearchAction', () => {
     mockInvoke.mockResolvedValue(undefined);
   });
 
-  it('searches contacts (default) using myResults only', async () => {
+  it('searches the address book locally and ignores unrelated users', async () => {
     const user1 = createMockSearchUser({ id: BigInt(100), firstName: 'Alice', username: 'alice' });
 
-    // contacts.Search result
+    // GetContacts may include entity metadata for unrelated users.
     mockInvoke.mockResolvedValueOnce({
+      contacts: [{ userId: BigInt(100), mutual: true }],
       myResults: [{ className: 'PeerUser', userId: BigInt(100) }],
       results: [
         { className: 'PeerUser', userId: BigInt(100) },
@@ -184,7 +186,7 @@ describe('contactSearchAction', () => {
       chats: [],
     });
 
-    // GetFullUser for Alice (from myResults only)
+    // GetFullUser for the matching saved contact Alice
     mockInvoke.mockResolvedValueOnce(createMockFullUserResult(user1));
     // GetUserPhotos
     mockInvoke.mockResolvedValueOnce({ count: 1, photos: [] });
@@ -194,18 +196,19 @@ describe('contactSearchAction', () => {
 
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const result = mockOutputSuccess.mock.calls[0][0];
-    // Default mode: only myResults (1 user)
+    // Default mode: only saved contacts (1 user)
     expect(result.results).toHaveLength(1);
     expect(result.results[0].firstName).toBe('Alice');
     expect(result.results[0].isContact).toBe(true);
     expect(result.total).toBe(1);
   });
 
-  it('searches with --global using myResults + results with isContact flag', async () => {
+  it('searches with --global using local contacts plus remote results', async () => {
     const user1 = createMockSearchUser({ id: BigInt(100), firstName: 'Alice', username: 'alice' });
     const user2 = createMockSearchUser({ id: BigInt(200), firstName: 'Alicia', username: 'alicia', mutualContact: false });
 
-    // contacts.Search result
+    // Read local contacts, then append remote username results.
+    mockInvoke.mockResolvedValueOnce({ contacts: [{ userId: BigInt(100), mutual: true }], users: [user1] });
     mockInvoke.mockResolvedValueOnce({
       myResults: [{ className: 'PeerUser', userId: BigInt(100) }],
       results: [
@@ -227,18 +230,19 @@ describe('contactSearchAction', () => {
 
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const result = mockOutputSuccess.mock.calls[0][0];
-    // Global mode: myResults + results (2 users)
+    // Global mode: local contact plus remote match (2 users)
     expect(result.results).toHaveLength(2);
-    // Alice is from myResults -> isContact: true
+    // Alice is in the address book -> isContact: true
     expect(result.results[0].isContact).toBe(true);
-    // Alicia is from results -> isContact: false
+    // Alicia is absent from the address book -> isContact: false
     expect(result.results[1].isContact).toBe(false);
     expect(result.total).toBe(2);
   });
 
   it('handles empty results', async () => {
-    // contacts.Search with no matches
+    // GetContacts with an empty address book.
     mockInvoke.mockResolvedValueOnce({
+      contacts: [],
       myResults: [],
       results: [],
       users: [],
@@ -248,7 +252,7 @@ describe('contactSearchAction', () => {
     const ctx = createMockCommandContext();
     await contactSearchAction.call(ctx as any, 'nonexistent');
 
-    expect(mockOutputSuccess).toHaveBeenCalledWith({ results: [], total: 0 });
+    expect(mockOutputSuccess).toHaveBeenCalledWith({ results: [], total: 0, partial: false, errors: [] });
   });
 
   it('handles not-logged-in with NOT_AUTHENTICATED', async () => {

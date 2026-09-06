@@ -94,7 +94,8 @@ const mockStoreWithLock = vi.fn().mockImplementation(async (_profile: string, fn
 
 vi.mock('../../src/lib/session-store.js', () => ({
   SessionStore: vi.fn().mockImplementation(() => ({
-    save: mockStoreSave,
+    save: vi.fn(),
+    saveUnlocked: mockStoreSave,
     load: mockStoreLoad,
     delete: mockStoreDelete,
     deleteUnlocked: mockStoreDeleteUnlocked,
@@ -106,7 +107,7 @@ vi.mock('../../src/lib/session-store.js', () => ({
 // Mock client module
 vi.mock('../../src/lib/client.js', () => ({
   createClientForAuth: vi.fn(async () => mockClientInstance),
-  withClient: vi.fn(async (_opts: any, fn: any) => fn(mockClientInstance)),
+  withClient: vi.fn(async (_opts: any, fn: any) => fn(mockClientInstance, new AbortController().signal)),
 }));
 
 // Import after mocks
@@ -129,6 +130,36 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
     })),
   };
 }
+
+describe('auth --daemon', () => {
+  it('status refuses --daemon instead of opening a second client', async () => {
+    const ctx = createMockCommandContext({ daemon: true });
+    await statusAction.call(ctx as any);
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--daemon'),
+      'DAEMON_PROXY_UNAVAILABLE',
+    );
+    expect(mockStoreWithLock).not.toHaveBeenCalled();
+  });
+
+  it('login refuses --daemon', async () => {
+    const ctx = createMockCommandContext({ daemon: true });
+    await loginAction.call(ctx as any);
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--daemon'),
+      'DAEMON_PROXY_UNAVAILABLE',
+    );
+  });
+
+  it('logout refuses --daemon', async () => {
+    const ctx = createMockCommandContext({ daemon: true });
+    await logoutAction.call(ctx as any);
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--daemon'),
+      'DAEMON_PROXY_UNAVAILABLE',
+    );
+  });
+});
 
 describe('loginAction', () => {
   const originalIsTTY = process.stdin.isTTY;
@@ -167,13 +198,15 @@ describe('loginAction', () => {
     expect(mockStoreSave).toHaveBeenCalledWith('default', 'saved-session-string');
   });
 
-  it('outputs success with truncated session and phone', async () => {
+  it('outputs login metadata without disclosing the session string', async () => {
     const ctx = createMockCommandContext();
     await loginAction.call(ctx as any);
 
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data).toHaveProperty('session');
+    expect(data).toMatchObject({ loggedIn: true, profile: 'default' });
+    expect(data).not.toHaveProperty('session');
+    expect(JSON.stringify(data)).not.toContain('saved-session');
     expect(data).toHaveProperty('phone');
   });
 
@@ -253,6 +286,29 @@ describe('statusAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.authorized).toBe(true);
+  });
+
+  it('serializes gramjs user.id as a string, not a BigInteger object', async () => {
+    mockStoreLoad.mockResolvedValueOnce('existing-session');
+    mockCheckAuthorization.mockResolvedValueOnce(true);
+    // gramjs big-integer: JSON.stringify produces {} unless converted via toString()
+    const gramjsId = {
+      toString: () => '123456789012345',
+      toJSON: () => ({}),
+    };
+    mockGetMe.mockResolvedValueOnce({
+      id: gramjsId,
+      phone: '+15551234567',
+      username: 'testuser',
+      firstName: 'Test',
+    });
+    const ctx = createMockCommandContext();
+    await statusAction.call(ctx as any);
+
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.authorized).toBe(true);
+    expect(data.user.id).toBe('123456789012345');
+    expect(JSON.parse(JSON.stringify(data.user)).id).toBe('123456789012345');
   });
 });
 

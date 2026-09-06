@@ -135,6 +135,13 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 }
 
 describe('messageSendAction', () => {
+  it('reports an unknown send result without repeating the write', async () => {
+    mockSendMessage.mockResolvedValueOnce(undefined);
+    await messageSendAction.call(createMockCommandContext() as any, 'testchat', 'Test');
+    expect(mockSendMessage).toHaveBeenCalledOnce();
+    expect(mockOutputError).toHaveBeenCalledWith(expect.stringContaining('duplicate'), 'MESSAGE_RESULT_UNAVAILABLE');
+    expect(mockOutputSuccess).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset sendMessage to return a valid message by default
@@ -155,6 +162,29 @@ describe('messageSendAction', () => {
     expect(data).toHaveProperty('id');
     expect(data).toHaveProperty('text');
     expect(data).toHaveProperty('date');
+  });
+
+  it('rejects an explicitly empty topic before connecting or sending', async () => {
+    await messageSendAction.call(createMockCommandContext({ topic: '' }) as any, 'testchat', 'Test');
+    expect(mockOutputError).toHaveBeenCalledWith(expect.any(String), 'INVALID_TOPIC_ID');
+    expect(mockResolveEntity).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it.each(['12junk', '0', '-1', '1.5', '1e3', '2147483648', '9007199254740993', ''])('rejects invalid reply and comment IDs before connecting: %s', async (input) => {
+    for (const [option, code] of [['replyTo', 'INVALID_REPLY_TO'], ['commentTo', 'INVALID_COMMENT_TO']]) {
+      vi.clearAllMocks();
+      await messageSendAction.call(createMockCommandContext({ [option]: input }) as any, 'testchat', 'Test');
+      expect(mockOutputError).toHaveBeenCalledWith(expect.any(String), code);
+      expect(mockSendMessage).not.toHaveBeenCalled();
+      expect(mockResolveEntity).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([{ commentTo: '42', replyTo: '43' }, { commentTo: '42', topic: '43' }])('rejects competing reply targets: %j', async opts => {
+    await messageSendAction.call(createMockCommandContext(opts) as any, 'testchat', 'Test');
+    expect(mockOutputError).toHaveBeenCalledWith(expect.any(String), 'INVALID_OPTIONS');
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('sends a reply when --reply-to is provided', async () => {
@@ -260,15 +290,14 @@ describe('messageSendAction', () => {
     );
   });
 
-  it('--topic overrides --reply-to for replyTo value', async () => {
+  it('rejects combining --topic and --reply-to', async () => {
     const ctx = createMockCommandContext({ topic: '7', replyTo: '99' });
     await messageSendAction.call(ctx as any, 'testchat', 'Topic wins');
-
-    // topicId should win as the replyTo value
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ replyTo: 7 }),
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--topic and --reply-to'),
+      'INVALID_OPTIONS',
     );
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('outputs NOT_A_FORUM error when --topic is used on non-forum entity', async () => {

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { outputSuccess, outputError, logStatus, setOutputMode, getOutputMode, setJsonlMode, setFieldSelection } from '../../src/lib/output.js';
+import { outputSuccess, outputError, logStatus, logVerbose, setOutputMode, getOutputMode, setJsonlMode, setFieldSelection, setToonMode, setQuietMode, setVerboseMode } from '../../src/lib/output.js';
+
+afterEach(() => {
+  process.exitCode = 0;
+  setToonMode(false);
+  setQuietMode(false);
+  setVerboseMode(false);
+});
 
 describe('outputSuccess', () => {
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
@@ -33,6 +40,75 @@ describe('outputSuccess', () => {
     outputSuccess({ user: 'test' });
     expect(stderrSpy).not.toHaveBeenCalled();
     stderrSpy.mockRestore();
+  });
+});
+
+describe('outputError exit code', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    process.exitCode = 0;
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+    setOutputMode(false);
+    setJsonlMode(false);
+    setToonMode(false);
+    process.exitCode = 0;
+  });
+
+  it('sets process.exitCode to 1 in JSON mode', () => {
+    outputError('fail', 'AUTH_ERR');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('sets process.exitCode to 1 in human mode', () => {
+    setOutputMode(true);
+    outputError('fail', 'AUTH_ERR');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('sets process.exitCode to 1 in JSONL mode', () => {
+    setJsonlMode(true);
+    outputError('fail', 'AUTH_ERR');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('sets process.exitCode to 1 in TOON mode', () => {
+    setToonMode(true);
+    outputError('fail', 'AUTH_ERR');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('does not call process.exit (destroy/finally must still run)', () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    outputError('fail', 'AUTH_ERR');
+    expect(exitSpy).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+});
+
+describe('outputSuccess exit code', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    process.exitCode = 0;
+  });
+
+  afterEach(() => {
+    stdoutSpy.mockRestore();
+    process.exitCode = 0;
+  });
+
+  it('leaves process.exitCode at 0', () => {
+    outputSuccess({ ok: true });
+    expect(process.exitCode).toBe(0);
   });
 });
 
@@ -101,6 +177,46 @@ describe('logStatus', () => {
   it('writes nothing when quiet is true', () => {
     logStatus('msg', true);
 
+    expect(stderrSpy).not.toHaveBeenCalled();
+  });
+
+  it('honors global quiet mode when quiet arg is omitted', () => {
+    setQuietMode(true);
+    logStatus('msg');
+    expect(stderrSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('logVerbose', () => {
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    setVerboseMode(false);
+    setQuietMode(false);
+  });
+
+  afterEach(() => {
+    stderrSpy.mockRestore();
+    setVerboseMode(false);
+    setQuietMode(false);
+  });
+
+  it('writes nothing by default', () => {
+    logVerbose('rpc body');
+    expect(stderrSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes to stderr when verbose mode is on', () => {
+    setVerboseMode(true);
+    logVerbose('rpc body');
+    expect(stderrSpy).toHaveBeenCalledWith('rpc body\n');
+  });
+
+  it('is suppressed by quiet mode', () => {
+    setVerboseMode(true);
+    setQuietMode(true);
+    logVerbose('rpc body');
     expect(stderrSpy).not.toHaveBeenCalled();
   });
 });
@@ -309,11 +425,45 @@ describe('outputSuccess in JSONL mode', () => {
     stderrSpy.mockRestore();
   });
 
+  it('suppresses JSONL notFound on stderr when quiet', () => {
+    setQuietMode(true);
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    outputSuccess({ messages: [{ id: 1 }], notFound: [99] });
+    expect(stdoutSpy).toHaveBeenCalledOnce();
+    expect(stderrSpy).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
+    setQuietMode(false);
+  });
+
   it('works with users array (LIST_KEYS includes users)', () => {
     outputSuccess({ users: [{ id: '1', firstName: 'Dave', isBot: false }], total: 1 });
 
     expect(stdoutSpy).toHaveBeenCalledOnce();
     expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({ id: '1', firstName: 'Dave', isBot: false });
+  });
+
+  it('streams batch download files and failed entries', () => {
+    outputSuccess({
+      files: [{ path: '/tmp/a.jpg', filename: 'a.jpg', size: 1, mediaType: 'photo', messageId: 1 }],
+      downloaded: 1,
+      failed: [{ messageId: 2, error: 'no media', code: 'NO_MEDIA' }],
+    });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(stdoutSpy.mock.calls[0][0] as string)).toEqual({
+      path: '/tmp/a.jpg',
+      filename: 'a.jpg',
+      size: 1,
+      mediaType: 'photo',
+      messageId: 1,
+      status: 'downloaded',
+    });
+    expect(JSON.parse(stdoutSpy.mock.calls[1][0] as string)).toEqual({
+      messageId: 2,
+      status: 'failed',
+      error: 'no media',
+      code: 'NO_MEDIA',
+    });
   });
 
   it('streams DeleteResult as one JSONL line per deleted/failed ID', () => {

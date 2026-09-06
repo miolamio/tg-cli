@@ -95,6 +95,7 @@ vi.mock('../../src/lib/client.js', () => ({
 const mockResolveEntity = vi.fn();
 vi.mock('../../src/lib/peer.js', () => ({
   resolveEntity: (...args: any[]) => mockResolveEntity(...args),
+  isPhoneNumber: (input: string) => /^\+\d+$/.test(input),
 }));
 
 // Mock serialize
@@ -263,25 +264,17 @@ describe('contactAddAction', () => {
     );
   });
 
-  it('all-digit input treated as phone (ImportContacts route)', async () => {
-    const importedUser = createMockUserEntity({ id: BigInt(300), firstName: 'Charlie' });
-
-    // ImportContacts
-    mockInvoke.mockResolvedValueOnce({
-      users: [importedUser],
-      imported: [{ userId: BigInt(300) }],
-      retryContacts: [],
-    });
-    // GetFullUser
-    mockInvoke.mockResolvedValueOnce(createMockFullUserResult(importedUser));
-    // GetUserPhotos
+  it('all-digit input is a user id, not a phone', async () => {
+    const user = createMockUserEntity({ id: BigInt(300), firstName: 'Charlie' });
+    mockResolveEntity.mockResolvedValueOnce(user);
+    mockInvoke.mockResolvedValueOnce({ updates: [] });
+    mockInvoke.mockResolvedValueOnce(createMockFullUserResult(user));
     mockInvoke.mockResolvedValueOnce({ count: 0, photos: [] });
 
     const ctx = createMockCommandContext({ firstName: 'Charlie' });
     await contactAddAction.call(ctx as any, '1234567890');
 
-    // Should NOT call resolveEntity — all-digit input is treated as phone
-    expect(mockResolveEntity).not.toHaveBeenCalled();
+    expect(mockResolveEntity).toHaveBeenCalledWith(expect.anything(), '1234567890');
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
   });
 

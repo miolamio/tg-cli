@@ -70,6 +70,29 @@ describe('resolveEntity', () => {
     expect(mockClient.getEntity).toHaveBeenCalledWith('testuser');
   });
 
+  it.each(['username', '+15551234567', '-10012345'])('preserves RPC and transport failures resolving %s', async (input) => {
+    for (const error of [Object.assign(new Error('FLOOD_WAIT_30'), { errorMessage: 'FLOOD_WAIT_30', code: 420 }), new Error('connection reset')]) {
+      mockClient.getEntity.mockRejectedValueOnce(error);
+      await expect(resolveEntity(mockClient, input)).rejects.toBe(error);
+    }
+  });
+
+  it('preserves transport failures resolving invite links', async () => {
+    const error = new Error('connection reset');
+    mockClient.invoke.mockRejectedValueOnce(error);
+    await expect(resolveEntity(mockClient, 'https://t.me/+hash')).rejects.toBe(error);
+  });
+
+  it('maps only confirmed missing usernames to PEER_NOT_FOUND', async () => {
+    mockClient.getEntity.mockRejectedValueOnce(Object.assign(new Error('USERNAME_NOT_OCCUPIED'), { errorMessage: 'USERNAME_NOT_OCCUPIED', code: 400 }));
+    await expect(resolveEntity(mockClient, 'missing')).rejects.toMatchObject({ code: 'PEER_NOT_FOUND' });
+  });
+
+  it('rejects unsafe numeric peers before querying Telegram', async () => {
+    await expect(resolveEntity(mockClient, '9007199254740993')).rejects.toMatchObject({ code: 'INVALID_ID' });
+    expect(mockClient.getEntity).not.toHaveBeenCalled();
+  });
+
   it('strips @ prefix from @username', async () => {
     await resolveEntity(mockClient, '@testuser');
     expect(mockClient.getEntity).toHaveBeenCalledWith('testuser');
@@ -88,6 +111,13 @@ describe('resolveEntity', () => {
   it('handles phone number input starting with +digits', async () => {
     await resolveEntity(mockClient, '+15551234567');
     expect(mockClient.getEntity).toHaveBeenCalledWith('+15551234567');
+  });
+
+  it('throws NOT_A_MEMBER when invite preview has no chat', async () => {
+    mockClient.invoke.mockResolvedValueOnce({ className: 'ChatInvite' });
+    await expect(resolveEntity(mockClient, 'https://t.me/+preview')).rejects.toMatchObject({
+      code: 'NOT_A_MEMBER',
+    });
   });
 
   it('uses CheckChatInvite for t.me/+HASH invite links', async () => {
@@ -224,7 +254,11 @@ describe('assertForum', () => {
     await expect(assertForum({ className: 'Channel', forum: false }, 7)).rejects.toThrow(TgError);
   });
 
-  it('passes when entity is a Channel without forum === false', async () => {
+  it('passes when entity is a Channel with forum === true', async () => {
     await expect(assertForum({ className: 'Channel', forum: true }, 7)).resolves.toBeUndefined();
+  });
+
+  it('throws NOT_A_FORUM when Channel has forum undefined', async () => {
+    await expect(assertForum({ className: 'Channel' }, 7)).rejects.toThrow(TgError);
   });
 });

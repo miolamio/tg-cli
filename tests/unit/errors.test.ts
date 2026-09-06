@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { translateTelegramError, formatError, TgError } from '../../src/lib/errors.js';
 
 describe('translateTelegramError', () => {
+  it('reports profile lock contention with an actionable session error', () => {
+    const error = Object.assign(new Error('Lock file is already being held'), { code: 'ELOCKED' });
+    expect(translateTelegramError(error)).toEqual({
+      message: 'Session profile is busy. Wait for the running command or stop its daemon.',
+      code: 'SESSION_ERROR',
+    });
+    expect(formatError(error).code).toBe('SESSION_ERROR');
+  });
   // Known RPCError mappings
   it('maps MESSAGE_EDIT_TIME_EXPIRED to human-readable message', () => {
     const err = { errorMessage: 'MESSAGE_EDIT_TIME_EXPIRED' };
@@ -54,6 +62,14 @@ describe('translateTelegramError', () => {
     expect(result).toEqual({
       message: 'Message content unchanged',
       code: 'MESSAGE_NOT_MODIFIED',
+    });
+  });
+
+  it('maps PREMIUM_ACCOUNT_REQUIRED for public search', () => {
+    const err = { errorMessage: 'PREMIUM_ACCOUNT_REQUIRED' };
+    expect(translateTelegramError(err)).toEqual({
+      message: 'Telegram Premium is required for this search',
+      code: 'PREMIUM_ACCOUNT_REQUIRED',
     });
   });
 

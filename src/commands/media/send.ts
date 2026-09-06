@@ -1,13 +1,17 @@
 import type { Command } from 'commander';
-import { resolve, extname } from 'node:path';
+import { resolve, extname, isAbsolute } from 'node:path';
 import { access } from 'node:fs/promises';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
-import { TgError } from '../../lib/errors.js';
 import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { detectFileType } from '../../lib/media-utils.js';
 import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
+import { parseMessageId, parseTopicId } from '../../lib/validate.js';
+import { outputBatchResult } from '../../lib/batch-results.js';
+import type { BatchItemError } from '../../lib/types.js';
+import { getDaemonContext } from '../../lib/daemon/execution-context.js';
 
 /**
  * Action handler for `tg media send <chat> <files...>`.
@@ -32,37 +36,59 @@ export async function mediaSendAction(this: Command): Promise<void> {
     topic?: string;
   };
   const { quiet } = opts;
+  const context = getDaemonContext();
+  if (context && (!context.cwd || !isAbsolute(context.cwd))) {
+    outputError('Media commands through the daemon require an absolute cwd', ErrorCode.INVALID_OPTIONS);
+    return;
+  }
+  const cwd = context?.cwd ?? process.cwd();
 
   // Validate file count for albums
   if (files.length > 10) {
-    outputError('Albums support a maximum of 10 files', 'ALBUM_TOO_LARGE');
+    outputError('Albums support a maximum of 10 files', ErrorCode.ALBUM_TOO_LARGE);
     return;
   }
 
   // Validate all files exist before attempting upload
   for (const fp of files) {
     try {
-      await access(resolve(fp));
+      await access(resolve(cwd, fp));
     } catch {
-      outputError(`File not found: ${fp}`, 'FILE_NOT_FOUND');
+      outputError(`File not found: ${fp}`, ErrorCode.FILE_NOT_FOUND);
       return;
     }
   }
 
-  // Parse --topic as integer
-  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
-  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
-    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
-    return;
+  let topicId: number | undefined;
+  if (opts.topic !== undefined) {
+    try {
+      topicId = parseTopicId(opts.topic);
+    } catch (err: unknown) {
+      outputError(
+        err instanceof Error ? err.message : 'Invalid topic ID: must be a number',
+        ErrorCode.INVALID_TOPIC_ID,
+      );
+      return;
+    }
   }
 
-  const replyTo = opts.replyTo ? parseInt(opts.replyTo, 10) : undefined;
-  if (opts.replyTo && (replyTo === undefined || isNaN(replyTo))) {
-    outputError('Invalid reply-to message ID: must be a number', 'INVALID_REPLY_TO');
-    return;
+  let replyTo: number | undefined;
+  if (opts.replyTo !== undefined) {
+    try {
+      replyTo = parseMessageId(opts.replyTo);
+    } catch {
+      outputError('Invalid reply-to message ID: must be a positive message ID', ErrorCode.INVALID_REPLY_TO);
+      return;
+    }
   }
 
-  // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
+  if (topicId !== undefined && replyTo !== undefined) {
+    outputError(
+      '--topic and --reply-to cannot be combined yet. Use --reply-to to reply in-topic, or --topic to post to the topic root.',
+      ErrorCode.INVALID_OPTIONS,
+    );
+    return;
+  }
   const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
 
   const isAlbum = files.length > 1;
@@ -76,8 +102,8 @@ export async function mediaSendAction(this: Command): Promise<void> {
     // Build send params
     const sendParams: any = {
       file: isAlbum
-        ? files.map(f => resolve(f))
-        : resolve(files[0]),
+        ? files.map(f => resolve(cwd, f))
+        : resolve(cwd, files[0]),
       caption: opts.caption ?? '',
       replyTo: effectiveReplyTo,
       progressCallback: (progress: number) => {
@@ -102,31 +128,27 @@ export async function mediaSendAction(this: Command): Promise<void> {
 
     const result = await client.sendFile(entity, sendParams);
 
-    if (isAlbum) {
-      // Album: re-fetch sequential messages to get all album items
-      const ids = Array.from(
-        { length: files.length },
-        (_, i) => (result as any).id - files.length + 1 + i,
-      );
-      const albumMsgs = await client.getMessages(entity, { ids });
-      const validMsgs = albumMsgs.filter(Boolean);
+    if (!isAlbum && result == null) {
+      outputError('Telegram did not return the sent message ID; the file may have been sent and retrying may create a duplicate', ErrorCode.MESSAGE_RESULT_UNAVAILABLE);
+      return;
+    }
 
-      if (validMsgs.length > 0) {
-        const serialized = validMsgs.map(m => serializeMessage(m as any));
-        const output: Record<string, any> = { messages: serialized, sent: serialized.length };
-        if (validMsgs.length < files.length) {
-          output.warning = `Only ${validMsgs.length} of ${files.length} album messages could be retrieved`;
+    if (isAlbum) {
+      // gramjs returns each sent message; their IDs need not be consecutive.
+      const returnedMessages = Array.isArray(result) ? result : [result];
+      const sentMessages = returnedMessages.filter(message => message != null);
+      const serialized = sentMessages.map(message => serializeMessage(message));
+      const output: Record<string, unknown> = { messages: serialized, sent: serialized.length };
+      const errors: BatchItemError[] = [];
+      for (let index = 0; index < files.length; index++) {
+        if (returnedMessages[index] == null) {
+          errors.push({ input: files[index], error: `Message ID for album item ${index + 1} is unavailable after sending; retrying may create a duplicate`, code: ErrorCode.MESSAGE_RESULT_UNAVAILABLE });
         }
-        outputSuccess(output);
-      } else {
-        // Fallback: return just the single result message
-        const serialized = serializeMessage(result as any);
-        outputSuccess({
-          messages: [serialized],
-          sent: 1,
-          warning: `Only 1 of ${files.length} album messages could be retrieved`,
-        });
       }
+      if (sentMessages.length !== files.length) {
+        output.warning = `Telegram returned ${sentMessages.length} messages for ${files.length} files; missing message IDs are unknown`;
+      }
+      outputBatchResult(output, errors);
     } else {
       // Single file: serialize and return
       const serialized = serializeMessage(result as any);

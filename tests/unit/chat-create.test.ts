@@ -68,6 +68,11 @@ vi.mock('../../src/lib/client.js', () => ({
   withClient: vi.fn(async (_opts: any, fn: any) => fn(mockClientInstance)),
 }));
 
+const mockResolveEntity = vi.fn();
+vi.mock('../../src/lib/peer.js', () => ({
+  resolveEntity: (...args: any[]) => mockResolveEntity(...args),
+}));
+
 // Import after mocks
 import { chatCreateAction } from '../../src/commands/chat/create.js';
 
@@ -99,7 +104,7 @@ describe('chatCreateAction', () => {
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.title).toBe('My Supergroup');
     expect(data.type).toBe('supergroup');
-    expect(data.id).toBe('999');
+    expect(data.id).toBe('-100999');
   });
 
   it('creates a channel when --type channel is passed (broadcast=true)', async () => {
@@ -114,16 +119,42 @@ describe('chatCreateAction', () => {
     expect(data.type).toBe('channel');
   });
 
-  it('creates a basic group when --type group is passed (calls CreateChat)', async () => {
-    const ctx = createMockCommandContext({ type: 'group' });
+  it('creates a basic group when --type group and --members are passed', async () => {
+    const user = { id: BigInt(7), className: 'User' };
+    mockResolveEntity.mockResolvedValueOnce(user);
+    const ctx = createMockCommandContext({ type: 'group', members: '@alice' });
     await chatCreateAction.call(ctx as any, 'My Group');
 
+    expect(mockResolveEntity).toHaveBeenCalledWith(mockClientInstance, '@alice');
     expect(MockCreateChat).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'My Group' }),
+      expect.objectContaining({ title: 'My Group', users: [user] }),
     );
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.id).toBe('-999');
     expect(data.type).toBe('group');
+  });
+
+  it('errors when --type group is passed without --members', async () => {
+    const ctx = createMockCommandContext({ type: 'group' });
+    await chatCreateAction.call(ctx as any, 'My Group');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('--members'),
+      'INVALID_OPTIONS',
+    );
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('errors on unknown --type before connecting', async () => {
+    const ctx = createMockCommandContext({ type: 'banana' });
+    await chatCreateAction.call(ctx as any, 'Nope');
+
+    expect(mockOutputError).toHaveBeenCalledWith(
+      expect.stringContaining('banana'),
+      'INVALID_CHAT_TYPE',
+    );
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it('passes description as about when provided', async () => {

@@ -1,27 +1,28 @@
 /**
- * Library re-exports for programmatic use of tg-cli.
+ * Public API for programmatic use of @miolamio/tg-cli.
  *
- * These are the public APIs that can be imported when using
- * @miolamio/tg-cli as a library (not just a CLI binary).
+ *   import { withAuth, resolveEntity, ErrorCode } from '@miolamio/tg-cli';
  */
 
-// Output helpers
 export { outputSuccess, outputError, logStatus } from './lib/output.js';
-
-// Configuration
-export { createConfig, resolveCredentials } from './lib/config.js';
-
-// Session management
+export { createConfig, resolveCredentials, getCredentialsOrThrow } from './lib/config.js';
 export { SessionStore } from './lib/session-store.js';
-
-// Client lifecycle
 export { withClient } from './lib/client.js';
 export { withAuth } from './lib/with-auth.js';
+export type { WithAuthOptions } from './lib/with-auth.js';
+export { resolveEntity } from './lib/peer.js';
+export { ErrorCode } from './lib/error-codes.js';
+export { TgError, CredentialError, SessionError, FloodWaitError } from './lib/errors.js';
+export { DaemonClient, DaemonRpcError } from './lib/daemon/client.js';
+export { DaemonPaths } from './lib/daemon/pid.js';
+export { DAEMON_COMMANDS } from './lib/daemon/command-protocol.js';
+export type { DaemonCommandOptions, DaemonCommandRequest, DaemonExecutionResult } from './lib/daemon/command-protocol.js';
 
-// Types
 export type {
   GlobalOptions,
   TgConfig,
   ProfileData,
   OutputEnvelope,
+  SuccessEnvelope,
+  ErrorEnvelope,
 } from './lib/types.js';

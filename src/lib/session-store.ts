@@ -1,102 +1,124 @@
 import { lock } from 'proper-lockfile';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, chmodSync, realpathSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
+const DIR_MODE = 0o700;
+const FILE_MODE = 0o600;
+
+/** Register successful teardown that must finish before releasing ownership. */
+export type SessionHoldUntil = (cleanup: Promise<unknown>) => void;
+
+/** chmod after create: write/mkdir mode is still masked by umask. */
+function chmodPrivate(path: string, mode: number): void {
+  try {
+    chmodSync(path, mode);
+  } catch {
+    // Windows and some FS ignore POSIX modes
+  }
+}
+
 /**
- * Manages session file persistence with proper-lockfile locking.
- * Session files are stored as `<profile>.session` under a `sessions/` subdirectory.
+ * Manages session persistence and exclusive ownership for each profile.
+ * Every reader, writer and connected client shares `<profile>.session.lock`,
+ * including when the session has not been created or was deleted under lock.
  */
 export class SessionStore {
   private readonly dir: string;
+  private readonly lockDir: string;
 
   constructor(configDir: string) {
-    this.dir = join(configDir, 'sessions');
-    if (!existsSync(this.dir)) {
-      mkdirSync(this.dir, { recursive: true });
-    }
+    const dir = join(configDir, 'sessions');
+    mkdirSync(dir, { recursive: true, mode: DIR_MODE });
+    chmodPrivate(dir, DIR_MODE);
+    // Resolve directory aliases without requiring a session file to exist.
+    this.dir = dir;
+    this.lockDir = realpathSync(dir);
   }
 
-  /**
-   * Load a session string for the given profile.
-   * Returns empty string if the session file does not exist.
-   */
+  /** Acquire profile ownership. Release only after the connected client is destroyed. */
+  async acquireLock(profile: string): Promise<() => Promise<void>> {
+    return lock(join(this.lockDir, `${basename(profile)}.session`), {
+      realpath: false,
+      retries: { retries: 3, minTimeout: 100 },
+    });
+  }
+
+  /** Load a session while holding exclusive profile ownership. */
   async load(profile: string): Promise<string> {
+    return this.withLock(profile, async (session) => session);
+  }
+
+  /** Persist a session while holding exclusive profile ownership. */
+  async save(profile: string, sessionString: string): Promise<void> {
+    await this.withLock(profile, async () => this.saveUnlocked(profile, sessionString));
+  }
+
+  /** Delete a session before releasing profile ownership. */
+  async delete(profile: string): Promise<void> {
+    await this.withLock(profile, async () => this.deleteUnlocked(profile));
+  }
+
+  /** Read without re-locking. Caller must already own the profile lock. */
+  loadUnlocked(profile: string): string {
     const file = this.filePath(profile);
     if (!existsSync(file)) return '';
-
-    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
-    try {
-      return readFileSync(file, 'utf-8').trim();
-    } finally {
-      await release();
-    }
+    chmodPrivate(file, FILE_MODE);
+    return readFileSync(file, 'utf-8').trim();
   }
 
-  /**
-   * Save a session string for the given profile.
-   * Creates the file if it does not exist (proper-lockfile requires an existing file).
-   */
-  async save(profile: string, sessionString: string): Promise<void> {
+  /** Save without re-locking. ONLY use inside withLock or after acquireLock. */
+  saveUnlocked(profile: string, sessionString: string): void {
     const file = this.filePath(profile);
-    // Create empty file if it doesn't exist (proper-lockfile needs existing file)
-    if (!existsSync(file)) {
-      writeFileSync(file, '', 'utf-8');
-    }
-    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
-    try {
-      writeFileSync(file, sessionString, 'utf-8');
-    } finally {
-      await release();
-    }
+    writeFileSync(file, sessionString, { encoding: 'utf-8', mode: FILE_MODE });
+    chmodPrivate(file, FILE_MODE);
   }
 
-  /**
-   * Delete the session file for the given profile.
-   * Uses file locking to prevent races with concurrent save/load.
-   * No-op if the file does not exist.
-   */
-  async delete(profile: string): Promise<void> {
-    const file = this.filePath(profile);
-    if (!existsSync(file)) return;
-
-    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
-    await release();
-    unlinkSync(file);
-  }
-
-  /**
-   * Delete the session file without acquiring a lock.
-   * ONLY call this from within a withLock() callback where the lock is already held.
-   * No-op if the file does not exist.
-   */
+  /** Delete without re-locking. ONLY use inside withLock or after acquireLock. */
   deleteUnlocked(profile: string): void {
     const file = this.filePath(profile);
-    if (existsSync(file)) {
-      unlinkSync(file);
-    }
+    if (existsSync(file)) unlinkSync(file);
   }
 
   /**
-   * Load a session and hold the file lock for the entire callback lifecycle.
-   * Prevents concurrent processes from using the same session simultaneously.
-   * Returns the callback result. If no session file exists, calls fn with ''.
+   * Hold ownership for the callback, even for an absent session. A callback may
+   * register asynchronous teardown with holdUntil before returning. Its result
+   * still settles promptly, but ownership remains until every teardown succeeds.
+   * Rejected teardown keeps the lock until process exit: a failed cleanup does
+   * not prove the transport is closed. Cleanup rejections are always handled.
    */
-  async withLock<T>(profile: string, fn: (sessionString: string) => Promise<T>): Promise<T> {
-    const file = this.filePath(profile);
-    if (!existsSync(file)) return fn('');
-
-    const release = await lock(file, { retries: { retries: 3, minTimeout: 100 } });
+  async withLock<T>(profile: string, fn: (sessionString: string, holdUntil: SessionHoldUntil) => Promise<T>): Promise<T> {
+    const release = await this.acquireLock(profile);
+    const pending = new Set<Promise<void>>();
+    let cleanupFailed = false;
+    let callbackDone = false;
+    const holdUntil: SessionHoldUntil = (cleanup) => {
+      if (callbackDone) throw new Error('Register session cleanup before the callback completes');
+      // Attach the rejection handler immediately, including when a caller gives
+      // us an already rejected promise. The tracking promise never rejects.
+      const tracked = Promise.resolve(cleanup).then(
+        () => {},
+        () => { cleanupFailed = true; },
+      ).then(() => { pending.delete(tracked); });
+      pending.add(tracked);
+    };
     try {
-      const session = readFileSync(file, 'utf-8').trim();
-      return await fn(session);
+      return await fn(this.loadUnlocked(profile), holdUntil);
     } finally {
-      await release();
+      callbackDone = true;
+      if (pending.size === 0) {
+        if (!cleanupFailed) await release();
+      } else {
+        // A timed-out operation can return while its SDK transport is still
+        // settling. Never release early and never create an unhandled rejection
+        // (or a second CLI output envelope) from background teardown/release.
+        void Promise.all(pending).then(async () => {
+          if (!cleanupFailed) await release();
+        }).catch(() => {});
+      }
     }
   }
 
-  /**
-   * Get the file path for a given profile's session file.
-   */
+  /** Get the file path for a profile's session file. */
   filePath(profile: string): string {
     return join(this.dir, `${basename(profile)}.session`);
   }

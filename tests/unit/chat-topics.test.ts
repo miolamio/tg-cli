@@ -30,7 +30,7 @@ describe('serializeTopic', () => {
     expect(result.iconEmoji).toBe('12345678901234');
     expect(result.creationDate).toBe(new Date(1700000000 * 1000).toISOString());
     expect(result.creatorId).toBe('999');
-    expect(result.messageCount).toBe(150);
+    expect(result.topMessageId).toBe(150);
     expect(result.isClosed).toBe(false);
     expect(result.isPinned).toBe(true);
   });
@@ -126,9 +126,9 @@ describe('formatTopics', () => {
 
   it('renders topics with pinned and closed indicators', () => {
     const topics = [
-      { id: 42, title: 'General', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '1', messageCount: 100, isClosed: false, isPinned: true },
-      { id: 43, title: 'Off Topic', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '2', messageCount: 50, isClosed: true, isPinned: false },
-      { id: 44, title: 'Normal Topic', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '3', messageCount: 10, isClosed: false, isPinned: false },
+      { id: 42, title: 'General', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '1', topMessageId: 100, isClosed: false, isPinned: true },
+      { id: 43, title: 'Off Topic', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '2', topMessageId: 50, isClosed: true, isPinned: false },
+      { id: 44, title: 'Normal Topic', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '3', topMessageId: 10, isClosed: false, isPinned: false },
     ];
 
     const result = formatTopics(topics);
@@ -160,7 +160,7 @@ describe('formatData topics dispatch', () => {
   it('dispatches topics[] array to formatTopics', () => {
     const data = {
       topics: [
-        { id: 1, title: 'Topic 1', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '1', messageCount: 5, isClosed: false, isPinned: false },
+        { id: 1, title: 'Topic 1', iconEmoji: null, creationDate: '2023-11-14T22:13:20.000Z', creatorId: '1', topMessageId: 5, isClosed: false, isPinned: false },
       ],
       total: 1,
     };
@@ -347,6 +347,17 @@ describe('chatTopicsAction', () => {
     expect(mockOutputError.mock.calls[0][1]).toBe('NOT_A_FORUM');
   });
 
+  it('throws NOT_A_FORUM for Channel with forum unset', async () => {
+    const entity = new MockChannel({ forum: true });
+    (entity as any).forum = undefined;
+    mockResolveEntity.mockResolvedValueOnce(entity);
+
+    const ctx = createMockCommandContext();
+    await chatTopicsAction.call(ctx as any, 'nonforum');
+
+    expect(mockOutputError.mock.calls[0][1]).toBe('NOT_A_FORUM');
+  });
+
   it('filters ForumTopicDeleted items from results', async () => {
     const entity = new MockChannel({ forum: true });
     mockResolveEntity.mockResolvedValueOnce(entity);
@@ -407,9 +418,8 @@ describe('chatTopicsAction', () => {
     const ctx = createMockCommandContext({ limit: '10', offset: '10' });
     await chatTopicsAction.call(ctx as any, 'testforum');
 
-    // Should have requested offset+limit=20 from API
     expect(mockInvoke).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 20 }),
+      expect.objectContaining({ limit: 100, offsetTopic: 0 }),
     );
 
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
@@ -417,6 +427,61 @@ describe('chatTopicsAction', () => {
     expect(data.topics).toHaveLength(10);
     expect(data.topics[0].title).toBe('Topic 11');
     expect(data.topics[9].title).toBe('Topic 20');
+  });
+
+  it('keeps paging when a full batch contains ForumTopicDeleted', async () => {
+    const entity = new MockChannel({ forum: true });
+    mockResolveEntity.mockResolvedValueOnce(entity);
+
+    const first = [
+      ...Array.from({ length: 95 }, (_, i) =>
+        new MockForumTopic({ id: i + 1, title: `Topic ${i + 1}`, topMessage: i + 1, date: 1 }),
+      ),
+      new MockForumTopicDeleted({ id: 96 }),
+      new MockForumTopicDeleted({ id: 97 }),
+      new MockForumTopicDeleted({ id: 98 }),
+      new MockForumTopicDeleted({ id: 99 }),
+      new MockForumTopicDeleted({ id: 100 }),
+    ];
+    const second = [new MockForumTopic({ id: 101, title: 'Topic 101', topMessage: 101, date: 2 })];
+    mockInvoke
+      .mockResolvedValueOnce({ topics: first, count: 101 })
+      .mockResolvedValueOnce({ topics: second, count: 101 });
+
+    const ctx = createMockCommandContext({ limit: '1', offset: '95' });
+    await chatTopicsAction.call(ctx as any, 'testforum');
+
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockInvoke.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ offsetTopic: 100 }),
+    );
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.topics).toHaveLength(1);
+    expect(data.topics[0].title).toBe('Topic 101');
+  });
+
+  it('pages GetForumTopics with offsetTopic when the first batch is full', async () => {
+    const entity = new MockChannel({ forum: true });
+    mockResolveEntity.mockResolvedValueOnce(entity);
+
+    const first = Array.from({ length: 100 }, (_, i) =>
+      new MockForumTopic({ id: i + 1, title: `Topic ${i + 1}`, topMessage: i + 1, date: 1_700_000_000 + i }),
+    );
+    const second = [new MockForumTopic({ id: 101, title: 'Topic 101', topMessage: 101, date: 1_700_000_100 })];
+    mockInvoke
+      .mockResolvedValueOnce({ topics: first, count: 101 })
+      .mockResolvedValueOnce({ topics: second, count: 101 });
+
+    const ctx = createMockCommandContext({ limit: '1', offset: '100' });
+    await chatTopicsAction.call(ctx as any, 'testforum');
+
+    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockInvoke.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ offsetTopic: 100, offsetId: 100 }),
+    );
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.topics).toHaveLength(1);
+    expect(data.topics[0].title).toBe('Topic 101');
   });
 
   it('lists topics with serialized output', async () => {
@@ -445,7 +510,7 @@ describe('chatTopicsAction', () => {
     expect(data.topics).toHaveLength(1);
     expect(data.topics[0].id).toBe(42);
     expect(data.topics[0].title).toBe('General');
-    expect(data.topics[0].messageCount).toBe(100);
+    expect(data.topics[0].topMessageId).toBe(100);
     expect(data.topics[0].isPinned).toBe(true);
     expect(data.topics[0].creatorId).toBe('999');
     expect(data.total).toBe(1);

@@ -142,6 +142,7 @@ describe('messageDeleteAction', () => {
   });
 
   it('calls client.deleteMessages with revoke: false when --for-me is set', async () => {
+    mockResolveEntity.mockResolvedValueOnce({ id: BigInt(123), className: 'User' });
     const ctx = createMockCommandContext({ forMe: true });
     await messageDeleteAction.call(ctx as any, 'testchat', '10,20');
 
@@ -165,6 +166,7 @@ describe('messageDeleteAction', () => {
   });
 
   it('outputs DeleteResult shape on success with for-me mode', async () => {
+    mockResolveEntity.mockResolvedValueOnce({ id: BigInt(123), className: 'Chat' });
     const ctx = createMockCommandContext({ forMe: true });
     await messageDeleteAction.call(ctx as any, 'testchat', '5');
 
@@ -181,7 +183,7 @@ describe('messageDeleteAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('abc'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockDeleteMessages).not.toHaveBeenCalled();
   });
@@ -192,7 +194,7 @@ describe('messageDeleteAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('12abc'),
-      'INVALID_MSG_ID',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockDeleteMessages).not.toHaveBeenCalled();
   });

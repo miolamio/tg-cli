@@ -2,8 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { existsSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync, writeFileSync, chmodSync, statSync } from 'node:fs';
 import { SessionStore } from '../../src/lib/session-store.js';
+
+const posix = process.platform !== 'win32';
+
+function posixMode(p: string): number {
+  return statSync(p).mode & 0o777;
+}
 
 describe('SessionStore', () => {
   let tmpDir: string;
@@ -152,6 +158,45 @@ describe('SessionStore', () => {
   it('deleteUnlocked is a no-op for missing profile', () => {
     // Should not throw
     store.deleteUnlocked('nonexistent');
+  });
+
+  it.skipIf(!posix)('sessions directory is created mode 0700', () => {
+    expect(posixMode(join(tmpDir, 'sessions'))).toBe(0o700);
+  });
+
+  it.skipIf(!posix)('tightens an existing 0755 sessions directory to 0700', () => {
+    const dir = join(tmpDir, 'sessions');
+    chmodSync(dir, 0o755);
+    expect(posixMode(dir)).toBe(0o755);
+
+    new SessionStore(tmpDir);
+    expect(posixMode(dir)).toBe(0o700);
+  });
+
+  it.skipIf(!posix)('save writes session files mode 0600', async () => {
+    await store.save('default', 'secret-session');
+    expect(posixMode(store.filePath('default'))).toBe(0o600);
+  });
+
+  it.skipIf(!posix)('load chmods a legacy 0644 session file to 0600', async () => {
+    const file = store.filePath('legacy');
+    writeFileSync(file, 'old-session', { encoding: 'utf-8', mode: 0o644 });
+    chmodSync(file, 0o644);
+    expect(posixMode(file)).toBe(0o644);
+
+    const loaded = await store.load('legacy');
+    expect(loaded).toBe('old-session');
+    expect(posixMode(file)).toBe(0o600);
+  });
+
+  it.skipIf(!posix)('save chmods a legacy 0644 session file to 0600', async () => {
+    const file = store.filePath('legacy-save');
+    writeFileSync(file, 'old', { encoding: 'utf-8', mode: 0o644 });
+    chmodSync(file, 0o644);
+
+    await store.save('legacy-save', 'new-session');
+    expect(posixMode(file)).toBe(0o600);
+    expect(readFileSync(file, 'utf-8')).toBe('new-session');
   });
 
   it('deleteUnlocked works inside withLock without deadlock', async () => {

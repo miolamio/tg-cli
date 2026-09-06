@@ -3,7 +3,7 @@ import { Api } from 'telegram';
 import { withAuth } from '../../lib/with-auth.js';
 import { outputSuccess } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { markedPeerId } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -42,7 +42,7 @@ export async function chatResolveAction(this: Command, input: string): Promise<v
     const entity = await resolveEntity(client, input);
 
     outputSuccess({
-      id: bigIntToString((entity as any).id),
+      id: markedPeerId(entity),
       type: entityType(entity),
       title: entityTitle(entity),
       username: (entity as any).username ?? null,

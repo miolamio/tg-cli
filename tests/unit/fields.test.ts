@@ -2,6 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { pickFields, applyFieldSelection, extractListItems } from '../../src/lib/fields.js';
 
 describe('pickFields', () => {
+  it('does not traverse or write prototype-related fields', () => {
+    const source = JSON.parse('{"__proto__":{"tgReviewMarker":true},"constructor":{"prototype":{"tgReviewMarker":true}},"nested":{"prototype":{"tgReviewMarker":true}}}');
+    try {
+      expect(pickFields(source, ['__proto__.tgReviewMarker', 'constructor.prototype.tgReviewMarker', 'nested.prototype.tgReviewMarker'])).toEqual({});
+      expect(({} as Record<string, unknown>).tgReviewMarker).toBeUndefined();
+    } finally {
+      delete (Object.prototype as Record<string, unknown>).tgReviewMarker;
+    }
+  });
+
+  it('selects only own source properties', () => {
+    const source = Object.assign(Object.create({ inherited: { id: 7 } }), { id: 42 });
+    expect(pickFields(source, ['id', 'inherited.id', 'toString'])).toEqual({ id: 42 });
+  });
   it('picks flat fields from an object', () => {
     const result = pickFields({ id: 1, text: 'hi', date: '2026-01-01' }, ['id', 'text']);
     expect(result).toEqual({ id: 1, text: 'hi' });
@@ -47,6 +61,12 @@ describe('pickFields', () => {
 });
 
 describe('applyFieldSelection', () => {
+  it('does not copy prototype-related list metadata', () => {
+    const source = JSON.parse('{"messages":[{"id":42}],"__proto__":{"tgReviewMarker":true}}');
+    const result = applyFieldSelection(source, ['id']);
+    expect(result).toEqual({ messages: [{ id: 42 }] });
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  });
   it('filters array items and preserves metadata', () => {
     const data = {
       messages: [{ id: 1, text: 'hi', date: '2026-01-01' }],
@@ -160,5 +180,17 @@ describe('extractListItems', () => {
 
   it('returns null for non-object input', () => {
     expect(extractListItems('hello')).toBeNull();
+  });
+
+  it('extracts posts array (message replies)', () => {
+    const p = { id: 1, text: 'reply' };
+    expect(extractListItems({ posts: [p] })).toEqual([p]);
+  });
+});
+
+describe('applyFieldSelection empty lists', () => {
+  it('keeps empty messages and total instead of picking the wrapper', () => {
+    const result = applyFieldSelection({ messages: [], total: 5 }, ['id']);
+    expect(result).toEqual({ messages: [], total: 5 });
   });
 });

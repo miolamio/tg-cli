@@ -77,9 +77,7 @@ describe('session export', () => {
         quiet: false,
         profile: 'default',
       }),
-      parent: {
-        getOptionValueSource: (name: string) => name === 'json' ? 'default' : undefined,
-      },
+      getOptionValueSourceWithGlobals: (name: string) => name === 'json' ? 'default' : undefined,
     };
 
     await exportAction.call(context as any);
@@ -108,9 +106,7 @@ describe('session export', () => {
         quiet: false,
         profile: 'default',
       }),
-      parent: {
-        getOptionValueSource: (name: string) => name === 'json' ? 'cli' : undefined,
-      },
+      getOptionValueSourceWithGlobals: (name: string) => name === 'json' ? 'cli' : undefined,
     };
 
     await exportAction.call(context as any);
@@ -120,6 +116,62 @@ describe('session export', () => {
       phone: '+1234567890',
       created: '2026-01-01T00:00:00Z',
     });
+  });
+
+  it('refuses --daemon', async () => {
+    const mockStore = { load: vi.fn().mockResolvedValue('abc123session') };
+    (SessionStore as any).mockImplementation(() => mockStore);
+    (createConfig as any).mockReturnValue({ path: '/tmp/tg-cli/config.json', get: vi.fn() });
+
+    const context = {
+      optsWithGlobals: () => ({
+        json: true,
+        human: false,
+        verbose: false,
+        quiet: false,
+        profile: 'default',
+        daemon: true,
+      }),
+      getOptionValueSourceWithGlobals: () => 'default',
+    };
+
+    await exportAction.call(context as any);
+    expect(outputError).toHaveBeenCalledWith(
+      expect.stringContaining('--daemon'),
+      'DAEMON_PROXY_UNAVAILABLE',
+    );
+  });
+
+  it('uses outputSuccess for --toon instead of a raw session string', async () => {
+    const mockStore = { load: vi.fn().mockResolvedValue('abc123session') };
+    (SessionStore as any).mockImplementation(() => mockStore);
+
+    const mockConfig = {
+      path: '/tmp/tg-cli/config.json',
+      get: vi.fn().mockReturnValue({ session: 'abc123session', phone: '+1', created: '2026-01-01T00:00:00Z' }),
+    };
+    (createConfig as any).mockReturnValue(mockConfig);
+
+    const context = {
+      optsWithGlobals: () => ({
+        json: true,
+        human: false,
+        verbose: false,
+        quiet: false,
+        profile: 'default',
+        toon: true,
+      }),
+      getOptionValueSourceWithGlobals: () => 'default',
+    };
+
+    await exportAction.call(context as any);
+
+    expect(outputSuccess).toHaveBeenCalledWith({
+      session: 'abc123session',
+      phone: '+1',
+      created: '2026-01-01T00:00:00Z',
+    });
+    expect(stdoutSpy).not.toHaveBeenCalledWith('abc123session\n');
   });
 
   it('outputs error when no session exists', async () => {
@@ -140,9 +192,7 @@ describe('session export', () => {
         quiet: false,
         profile: 'default',
       }),
-      parent: {
-        getOptionValueSource: () => 'default',
-      },
+      getOptionValueSourceWithGlobals: () => 'default',
     };
 
     await exportAction.call(context as any);
@@ -173,6 +223,7 @@ describe('session import', () => {
     vi.doMock('../../src/lib/config.js', () => ({
       createConfig: vi.fn(),
       resolveCredentials: vi.fn(),
+      getCredentialsOrThrow: vi.fn().mockResolvedValue({ apiId: 123, apiHash: 'abc' }),
     }));
     vi.doMock('../../src/lib/output.js', () => ({
       outputSuccess: vi.fn(),
@@ -221,12 +272,13 @@ describe('session import', () => {
   }
 
   it('saves session string from argument to store (skip-verify)', async () => {
-    const mockStore = { save: vi.fn().mockResolvedValue(undefined) };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
 
@@ -234,7 +286,7 @@ describe('session import', () => {
 
     await importAction.call(context as any, 'importedsession123');
 
-    expect(mockStore.save).toHaveBeenCalledWith('default', 'importedsession123');
+    expect(mockStore.saveUnlocked).toHaveBeenCalledWith('default', 'importedsession123');
     expect(mockConfig.set).toHaveBeenCalledWith(
       'profiles.default',
       expect.objectContaining({
@@ -244,12 +296,13 @@ describe('session import', () => {
   });
 
   it('outputs success envelope with verified field after import', async () => {
-    const mockStore = { save: vi.fn().mockResolvedValue(undefined) };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
 
@@ -265,12 +318,13 @@ describe('session import', () => {
   });
 
   it('validates session by default when credentials available', async () => {
-    const mockStore = { save: vi.fn().mockResolvedValue(undefined) };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
     resolveCredentials.mockReturnValue({ apiId: 123, apiHash: 'abc' });
@@ -283,7 +337,7 @@ describe('session import', () => {
     await importAction.call(context as any, 'validsession');
 
     expect(withClient).toHaveBeenCalledOnce();
-    expect(mockStore.save).toHaveBeenCalledWith('default', 'validsession');
+    expect(mockStore.saveUnlocked).toHaveBeenCalledWith('default', 'validsession');
     expect(outputSuccess).toHaveBeenCalledWith({
       imported: true,
       profile: 'default',
@@ -292,12 +346,13 @@ describe('session import', () => {
   });
 
   it('rejects unauthorized session during verification', async () => {
-    const mockStore = { save: vi.fn() };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
     resolveCredentials.mockReturnValue({ apiId: 123, apiHash: 'abc' });
@@ -313,16 +368,17 @@ describe('session import', () => {
       expect.stringContaining('not authorized'),
       'INVALID_SESSION',
     );
-    expect(mockStore.save).not.toHaveBeenCalled();
+    expect(mockStore.saveUnlocked).not.toHaveBeenCalled();
   });
 
   it('rejects session when verification throws a connection error', async () => {
-    const mockStore = { save: vi.fn() };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
     resolveCredentials.mockReturnValue({ apiId: 123, apiHash: 'abc' });
@@ -336,16 +392,17 @@ describe('session import', () => {
       expect.stringContaining('verification failed'),
       'VERIFY_FAILED',
     );
-    expect(mockStore.save).not.toHaveBeenCalled();
+    expect(mockStore.saveUnlocked).not.toHaveBeenCalled();
   });
 
   it('skips verification with warning when no credentials configured and reports verified: false', async () => {
-    const mockStore = { save: vi.fn().mockResolvedValue(undefined) };
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
     (SessionStore as any).mockImplementation(() => mockStore);
 
     const mockConfig = {
       path: '/tmp/tg-cli/config.json',
       set: vi.fn(),
+      get: vi.fn(),
     };
     (createConfig as any).mockReturnValue(mockConfig);
     resolveCredentials.mockReturnValue(null);
@@ -358,12 +415,52 @@ describe('session import', () => {
       expect.stringContaining('Cannot verify session'),
       false,
     );
-    expect(mockStore.save).toHaveBeenCalledWith('default', 'somesession');
+    expect(mockStore.saveUnlocked).toHaveBeenCalledWith('default', 'somesession');
     // Must NOT report verified: true when credentials were missing
     expect(outputSuccess).toHaveBeenCalledWith({
       imported: true,
       profile: 'default',
       verified: false,
     });
+  });
+
+  it('refuses --daemon', async () => {
+    const mockStore = { saveUnlocked: vi.fn(), withLock: vi.fn(async (_profile, fn) => fn('')) };
+    (SessionStore as any).mockImplementation(() => mockStore);
+    (createConfig as any).mockReturnValue({ path: '/tmp/tg-cli/config.json', set: vi.fn() });
+    const context = makeContext({ daemon: true });
+    await importAction.call(context as any, 'importedsession123');
+    expect(outputError).toHaveBeenCalledWith(
+      expect.stringContaining('--daemon'),
+      'DAEMON_PROXY_UNAVAILABLE',
+    );
+    expect(mockStore.saveUnlocked).not.toHaveBeenCalled();
+  });
+
+  it('verifies and saves using the profile preset while holding one lock', async () => {
+    let locked = false;
+    const mockStore = {
+      withLock: vi.fn(async (_profile, fn) => {
+        locked = true;
+        try { return await fn('previous-session'); } finally { locked = false; }
+      }),
+      saveUnlocked: vi.fn(() => { expect(locked).toBe(true); }),
+    };
+    SessionStore.mockImplementation(() => mockStore);
+    const mockConfig = { path: '/tmp/tg-cli/config.json', get: vi.fn().mockReturnValue('desktop'), set: vi.fn() };
+    createConfig.mockReturnValue(mockConfig);
+    resolveCredentials.mockReturnValue(null);
+    withClient.mockImplementation(async (_opts, fn) => {
+      expect(locked).toBe(true);
+      return fn({ checkAuthorization: vi.fn().mockResolvedValue(true) });
+    });
+    await importAction.call(makeContext({ skipVerify: false }) as any, 'synthetic-import');
+    const configModule = await import('../../src/lib/config.js');
+    expect(configModule.getCredentialsOrThrow).toHaveBeenCalledWith(mockConfig, undefined, 'default');
+    expect(mockStore.withLock).toHaveBeenCalledOnce();
+    expect(mockStore.saveUnlocked).toHaveBeenCalledWith('default', 'synthetic-import');
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles.default', expect.objectContaining({ client: 'desktop' }));
+    expect(locked).toBe(false);
+    expect(outputSuccess).toHaveBeenCalledWith({ imported: true, profile: 'default', verified: true });
   });
 });

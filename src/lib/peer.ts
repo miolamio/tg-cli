@@ -1,5 +1,6 @@
 import { TelegramClient, Api } from 'telegram';
 import { TgError } from './errors.js';
+import { ErrorCode } from './error-codes.js';
 
 /**
  * Assert that an entity is a forum-enabled supergroup when topicId is provided.
@@ -9,11 +10,8 @@ import { TgError } from './errors.js';
  */
 export async function assertForum(entity: any, topicId: number | undefined): Promise<void> {
   if (topicId === undefined) return;
-  if (!entity.className || entity.className !== 'Channel') {
-    throw new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM');
-  }
-  if (entity.forum === false) {
-    throw new TgError('Chat is not a forum-enabled supergroup', 'NOT_A_FORUM');
+  if (entity?.className !== 'Channel' || entity.forum !== true) {
+    throw new TgError('Chat is not a forum-enabled supergroup', ErrorCode.NOT_A_FORUM);
   }
 }
 
@@ -34,7 +32,7 @@ function isInviteLink(input: string): boolean {
 /**
  * Check if input looks like a phone number (+digits).
  */
-function isPhoneNumber(input: string): boolean {
+export function isPhoneNumber(input: string): boolean {
   return /^\+\d+$/.test(input);
 }
 
@@ -43,6 +41,25 @@ function isPhoneNumber(input: string): boolean {
  */
 function isNumericId(input: string): boolean {
   return /^-?\d+$/.test(input);
+}
+
+/** Preserve transport/RPC failures; only known absence errors mean not found. */
+function throwResolutionError(err: unknown, invite = false): never {
+  if (err instanceof TgError) throw err;
+  const rpcCode = err != null && typeof err === 'object' && 'errorMessage' in err
+    ? String(err.errorMessage) : undefined;
+  const missingRpc = invite
+    ? ['INVITE_HASH_EMPTY', 'INVITE_HASH_INVALID', 'INVITE_HASH_EXPIRED']
+    : ['USERNAME_INVALID', 'USERNAME_NOT_OCCUPIED', 'PHONE_NOT_OCCUPIED', 'USER_ID_INVALID', 'PEER_ID_INVALID'];
+  const message = err instanceof Error ? err.message : String(err);
+  const missing = rpcCode ? missingRpc.includes(rpcCode) : invite
+    ? /^invite hash (?:invalid|expired)$/i.test(message)
+    : /^(?:(?:entity|phone|id|peer) not found|Could not find the input entity for |Cannot find any entity corresponding to |No user has .+ as username)/i.test(message);
+  if (!missing) throw err;
+  throw new TgError(
+    `${invite ? 'Failed to resolve invite link' : 'Peer not found'}: ${message}`,
+    invite ? ErrorCode.INVALID_INVITE : ErrorCode.PEER_NOT_FOUND,
+  );
 }
 
 /**
@@ -90,13 +107,16 @@ export async function resolveEntity(
       );
       // Return the chat from the result (ChatInviteAlready has .chat,
       // ChatInvite has the invite info, ChatInvitePeek has .chat)
-      return (result as any).chat ?? result;
+      const chat = (result as any).chat;
+      if (!chat) {
+        throw new TgError(
+          'Not a member of this invite. Join first with: tg chat join <link>',
+          ErrorCode.NOT_A_MEMBER,
+        );
+      }
+      return chat;
     } catch (err) {
-      if (err instanceof TgError) throw err;
-      throw new TgError(
-        `Failed to resolve invite link: ${(err as Error).message}`,
-        'INVALID_INVITE',
-      );
+      throwResolutionError(err, true);
     }
   }
 
@@ -105,25 +125,20 @@ export async function resolveEntity(
     try {
       return (await client.getEntity(input)) as Api.User | Api.Chat | Api.Channel;
     } catch (err) {
-      if (err instanceof TgError) throw err;
-      throw new TgError(
-        `Peer not found: ${(err as Error).message}`,
-        'PEER_NOT_FOUND',
-      );
+      throwResolutionError(err);
     }
   }
 
   // Numeric ID: parse to number
   if (isNumericId(input)) {
     const numId = Number(input);
+    if (!Number.isSafeInteger(numId)) {
+      throw new TgError('Peer ID must be a safe integer', ErrorCode.INVALID_ID);
+    }
     try {
       return (await client.getEntity(numId)) as Api.User | Api.Chat | Api.Channel;
     } catch (err) {
-      if (err instanceof TgError) throw err;
-      throw new TgError(
-        `Peer not found: ${(err as Error).message}`,
-        'PEER_NOT_FOUND',
-      );
+      throwResolutionError(err);
     }
   }
 
@@ -132,10 +147,6 @@ export async function resolveEntity(
   try {
     return (await client.getEntity(username)) as Api.User | Api.Chat | Api.Channel;
   } catch (err) {
-    if (err instanceof TgError) throw err;
-    throw new TgError(
-      `Peer not found: ${(err as Error).message}`,
-      'PEER_NOT_FOUND',
-    );
+    throwResolutionError(err);
   }
 }

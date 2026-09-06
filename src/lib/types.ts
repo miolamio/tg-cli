@@ -15,12 +15,27 @@ export interface GlobalOptions {
 }
 
 /**
- * Stored data for a named profile (session + metadata).
+ * Stored metadata for a named profile. Session data lives in SessionStore.
  */
 export interface ProfileData {
-  session: string;
+  /** Legacy config metadata; never write session material into config. */
+  session?: string;
   phone?: string;
   created?: string;
+  client?: string;
+}
+
+/** Failure associated with one input of a batch operation. */
+export interface BatchItemError {
+  input: string;
+  error: string;
+  code: string;
+}
+
+/** Additive metadata for a batch that could not complete every input. */
+export interface PartialResultMetadata {
+  partial: boolean;
+  errors: BatchItemError[];
 }
 
 /**
@@ -78,10 +93,10 @@ export interface ChatInfo {
   description: string | null;
   memberCount: number | null;
   creationDate: string | null;
-  photo: object | null;
+  photo: { hasPhoto: boolean } | null;
   linkedChatId: string | null;
   slowmodeSeconds: number | null;
-  permissions: object | null;
+  permissions: Record<string, boolean> | null;
   inviteLink: string | null;
   migratedFrom: string | null;
 }
@@ -133,6 +148,25 @@ export interface ReactionCount {
 export interface SearchResultItem extends MessageItem {
   chatId: string;
   chatTitle: string;
+}
+
+/** Pagination + quota for `tg message search --public`. */
+export interface PublicPostSearchFlood {
+  remains: number | null;
+  totalDaily: number | null;
+  waitTill: number | null;
+  starsAmount: string | null;
+  queryIsFree: boolean;
+}
+
+export interface PublicPostSearchResult {
+  messages: SearchResultItem[];
+  total: number;
+  hasMore: boolean;
+  nextRate: number | null;
+  nextOffsetId: number | null;
+  nextOffsetPeer: string | null;
+  flood?: PublicPostSearchFlood;
 }
 
 /**
@@ -241,8 +275,8 @@ export interface TopicItem {
   iconEmoji: string | null;
   creationDate: string;
   creatorId: string;
-  /** Mapped from gramjs topMessage (latest message ID, not a true count) */
-  messageCount: number;
+  /** Latest message id in the topic (gramjs topMessage). */
+  topMessageId: number;
   isClosed: boolean;
   isPinned: boolean;
 }
@@ -304,7 +338,7 @@ export interface UserProfile {
   username: string | null;
   phone: string | null | '[restricted]';
   bio: string | null;
-  photoCount: number;
+  photoCount: number | null;
   lastSeen: string | null;
   isBot: boolean;
   blocked: boolean;
@@ -320,7 +354,7 @@ export interface UserProfile {
 }
 
 /** Result of a multi-user profile lookup. */
-export interface UserProfileResult {
+export interface UserProfileResult extends Partial<PartialResultMetadata> {
   profiles: UserProfile[];
   notFound: string[];
 }
@@ -384,7 +418,7 @@ export interface ContactDeleteResult {
 }
 
 /** Result of listing contacts. */
-export interface ContactListResult {
+export interface ContactListResult extends Partial<PartialResultMetadata> {
   contacts: UserProfile[];
   total: number;
 }
@@ -395,7 +429,7 @@ export interface ContactSearchItem extends UserProfile {
 }
 
 /** Result of searching contacts. */
-export interface ContactSearchResult {
+export interface ContactSearchResult extends Partial<PartialResultMetadata> {
   results: ContactSearchItem[];
   total: number;
 }

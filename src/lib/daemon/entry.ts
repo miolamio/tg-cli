@@ -1,26 +1,49 @@
 import { DaemonServer } from './server.js';
 import { DaemonPaths } from './pid.js';
+import { installDaemonSignals } from './lifecycle.js';
+import { createConfig, getCredentialsOrThrow } from '../config.js';
+import { parseIntegerOption, validateProfile } from '../validate.js';
+import { installCliConsoleGuard } from '../cli-console.js';
 
-const configDir = process.env.TG_DAEMON_CONFIG_DIR!;
-const profile = process.env.TG_DAEMON_PROFILE!;
-const apiId = parseInt(process.env.TG_DAEMON_API_ID!, 10);
-const apiHash = process.env.TG_DAEMON_API_HASH!;
-const sessionString = process.env.TG_DAEMON_SESSION!;
-const idleTimeout = parseInt(process.env.TG_DAEMON_IDLE_TIMEOUT!, 10);
+installCliConsoleGuard();
 
-// Clear sensitive data from process environment immediately.
-// Prevents exposure via /proc/<pid>/environ or ps -eww.
-delete process.env.TG_DAEMON_SESSION;
-delete process.env.TG_DAEMON_API_HASH;
-delete process.env.TG_DAEMON_API_ID;
-delete process.env.TG_DAEMON_CONFIG_DIR;
-delete process.env.TG_DAEMON_PROFILE;
-delete process.env.TG_DAEMON_IDLE_TIMEOUT;
+async function main(): Promise<void> {
+  const configDir = process.env.TG_DAEMON_CONFIG_DIR;
+  const profile = process.env.TG_DAEMON_PROFILE;
+  const idleInput = process.env.TG_DAEMON_IDLE_TIMEOUT;
+  const configPath = process.env.TG_DAEMON_CONFIG;
+  const pidPreclaimed = process.env.TG_DAEMON_PID_PRECLAIMED === '1';
 
-const paths = new DaemonPaths(configDir, profile);
-const server = new DaemonServer(paths, { apiId, apiHash, sessionString }, { idleTimeout });
+  delete process.env.TG_DAEMON_SESSION;
+  delete process.env.TG_DAEMON_API_HASH;
+  delete process.env.TG_DAEMON_API_ID;
+  delete process.env.TG_DAEMON_CONFIG_DIR;
+  delete process.env.TG_DAEMON_PROFILE;
+  delete process.env.TG_DAEMON_IDLE_TIMEOUT;
+  delete process.env.TG_DAEMON_CONFIG;
+  delete process.env.TG_DAEMON_PID_PRECLAIMED;
 
-server.start().catch((err) => {
-  process.stderr.write(`Daemon start failed: ${err.message}\n`);
+  if (!configDir || !profile || idleInput == null) {
+    process.stderr.write('Daemon missing TG_DAEMON_CONFIG_DIR / PROFILE / IDLE_TIMEOUT\n');
+    process.exit(1);
+  }
+  validateProfile(profile);
+  const idleTimeout = parseIntegerOption(idleInput, 'daemon idle timeout');
+
+  const config = createConfig(configPath);
+  const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
+  const paths = new DaemonPaths(configDir, profile);
+  const server = new DaemonServer(
+    paths,
+    { apiId, apiHash },
+    { idleTimeout, onIdle: () => process.exit(0), pidPreclaimed },
+  );
+
+  installDaemonSignals(() => server.stop());
+  await server.start();
+}
+
+main().catch((err) => {
+  process.stderr.write(`Daemon start failed: ${(err as Error).message}\n`);
   process.exit(1);
 });

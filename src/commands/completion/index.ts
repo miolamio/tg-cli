@@ -1,4 +1,6 @@
 import { Command } from 'commander';
+import { outputError } from '../../lib/output.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Generate shell completion scripts for bash, zsh, or fish.
@@ -17,8 +19,8 @@ export function createCompletionCommand(): Command {
 
       const script = scripts[shell];
       if (!script) {
-        process.stderr.write(`Unknown shell: ${shell}. Use: bash, zsh, or fish\n`);
-        process.exit(1);
+        outputError(`Unknown shell: ${shell}. Use: bash, zsh, or fish`, ErrorCode.INVALID_INPUT);
+        return;
       }
 
       process.stdout.write(script);
@@ -56,18 +58,39 @@ function generateZshCompletion(): string {
   return `#compdef tg
 _tg() {
   local -a commands
-  commands=(
-    'auth:Authentication management'
-    'session:Session import/export'
-    'chat:Chat discovery and management'
-    'message:Message reading and sending'
-    'media:Media upload/download'
-    'user:User profiles and blocking'
-    'contact:Contact management'
-    'daemon:Persistent connection daemon'
-    'completion:Generate shell completions'
-  )
-  _describe 'command' commands
+  local state
+  _arguments -C \\
+    '1: :->command' \\
+    '*:: :->args'
+
+  case $state in
+    command)
+      commands=(
+        'auth:Authentication management'
+        'session:Session import/export'
+        'chat:Chat discovery and management'
+        'message:Message reading and sending'
+        'media:Media upload/download'
+        'user:User profiles and blocking'
+        'contact:Contact management'
+        'daemon:Persistent connection daemon'
+        'completion:Generate shell completions'
+      )
+      _describe 'command' commands
+      ;;
+    args)
+      case $words[1] in
+        auth)      _describe 'subcommand' '(login:Log in status:Auth status logout:Log out)' ;;
+        session)   _describe 'subcommand' '(export:Export session import:Import session)' ;;
+        chat)      _describe 'subcommand' '(list:List chats info:Chat info join:Join leave:Leave resolve:Resolve invite-info:Invite info members:Members topics:Topics search:Search create:Create edit:Edit kick:Kick)' ;;
+        message)   _describe 'subcommand' '(history:History search:Search get:Get pinned:Pinned send:Send forward:Forward react:React replies:Replies edit:Edit delete:Delete pin:Pin unpin:Unpin poll:Poll watch:Watch)' ;;
+        media)     _describe 'subcommand' '(download:Download send:Send)' ;;
+        user)      _describe 'subcommand' '(profile:Profile block:Block unblock:Unblock blocked:Blocked)' ;;
+        contact)   _describe 'subcommand' '(list:List add:Add delete:Delete search:Search)' ;;
+        daemon)    _describe 'subcommand' '(start:Start stop:Stop status:Status)' ;;
+      esac
+      ;;
+  esac
 }
 _tg "$@"
 `;
@@ -84,5 +107,15 @@ complete -c tg -n '__fish_use_subcommand' -a user -d 'User profiles and blocking
 complete -c tg -n '__fish_use_subcommand' -a contact -d 'Contact management'
 complete -c tg -n '__fish_use_subcommand' -a daemon -d 'Persistent connection daemon'
 complete -c tg -n '__fish_use_subcommand' -a completion -d 'Generate shell completions'
+
+complete -c tg -n '__fish_seen_subcommand_from auth' -a 'login status logout'
+complete -c tg -n '__fish_seen_subcommand_from session' -a 'export import'
+complete -c tg -n '__fish_seen_subcommand_from chat' -a 'list info join leave resolve invite-info members topics search create edit kick'
+complete -c tg -n '__fish_seen_subcommand_from message' -a 'history search get pinned send forward react replies edit delete pin unpin poll watch'
+complete -c tg -n '__fish_seen_subcommand_from media' -a 'download send'
+complete -c tg -n '__fish_seen_subcommand_from user' -a 'profile block unblock blocked'
+complete -c tg -n '__fish_seen_subcommand_from contact' -a 'list add delete search'
+complete -c tg -n '__fish_seen_subcommand_from daemon' -a 'start stop status'
+complete -c tg -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 `;
 }

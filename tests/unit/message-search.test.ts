@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- Mocks ----
 
@@ -27,6 +27,19 @@ const mockClientInstance = {
   connect: mockConnect,
   destroy: mockDestroy,
   getMessages: mockGetMessages,
+  getInputEntity: vi.fn().mockResolvedValue({ className: 'InputPeerChannel' }),
+  invoke: vi.fn().mockResolvedValue({ messages: [], users: [], chats: [], count: 0 }),
+  iterMessages: vi.fn((...args: any[]) => {
+    const iterator = {
+      total: 0,
+      async *[Symbol.asyncIterator]() {
+        const messages = await mockGetMessages(...args);
+        iterator.total = (messages as any).total ?? messages.length;
+        yield* messages;
+      },
+    };
+    return iterator;
+  }),
 };
 
 // Hoisted mock classes for telegram Api
@@ -60,6 +73,8 @@ vi.mock('telegram', () => ({
     StringSession: vi.fn().mockImplementation((s: string) => ({ _session: s })),
   },
   Api: {
+    messages: { Search: class { constructor(args: any) { Object.assign(this, args); } } },
+    InputMessagesFilterEmpty: class {},
     InputMessagesFilterPhotos: MockInputMessagesFilterPhotos,
     InputMessagesFilterVideo: class {},
     InputMessagesFilterDocument: class {},
@@ -156,6 +171,8 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 }
 
 describe('messageSearchAction', () => {
+  const originalExitCode = process.exitCode;
+  afterEach(() => { process.exitCode = originalExitCode; });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -236,9 +253,9 @@ describe('messageSearchAction', () => {
     expect(data.messages).toHaveLength(2);
     expect(data.messages[0]).toHaveProperty('chatId');
     expect(data.messages[0]).toHaveProperty('chatTitle');
-    expect(data.messages[0].chatId).toBe('200');
+    expect(data.messages[0].chatId).toBe('-100200');
     expect(data.messages[0].chatTitle).toBe('Channel Alpha');
-    expect(data.messages[1].chatId).toBe('300');
+    expect(data.messages[1].chatId).toBe('-300');
     expect(data.messages[1].chatTitle).toBe('Group Beta');
   });
 
@@ -509,11 +526,9 @@ describe('messageSearchAction', () => {
     expect(data.messages[0].chatTitle).toBe('Chat B');
   });
 
-  it('single-chat search with --topic passes replyTo to getMessages', async () => {
+  it('single-chat search with --topic uses Search with topMsgId', async () => {
     const messages: any[] = [];
     (messages as any).total = 0;
-    mockGetMessages.mockResolvedValueOnce(messages);
-
     const ctx = createMockCommandContext({ chat: 'mychat', query: 'test', topic: '42' });
     await messageSearchAction.call(ctx as any);
 
@@ -521,11 +536,21 @@ describe('messageSearchAction', () => {
       expect.objectContaining({ className: 'Channel' }),
       42,
     );
-    expect(mockGetMessages).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ replyTo: 42 }),
+    expect(mockClientInstance.invoke).toHaveBeenCalledWith(
+      expect.objectContaining({ topMsgId: 42, q: 'test' }),
     );
+    expect(mockGetMessages).not.toHaveBeenCalled();
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
+  });
+
+  it('--topic without --chat returns INVALID_OPTIONS', async () => {
+    const ctx = createMockCommandContext({ query: 'test', topic: '42' });
+    await messageSearchAction.call(ctx as any);
+    expect(mockOutputError).toHaveBeenCalledWith(
+      '--topic requires a single --chat',
+      'INVALID_OPTIONS',
+    );
+    expect(mockGetMessages).not.toHaveBeenCalled();
   });
 
   it('--topic with multi-chat search returns INVALID_OPTIONS error', async () => {

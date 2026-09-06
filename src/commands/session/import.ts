@@ -1,9 +1,11 @@
 import type { Command } from 'commander';
-import { createConfig, resolveCredentials } from '../../lib/config.js';
+import { createConfig, resolveCredentials, getCredentialsOrThrow } from '../../lib/config.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
+import { ErrorCode } from '../../lib/error-codes.js';
+import { refuseDirectConnectIfDaemon } from '../../lib/daemon/guard.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -38,6 +40,7 @@ export async function importAction(
 ): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { skipVerify?: boolean };
   const { profile, quiet } = opts;
+  if (await refuseDirectConnectIfDaemon(opts)) return;
   const skipVerify = opts.skipVerify ?? false;
 
   let session = sessionString;
@@ -47,7 +50,7 @@ export async function importAction(
     if (process.stdin.isTTY) {
       outputError(
         'Provide session string as argument or pipe via stdin',
-        'NO_INPUT',
+        ErrorCode.NO_INPUT,
       );
       return;
     }
@@ -61,7 +64,7 @@ export async function importAction(
   if (!session) {
     outputError(
       'Provide session string as argument or pipe via stdin',
-      'NO_INPUT',
+      ErrorCode.NO_INPUT,
     );
     return;
   }
@@ -69,55 +72,62 @@ export async function importAction(
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
-  // Validate session unless --skip-verify is set
-  let wasVerified = false;
+  const importedSession = session;
+  await store.withLock(profile, async (_previousSession, holdUntil) => {
+    // Validate session unless --skip-verify is set
+    let wasVerified = false;
 
-  if (!skipVerify) {
-    const creds = resolveCredentials(config);
-    if (!creds) {
-      logStatus(
-        'Warning: Cannot verify session — API credentials not configured. Saving without verification.',
-        quiet,
-      );
-    } else {
-      try {
-        let authorized = false;
-        await withClient(
-          { apiId: creds.apiId, apiHash: creds.apiHash, sessionString: session },
-          async (client) => {
-            authorized = await client.checkAuthorization();
-          },
+    if (!skipVerify) {
+      const hasCredentials = config.get(`profiles.${profile}.client`) || resolveCredentials(config);
+      const creds = hasCredentials ? await getCredentialsOrThrow(config, undefined, profile) : null;
+      if (!creds) {
+        logStatus(
+          'Warning: Cannot verify session — API credentials not configured. Saving without verification.',
+          quiet,
         );
+      } else {
+        try {
+          let authorized = false;
+          await withClient(
+            { apiId: creds.apiId, apiHash: creds.apiHash, sessionString: importedSession },
+            async (client) => {
+              authorized = await client.checkAuthorization();
+            },
+            { holdUntil },
+          );
 
-        if (!authorized) {
+          if (!authorized) {
+            outputError(
+              'Session is not authorized. The session string may be invalid or expired. Use --skip-verify to import anyway.',
+              ErrorCode.INVALID_SESSION,
+            );
+            return;
+          }
+
+          wasVerified = true;
+          logStatus('Session verified — authorized.', quiet);
+        } catch (err: unknown) {
+          const { message } = formatError(err);
           outputError(
-            'Session is not authorized. The session string may be invalid or expired. Use --skip-verify to import anyway.',
-            'INVALID_SESSION',
+            `Session verification failed: ${message}. Use --skip-verify to import anyway.`,
+            ErrorCode.VERIFY_FAILED,
           );
           return;
         }
-
-        wasVerified = true;
-        logStatus('Session verified — authorized.', quiet);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        outputError(
-          `Session verification failed: ${message}. Use --skip-verify to import anyway.`,
-          'VERIFY_FAILED',
-        );
-        return;
       }
     }
-  }
 
-  // Save session to file store
-  await store.save(profile, session);
+    // Save session to file store
+    store.saveUnlocked(profile, importedSession);
 
-  // Update config profile with metadata
-  config.set(`profiles.${profile}`, {
-    created: new Date().toISOString(),
+    // Update config profile with metadata
+    const clientName = config.get(`profiles.${profile}.client`);
+    config.set(`profiles.${profile}`, {
+      ...(clientName ? { client: clientName } : {}),
+      created: new Date().toISOString(),
+    });
+
+    logStatus('Session imported successfully!', quiet);
+    outputSuccess({ imported: true, profile, verified: wasVerified });
   });
-
-  logStatus('Session imported successfully!', quiet);
-  outputSuccess({ imported: true, profile, verified: wasVerified });
 }

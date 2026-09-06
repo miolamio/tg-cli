@@ -4,7 +4,8 @@
  */
 
 /** Known array property names for list command detection. */
-const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files', 'profiles', 'users', 'contacts', 'results'] as const;
+const LIST_KEYS = ['messages', 'chats', 'members', 'topics', 'files', 'profiles', 'users', 'contacts', 'results', 'posts'] as const;
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /**
  * Pick specific fields from an object, supporting dot-notation paths.
@@ -22,11 +23,12 @@ export function pickFields<T>(obj: T, fields: string[]): Partial<T> {
 
   for (const field of fields) {
     const parts = field.split('.');
+    if (parts.some(part => !part || UNSAFE_KEYS.has(part))) continue;
     // Walk source object to find value
     let value: unknown = obj;
     let valid = true;
     for (const part of parts) {
-      if (value == null || typeof value !== 'object') {
+      if (value == null || typeof value !== 'object' || !Object.hasOwn(value, part)) {
         valid = false;
         break;
       }
@@ -42,7 +44,7 @@ export function pickFields<T>(obj: T, fields: string[]): Partial<T> {
     let target = result;
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
-      if (!(part in target) || typeof target[part] !== 'object' || target[part] == null) {
+      if (!Object.hasOwn(target, part) || typeof target[part] !== 'object' || target[part] == null) {
         target[part] = {};
       }
       target = target[part] as Record<string, unknown>;
@@ -67,34 +69,45 @@ export function applyFieldSelection(data: unknown, fields: string[]): unknown {
 
   const obj = data as Record<string, unknown>;
 
-  // Check if any value is an array of objects (list-shaped data)
-  const hasArrayOfObjects = Object.values(obj).some(
-    (value) =>
-      Array.isArray(value) &&
-      value.length > 0 &&
-      typeof value[0] === 'object' &&
-      value[0] !== null,
-  );
+  const isNamedListKey = (key: string) =>
+    (LIST_KEYS as readonly string[]).includes(key);
 
-  // Single-object output (e.g., MessageItem from `message send`):
-  // apply pickFields directly to the top-level object
-  if (!hasArrayOfObjects) {
-    return pickFields(obj, fields);
+  const isListShaped = Object.entries(obj).some(([key, value]) => {
+    if (key === 'errors' || UNSAFE_KEYS.has(key)) return false;
+    if (!Array.isArray(value)) return false;
+    if (isNamedListKey(key)) return true;
+    return value.length > 0 && typeof value[0] === 'object' && value[0] !== null;
+  });
+
+  // Single-object output (e.g., MessageItem from `message send`)
+  if (!isListShaped) {
+    const selected = pickFields(obj, fields);
+    if (Array.isArray(obj.errors)) {
+      selected.errors = obj.errors;
+      if (typeof obj.partial === 'boolean') selected.partial = obj.partial;
+    }
+    return selected;
   }
 
-  // List-shaped data: filter each array item, preserve metadata
+  // List-shaped data: filter each array item, preserve metadata (including empty lists)
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
+    if (UNSAFE_KEYS.has(key)) continue;
+    // Failures are operation metadata, not successful list items. Never
+    // erase their error/code when selecting fields such as --fields id.
+    if (key === 'errors' && Array.isArray(value)) {
+      result[key] = value;
+      continue;
+    }
     if (
       Array.isArray(value) &&
-      value.length > 0 &&
-      typeof value[0] === 'object' &&
-      value[0] !== null
+      (isNamedListKey(key) || (value.length > 0 && typeof value[0] === 'object' && value[0] !== null))
     ) {
-      result[key] = value.map((item) => pickFields(item, fields));
+      result[key] = value.map((item) =>
+        item != null && typeof item === 'object' ? pickFields(item, fields) : item,
+      );
     } else {
-      // Metadata or scalar — preserve as-is
       result[key] = value;
     }
   }

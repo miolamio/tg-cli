@@ -1,8 +1,10 @@
 import type { Command } from 'commander';
 import { withAuth } from '../../lib/with-auth.js';
-import { outputSuccess } from '../../lib/output.js';
+import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMember } from '../../lib/serialize.js';
+import { validatePagination } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions } from '../../lib/types.js';
 import type { Api } from 'telegram';
 
@@ -15,8 +17,15 @@ import type { Api } from 'telegram';
 export async function chatMembersAction(this: Command, chatInput: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { limit: string; offset: string; search?: string };
 
-  const limit = parseInt(opts.limit, 10) || 50;
-  const offset = parseInt(opts.offset, 10) || 0;
+  let limit: number;
+  let offset: number;
+  try {
+    ({ limit, offset } = validatePagination({ limit: opts.limit, offset: opts.offset }));
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
+    return;
+  }
 
   await withAuth(opts, async (client) => {
     const entity = await resolveEntity(client, chatInput);

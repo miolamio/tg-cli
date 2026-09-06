@@ -1,8 +1,12 @@
 import pc from 'picocolors';
-import type { SuccessEnvelope, ErrorEnvelope } from './types.js';
+import type { SuccessEnvelope, ErrorEnvelope, BatchItemError } from './types.js';
 import { formatData } from './format.js';
 import { pickFields, applyFieldSelection, extractListItems } from './fields.js';
 import { encodeToon } from './toon.js';
+import { isQuietMode, isVerboseMode, setQuietMode, setVerboseMode } from './cli-mode.js';
+import { captureDaemonOutput, getDaemonContext, markExitFailure } from './daemon/execution-context.js';
+
+export { setQuietMode, setVerboseMode, isQuietMode, isVerboseMode };
 
 /** Current output mode: false = JSON (default), true = human-readable. */
 let _humanMode = false;
@@ -58,14 +62,17 @@ export function setFieldSelection(fields: string[] | null): void {
 
 /**
  * Write a success response to stdout.
- * Priority: JSONL mode > human mode > JSON mode.
+ * Priority: TOON > JSONL > human > JSON.
  *
+ * - TOON mode: encodes the full `{ ok, data }` envelope.
  * - JSONL mode: extracts list items, writes one JSON object per line (no envelope).
  *   Composes with field selection. Falls through to JSON for non-list data.
  * - Human mode: writes formatted text. --fields silently ignored.
  * - JSON mode: writes envelope, applying field selection if set.
  */
 export function outputSuccess<T>(data: T): void {
+  if (captureDaemonOutput({ ok: true, data })) return;
+
   // TOON mode: encode full envelope through TOON (highest priority)
   if (_toonMode) {
     const filteredData = _fieldSelection
@@ -81,6 +88,23 @@ export function outputSuccess<T>(data: T): void {
     // Special case: shapes with notFound array ({ messages, notFound } or { profiles, notFound })
     // Stream list items to stdout, report notFound to stderr
     const obj = data as Record<string, unknown>;
+    // Partial batch results must keep machine-readable failures even with
+    // --quiet or --fields. Field selection applies only to successful data.
+    if (obj != null && typeof obj === 'object' && Array.isArray(obj.errors)) {
+      const items = extractListItems(obj);
+      if (items !== null) {
+        for (const item of items) {
+          process.stdout.write(JSON.stringify(_fieldSelection ? pickFields(item, _fieldSelection) : item) + '\n');
+        }
+        for (const failure of obj.errors as BatchItemError[]) {
+          process.stdout.write(JSON.stringify({ status: 'failed', ...failure }) + '\n');
+        }
+        if (Array.isArray(obj.notFound) && obj.notFound.length > 0) {
+          logStatus(`Not found: ${obj.notFound.join(', ')}`);
+        }
+        return;
+      }
+    }
     if (obj != null && typeof obj === 'object' && Array.isArray(obj.notFound)) {
       // Find the list key (messages, profiles, etc.)
       const listKey = Object.keys(obj).find(k => k !== 'notFound' && Array.isArray(obj[k]));
@@ -90,10 +114,30 @@ export function outputSuccess<T>(data: T): void {
           process.stdout.write(JSON.stringify(filtered) + '\n');
         }
         if ((obj.notFound as unknown[]).length > 0) {
-          process.stderr.write(`Not found: ${(obj.notFound as unknown[]).join(', ')}\n`);
+          logStatus(`Not found: ${(obj.notFound as unknown[]).join(', ')}`);
         }
         return;
       }
+    }
+
+    // Batch download: { files[], downloaded, failed[] }
+    if (
+      obj != null && typeof obj === 'object'
+      && Array.isArray(obj.files) && Array.isArray(obj.failed) && 'downloaded' in obj
+    ) {
+      for (const file of obj.files as unknown[]) {
+        const entry = _fieldSelection
+          ? pickFields({ ...(file as object), status: 'downloaded' }, _fieldSelection)
+          : { ...(file as object), status: 'downloaded' };
+        process.stdout.write(JSON.stringify(entry) + '\n');
+      }
+      for (const f of obj.failed as { messageId: number; error: string; code: string }[]) {
+        const entry = _fieldSelection
+          ? pickFields({ messageId: f.messageId, status: 'failed', error: f.error, code: f.code }, _fieldSelection)
+          : { messageId: f.messageId, status: 'failed', error: f.error, code: f.code };
+        process.stdout.write(JSON.stringify(entry) + '\n');
+      }
+      return;
     }
 
     // Special case: DeleteResult shape { deleted[], failed[], mode }
@@ -136,12 +180,18 @@ export function outputSuccess<T>(data: T): void {
 }
 
 /**
- * Write an error response.
+ * Write an error response and set process.exitCode = 1.
  * In JSON mode (default): writes JSON envelope { ok: false, error: ... } to stdout.
  * In human mode: writes colored error text to stderr.
  * In JSONL mode: errors always go to stderr (no envelope).
  */
 export function outputError(error: string, code?: string): void {
+  // Commander treats a resolved action as success (exit 0). Set the
+  // code instead of process.exit() so withClient/withAuth finally
+  // still runs destroy().
+  markExitFailure();
+  if (captureDaemonOutput({ ok: false, error, ...(code && { code }) })) return;
+
   // TOON mode: encode error as TOON to stdout (highest priority)
   if (_toonMode) {
     const envelope = { ok: false, error, ...(code && { code }) };
@@ -170,8 +220,14 @@ export function outputError(error: string, code?: string): void {
  * Suppressed when quiet mode is enabled.
  * NEVER writes to stdout -- stdout is reserved for data output only.
  */
-export function logStatus(message: string, quiet: boolean = false): void {
-  if (!quiet) {
-    process.stderr.write(message + '\n');
-  }
+export function logStatus(message: string, quiet?: boolean): void {
+  if (getDaemonContext()) return;
+  if (quiet ?? isQuietMode()) return;
+  process.stderr.write(message + '\n');
+}
+
+/** Extra stderr for --verbose. Suppressed when quiet. */
+export function logVerbose(message: string): void {
+  if (!isVerboseMode() || isQuietMode()) return;
+  process.stderr.write(message + '\n');
 }

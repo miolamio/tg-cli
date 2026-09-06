@@ -138,6 +138,13 @@ function createMockCommandContext(opts: Record<string, any> = {}) {
 }
 
 describe('validatePollOpts', () => {
+  it.each(['12junk', '-1', '1.5', '1e2', '2147483648', '9007199254740993', ''])('rejects invalid close-in without parseInt truncation: %s', closeIn => {
+    expect(validatePollOpts({ question: 'Pick', option: ['A', 'B'], closeIn })?.code).toBe('INVALID_CLOSE_IN');
+  });
+
+  it.each(['1junk', '1.5', '1e0', '2147483648'])('rejects invalid correct index: %s', correct => {
+    expect(validatePollOpts({ question: 'Pick', option: ['A', 'B'], quiz: true, correct })?.code).toBe('INVALID_CORRECT_INDEX');
+  });
   const validOpts = {
     question: 'Favorite color?',
     option: ['Red', 'Blue'],
@@ -245,6 +252,13 @@ describe('validatePollOpts', () => {
 });
 
 describe('messagePollAction', () => {
+  it('reports an unknown sent poll result without repeating the write', async () => {
+    mockSendFile.mockResolvedValueOnce(undefined);
+    await messagePollAction.call(createMockCommandContext({ question: 'Choose', option: ['A', 'B'] }) as any, 'testchat');
+    expect(mockSendFile).toHaveBeenCalledOnce();
+    expect(mockOutputError).toHaveBeenCalledWith(expect.stringContaining('duplicate'), 'MESSAGE_RESULT_UNAVAILABLE');
+    expect(mockOutputSuccess).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mockSendFile.mockResolvedValue({ id: 99, message: '', date: 1710000000 });

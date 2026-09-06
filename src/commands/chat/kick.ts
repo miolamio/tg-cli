@@ -3,7 +3,7 @@ import { Api } from 'telegram';
 import { withAuth } from '../../lib/with-auth.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { bigIntToString, markedPeerId } from '../../lib/serialize.js';
 import { ErrorCode } from '../../lib/error-codes.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
@@ -48,7 +48,7 @@ export async function chatKickAction(this: Command, chatInput: string, userInput
     }
 
     outputSuccess({
-      chatId: bigIntToString((chatEntity as any).id),
+      chatId: markedPeerId(chatEntity),
       userId: bigIntToString(userEntity.id),
       kicked: true,
     });

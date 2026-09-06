@@ -211,7 +211,7 @@ describe('contactListAction', () => {
     const ctx = createMockCommandContext();
     await contactListAction.call(ctx as any);
 
-    expect(mockOutputSuccess).toHaveBeenCalledWith({ contacts: [], total: 0 });
+    expect(mockOutputSuccess).toHaveBeenCalledWith({ contacts: [], total: 0, partial: false, errors: [] });
   });
 
   it('applies limit/offset pagination correctly', async () => {

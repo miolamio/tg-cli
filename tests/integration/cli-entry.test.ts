@@ -1,17 +1,35 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { execSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const BINARY = join(ROOT, 'dist', 'bin', 'tg.js');
 
 describe('CLI entry point (built binary)', () => {
+  let fixtureDir: string;
+  let fixtureConfig: string;
   beforeAll(() => {
     // Build the project before running integration tests
     execSync('npx tsup', { cwd: ROOT, stdio: 'pipe' });
     expect(existsSync(BINARY)).toBe(true);
+    fixtureDir = mkdtempSync(join(tmpdir(), 'tg-cli-entry-'));
+    fixtureConfig = join(fixtureDir, 'config.json');
+    writeFileSync(fixtureConfig, JSON.stringify({ profiles: { review: { phone: '+10000000000', created: '2026-09-06T00:00:00Z' } } }));
+    mkdirSync(join(fixtureDir, 'sessions'));
+    writeFileSync(join(fixtureDir, 'sessions', 'review.session'), 'synthetic-not-a-real-session');
   });
+
+  afterAll(() => {
+    if (fixtureDir) rmSync(fixtureDir, { recursive: true, force: true });
+  });
+
+  function runFixture(args: string[]) {
+    return spawnSync(process.execPath, [BINARY, '--config', fixtureConfig, '--profile', 'review', ...args], {
+      cwd: ROOT, encoding: 'utf-8', timeout: 5000,
+    });
+  }
 
   it('--help exits 0 and shows Auth and Session group headings', () => {
     const output = execSync(`node ${BINARY} --help`, {
@@ -78,6 +96,16 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('resolve');
     expect(output).toContain('invite-info');
     expect(output).toContain('members');
+  });
+
+  it('message search --help shows --public', () => {
+    const output = execSync(`node ${BINARY} message search --help`, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+    expect(output).toContain('--public');
+    expect(output).toContain('--peer');
+    expect(output).toContain('--after');
   });
 
   it('message --help shows all subcommands including edit, delete, pin, unpin', () => {
@@ -196,23 +224,148 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('--toon');
   });
 
-  it('session import --skip-verify with empty string returns NO_INPUT error', () => {
-    try {
-      execSync(`echo "" | node ${BINARY} session import --skip-verify --json`, {
+  it('unknown command exits non-zero', () => {
+    const result = spawnSync(process.execPath, [BINARY, 'not-a-real-command'], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_OPTIONS' });
+    expect(result.stderr).toBe('');
+  });
+
+  it.each([
+    ['--json', 'session', 'export'],
+    ['session', '--json', 'export'],
+    ['session', 'export', '--json'],
+  ])('session export honors explicit --json via real Commander: %j', (...args) => {
+    const result = runFixture(args);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      data: { session: 'synthetic-not-a-real-session', phone: '+10000000000', created: '2026-09-06T00:00:00Z' },
+    });
+  });
+
+  it('session export retains raw piping output when --json is not explicit', () => {
+    const result = runFixture(['session', 'export', '--quiet']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('synthetic-not-a-real-session\n');
+    expect(result.stderr).toBe('');
+  });
+
+  it.each([
+    ['chat', 'list', '--bogus'],
+    ['message', 'get'],
+    ['session', 'unknown'],
+    ['chat', 'list', '--limit'],
+  ])('returns one structured Commander error for %j', (...args) => {
+    const result = runFixture(args);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_OPTIONS' });
+    expect(result.stdout.trim().split('\n')).toHaveLength(1);
+    expect(result.stderr).toBe('');
+  });
+
+  it('honors human mode even for a Commander parse failure', () => {
+    const result = runFixture(['chat', 'list', '--human', '--bogus']);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('INVALID_OPTIONS');
+    expect(result.stderr).not.toContain(' at ');
+  });
+
+  it.each([
+    { mode: [], stdout: true },
+    { mode: ['--quiet'], stdout: true },
+    { mode: ['--toon'], stdout: true },
+    { mode: ['--human'], stdout: false },
+    { mode: ['--jsonl'], stdout: false },
+  ])('catches asynchronous malformed-config failures in $mode', ({ mode, stdout }) => {
+    const corruptConfig = join(fixtureDir, 'corrupt.json');
+    writeFileSync(corruptConfig, '{"secret-token": invalid json');
+    const result = runFixture(['--config', corruptConfig, ...mode, 'chat', 'list']);
+    expect(result.status).toBe(1);
+    expect(stdout ? result.stdout : result.stderr).toContain('CONFIG_ERROR');
+    expect(stdout ? result.stderr : result.stdout).toBe('');
+    expect(result.stdout + result.stderr).not.toContain('secret-token');
+    expect(result.stdout + result.stderr).not.toContain(' at ');
+    if (!mode.includes('--toon') && stdout) {
+      expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'CONFIG_ERROR' });
+      expect(result.stdout.trim().split('\n')).toHaveLength(1);
+    }
+  });
+
+  it('catches an async session-file read error without an unhandled rejection', () => {
+    mkdirSync(join(fixtureDir, 'sessions', 'broken.session'));
+    const result = runFixture(['--profile', 'broken', 'session', 'export', '--json']);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'UNKNOWN_ERROR' });
+    expect(result.stderr).toBe('');
+  });
+
+  it('keeps invalid-profile failures in the selected human format', () => {
+    const result = runFixture(['--human', '--profile', '../invalid', 'session', 'export']);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('INVALID_INPUT');
+  });
+
+  it.each([['auth', 'status'], ['session', 'export']])('rejects an explicit empty profile before %j', (...args) => {
+    const result = runFixture(['--profile', '', '--config', join(fixtureDir, 'missing-parent', 'bad.json'), ...args]);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_INPUT' });
+    expect(existsSync(join(fixtureDir, 'missing-parent'))).toBe(false);
+    expect(result.stderr).toBe('');
+  });
+
+  it('session import --skip-verify with empty stdin exits non-zero with NO_INPUT', () => {
+    const result = spawnSync(
+      process.execPath,
+      [BINARY, 'session', 'import', '--skip-verify', '--json'],
+      {
         cwd: ROOT,
         encoding: 'utf-8',
+        input: '\n',
         env: { ...process.env, HOME: '/tmp/tg-cli-test-home' },
-      });
-    } catch (e: any) {
-      // Command may exit with non-zero; check stdout for structured error
-      const stdout = e.stdout ?? '';
-      if (stdout) {
-        const parsed = JSON.parse(stdout.trim());
-        expect(parsed.ok).toBe(false);
-        expect(parsed.code).toBe('NO_INPUT');
-        return;
-      }
-    }
-    // If no error, that's also acceptable — the test is about CLI wiring
+      },
+    );
+    expect(result.status).not.toBe(0);
+    const parsed = JSON.parse((result.stdout ?? '').trim());
+    expect(parsed.ok).toBe(false);
+    expect(parsed.code).toBe('NO_INPUT');
+  });
+
+  it('completion powershell exits non-zero with a JSON error envelope', () => {
+    const result = spawnSync(process.execPath, [BINARY, 'completion', 'powershell', '--json'], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+    expect(result.status).not.toBe(0);
+    const parsed = JSON.parse((result.stdout ?? '').trim());
+    expect(parsed.ok).toBe(false);
+    expect(parsed.code).toBe('INVALID_INPUT');
+  });
+
+  it('publishes a library entry that can be imported', async () => {
+    const lib = join(ROOT, 'dist', 'index.js');
+    const dts = join(ROOT, 'dist', 'index.d.ts');
+    expect(existsSync(lib)).toBe(true);
+    expect(existsSync(dts)).toBe(true);
+
+    const result = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', "import { ErrorCode, withAuth, resolveEntity } from './dist/index.js'; if (!ErrorCode.NOT_AUTHENTICATED || typeof withAuth !== 'function' || typeof resolveEntity !== 'function') process.exit(2); console.log('library-console-unmodified');"],
+      { cwd: ROOT, encoding: 'utf-8' },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe('library-console-unmodified\n');
+  });
+
+  it('puts a shebang only on the CLI binary, not the daemon entry', () => {
+    const bin = readFileSync(BINARY, 'utf-8');
+    const daemon = readFileSync(join(ROOT, 'dist', 'lib', 'daemon', 'entry.js'), 'utf-8');
+    expect(bin.startsWith('#!/usr/bin/env node')).toBe(true);
+    expect(daemon.startsWith('#!/usr/bin/env node')).toBe(false);
   });
 });

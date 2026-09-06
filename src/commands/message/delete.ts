@@ -3,7 +3,10 @@ import { outputSuccess, outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { parseMessageIds } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions, DeleteResult } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Action handler for `tg message delete <chat> <ids>`.
@@ -19,44 +22,20 @@ export async function messageDeleteAction(this: Command, chat: string, idsInput:
 
   // Safety: require explicit mode selection, mutually exclusive
   if (!opts.revoke && !opts.forMe) {
-    outputError('Specify --revoke (delete for everyone) or --for-me (delete for self)', 'DELETE_MODE_REQUIRED');
+    outputError('Specify --revoke (delete for everyone) or --for-me (delete for self)', ErrorCode.DELETE_MODE_REQUIRED);
     return;
   }
   if (opts.revoke && opts.forMe) {
-    outputError('--revoke and --for-me are mutually exclusive', 'INVALID_OPTIONS');
+    outputError('--revoke and --for-me are mutually exclusive', ErrorCode.INVALID_OPTIONS);
     return;
   }
 
-  // Parse comma-separated message IDs (same pattern as get.ts)
-  const parts = idsInput.split(',').map(s => s.trim());
-  const numericIds: number[] = [];
-  const invalid: string[] = [];
-
-  for (const part of parts) {
-    if (!/^\d+$/.test(part)) {
-      invalid.push(part);
-      continue;
-    }
-    const num = parseInt(part, 10);
-    if (num <= 0) {
-      invalid.push(part);
-    } else {
-      numericIds.push(num);
-    }
-  }
-
-  if (invalid.length > 0) {
-    outputError(`Invalid message IDs: ${invalid.join(', ')}`, 'INVALID_MSG_ID');
-    return;
-  }
-
-  if (numericIds.length === 0) {
-    outputError('No message IDs provided', 'INVALID_MSG_ID');
-    return;
-  }
-
-  if (numericIds.length > 100) {
-    outputError(`Maximum 100 IDs per request (got ${numericIds.length})`, 'TOO_MANY_IDS');
+  let numericIds: number[];
+  try {
+    numericIds = parseMessageIds(idsInput);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 
@@ -64,6 +43,13 @@ export async function messageDeleteAction(this: Command, chat: string, idsInput:
 
   await withAuth(opts, async (client) => {
     const entity = await resolveEntity(client, chat);
+
+    // Telegram only supports deleting for everyone in channels and supergroups.
+    // gramjs silently ignores revoke:false for these peers, so reject before RPC.
+    if (mode === 'for-me' && ['Channel', 'ChannelForbidden', 'InputPeerChannel', 'PeerChannel'].includes(entity.className)) {
+      outputError('--for-me is not supported in channels or supergroups. Use --revoke to delete for everyone.', ErrorCode.INVALID_OPTIONS);
+      return;
+    }
 
     try {
       await client.deleteMessages(entity, numericIds, { revoke: mode === 'revoke' });

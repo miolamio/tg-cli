@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "type": "module",
   "description": "Telegram CLI client for Claude Code agents and power users",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "tg": "./dist/bin/tg.js",
     "telegram-cli": "./dist/bin/tg.js"
@@ -10,12 +18,21 @@
   "engines": {
     "node": ">=20"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miolamio/tg-cli.git"
+  },
+  "homepage": "https://github.com/miolamio/tg-cli#readme",
+  "bugs": {
+    "url": "https://github.com/miolamio/tg-cli/issues"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "files": [
     "dist"
@@ -28,7 +45,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@toon-format/toon": "^2.1.0",
+    "@toon-format/toon": "^2.3.1",
     "commander": "^14.0.3",
     "conf": "^15.1.0",
     "picocolors": "^1.1.1",
@@ -36,13 +53,17 @@
     "telegram": "^2.26.22",
     "zod": "^4.3.6"
   },
+  "overrides": {
+    "esbuild": "^0.28.2",
+    "vite": "^6.4.3"
+  },
   "devDependencies": {
     "@types/node": "^25.4.0",
     "@types/proper-lockfile": "^4.1.4",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^3.2.7",
     "gpt-tokenizer": "^3.4.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.7"
   }
 }

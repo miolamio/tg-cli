@@ -2,8 +2,10 @@ import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { markedPeerId } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { parseMessageId } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -19,10 +21,12 @@ export async function messageReactAction(this: Command, chat: string, msgId: str
   const opts = this.optsWithGlobals() as GlobalOptions & { remove?: boolean };
   const remove = opts.remove ?? false;
 
-  // Parse and validate message ID
-  const messageId = parseInt(msgId, 10);
-  if (isNaN(messageId)) {
-    outputError('Invalid message ID: must be a number', 'INVALID_MESSAGE_ID');
+  let messageId: number;
+  try {
+    messageId = parseMessageId(msgId);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 
@@ -44,7 +48,7 @@ export async function messageReactAction(this: Command, chat: string, msgId: str
 
     outputSuccess({
       messageId,
-      chatId: bigIntToString((entity as any).id),
+      chatId: markedPeerId(entity),
       emoji,
       action: remove ? 'removed' : 'added',
     });

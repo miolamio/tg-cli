@@ -3,6 +3,8 @@ import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { parseMessageIds } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -19,27 +21,12 @@ import type { GlobalOptions } from '../../lib/types.js';
 export async function messageForwardAction(this: Command, fromChat: string, msgIds: string, toChat: string): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
 
-  // Parse and validate comma-separated message IDs
-  const parts = msgIds.split(',').map(s => s.trim());
-  const ids: number[] = [];
-  const invalid: string[] = [];
-
-  for (const part of parts) {
-    const num = parseInt(part, 10);
-    if (isNaN(num)) {
-      invalid.push(part);
-    } else {
-      ids.push(num);
-    }
-  }
-
-  if (invalid.length > 0) {
-    outputError(`Invalid message IDs: ${invalid.join(', ')}`, 'INVALID_MESSAGE_IDS');
-    return;
-  }
-
-  if (ids.length === 0) {
-    outputError('No message IDs provided', 'INVALID_MESSAGE_IDS');
+  let ids: number[];
+  try {
+    ids = parseMessageIds(msgIds);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 

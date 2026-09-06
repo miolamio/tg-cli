@@ -66,6 +66,7 @@ tg chat kick <chat> <user>                                   # Kick a user from 
 # Read
 tg message history <chat> [--limit N] [--since DATE] [--until DATE] [--topic ID]
 tg message search [--chat CHAT] [--query TEXT] [--filter photos|videos|...]
+tg message search --public --query hashtag [--limit N] [--offset RATE] [--peer PEER] [--after ID]
 tg message get <chat> <id1,id2,...>
 tg message pinned <chat>
 tg message replies <channel> <msg-ids>
@@ -109,23 +110,63 @@ tg contact delete <user>
 tg contact search <query> [--limit N] [--global]
 ```
 
+Contact search matches saved names and usernames without case sensitivity. Use `@username` to search usernames only. `--global` fills remaining result slots with remote username matches; the limit applies before profile enrichment.
+
 ### Daemon
 
-Persistent connection daemon for faster sequential operations and real-time features:
+Keep one Telegram connection open for commands and live subscriptions:
 
 ```bash
 tg daemon start                  # Start background daemon (5 min idle timeout)
+tg daemon start --idle-timeout 0  # Keep running until explicitly stopped
 tg daemon start --idle-timeout 600  # Custom idle timeout in seconds
 tg daemon start --foreground     # Run in foreground (don't fork)
 tg daemon stop                   # Stop the running daemon
 tg daemon status                 # Check daemon status (running, pid, uptime)
 ```
 
-Use `--daemon` on any command to route it through the persistent connection:
+Start the daemon once, then use `--daemon` for chat, message, media, user and contact commands. Each command uses the existing MTProto connection and entity cache. `message watch` uses the same connection. Commands keep their normal validation, JSON/JSONL/TOON/human output and `--fields` behavior.
 
 ```bash
-tg chat list --daemon            # Uses daemon (auto-starts if needed)
+tg daemon start --idle-timeout 0
+tg --daemon chat list --limit 10
+tg --daemon message history me --limit 5
+tg --daemon message send me "Saved through the daemon"
+echo "Reply from stdin" | tg --daemon message send me -
+tg message watch me
 ```
+
+`--daemon` requires a running daemon and never falls back to opening another session. Auth and session-management commands still need a direct connection: stop the daemon before using them. Library callbacks passed to `withAuth` cannot be serialized; use `DaemonClient.execute` for the command API.
+
+### Daemon API
+
+The local API is JSON-RPC 2.0 over the profile's Unix socket (mode `0600`), one JSON message per line. The socket path is returned by `daemon start`. Existing methods `ping`, `status`, `subscribe` and `shutdown` remain supported; `status` reports `apiVersion: 1`, `capabilities`, `connected` and `activeRequests`.
+
+`execute` accepts normal command arguments as an array, without global auth/output flags. It returns the usual envelope in `output` and an `exitCode`, including partial failures. No shell is invoked.
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"execute","params":{"argv":["message","history","me","--limit","5"]}}
+```
+
+```js
+import { dirname } from 'node:path';
+import { createConfig, DaemonPaths, DaemonClient } from '@miolamio/tg-cli';
+
+const paths = new DaemonPaths(dirname(createConfig().path), 'default');
+const daemon = new DaemonClient(paths.socketPath);
+try {
+  const result = await daemon.execute(['message', 'history', 'me', '--limit', '5']);
+  console.log(result.output);
+  // Sending uses the same Telegram connection:
+  // await daemon.execute(['message', 'send', 'me', 'Hello']);
+} finally {
+  daemon.close(); // Closes this API client's sockets; the daemon keeps running.
+}
+```
+
+For piped message text, pass `stdin` alongside argv containing `-`. Media operations require an absolute `cwd`; CLI routing supplies the caller's directory automatically. API formatting remains raw JSON; CLI formatting is applied after the result arrives.
+
+Commands have a default deadline of 120 seconds, configurable with API `timeoutMs` from 1 to 120000. At most 16 commands can remain in flight. Closing an API socket cancels further work for its requests without destroying the shared connection. Already submitted Telegram operations cannot be undone; after a timeout/disconnect, check the result before repeating a send. The command API does not automatically replay failed requests. Idle shutdown waits for outstanding work, and session ownership is retained until teardown finishes. Each request/response frame is limited to 1 MiB; use smaller pages for large histories.
 
 ### Shell Completion
 
@@ -161,6 +202,14 @@ JSON envelope format:
 }
 ```
 
+Batch commands retain successful items and report failures in `data.errors`,
+each with `input`, `error`, and `code`. Any failure sets `data.partial: true` and
+exit status 1, including when every input failed. `--fields` preserves this error
+metadata. JSONL emits successful items followed by `{ "status": "failed", ... }`
+records without an envelope; `--quiet` suppresses diagnostics on stderr.
+An unavailable profile photo count is `null`. An album item whose message ID is
+missing from the response is reported as unknown; retrying may duplicate a send.
+
 ## Agent Usage
 
 Designed for non-interactive automation. Export a session once, then reuse:
@@ -173,6 +222,7 @@ SESSION=$(tg session export)
 # Reuse in scripts / agents
 echo "$SESSION" | tg session import
 tg message search --query "meeting notes" --limit 10
+tg message search --public --query bitcoin --limit 20
 tg chat list --fields id,title,unreadCount --jsonl
 ```
 
@@ -182,24 +232,31 @@ Pipe message text via stdin:
 echo "Hello from the CLI" | tg message send mychat -
 ```
 
-Use daemon mode for faster sequential operations:
+Use the daemon for repeated commands and a persistent live message subscription:
 
 ```bash
-tg daemon start
-tg chat list --daemon --toon
-tg message history @channel --daemon --limit 50
+tg daemon start --idle-timeout 0
+tg --daemon message history @channel --limit 10
+tg message watch @channel
 tg daemon stop
 ```
+
+The daemon owns the selected profile until shutdown. Use `--daemon` on ordinary
+commands while it is running. Stop it before direct auth/session operations.
 
 ## Development
 
 ```bash
-git clone https://github.com/miolamio/telegram-cli.git
-cd telegram-cli
-npm install
+git clone https://github.com/miolamio/tg-cli.git
+cd tg-cli
+npm ci
 npm run build
+npm run typecheck
 npm test
 ```
+
+CI checks Node 20 and 22. Dependency overrides keep Vite on its patched 6.x line
+for earlier Node 20 releases and use patched esbuild 0.28.x in the build tools.
 
 ## License
 

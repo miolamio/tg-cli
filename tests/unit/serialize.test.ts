@@ -54,6 +54,10 @@ import {
   serializeSearchResult,
   serializeMember,
   bigIntToString,
+  markedPeerId,
+  messagePeerMarkedId,
+  serializeChatPhoto,
+  serializeBannedRights,
   extractMediaInfo,
   extractPollData,
   detectMedia,
@@ -98,6 +102,14 @@ describe('serializeDialog', () => {
     expect(result.type).toBe('user');
     expect(result.id).toBe('12345');
     expect(result.title).toBe('Test Chat');
+  });
+
+  it('prefers gramjs dialog.id over an unmarked Forbidden entity', () => {
+    const dialog = mockDialog({
+      id: { toString: () => '-1005' },
+      entity: { id: 5, className: 'ChannelForbidden' },
+    });
+    expect(serializeDialog(dialog as any).id).toBe('-1005');
   });
 
   it('returns type "group" for group dialogs', () => {
@@ -199,6 +211,20 @@ describe('serializeMessage', () => {
     const sender = { firstName: 'Alice' };
     const result = serializeMessage(msg as any, sender as any);
     expect(result.senderName).toBe('Alice');
+  });
+
+  it('fills senderName from msg._sender when no senderEntity is passed', () => {
+    const msg = mockMessage();
+    (msg as any)._sender = { firstName: 'Carol', lastName: 'Diaz' };
+    const result = serializeMessage(msg as any);
+    expect(result.senderName).toBe('Carol Diaz');
+  });
+
+  it('prefers explicit senderEntity over msg._sender', () => {
+    const msg = mockMessage();
+    (msg as any)._sender = { firstName: 'FromMsg' };
+    const result = serializeMessage(msg as any, { firstName: 'Explicit' } as any);
+    expect(result.senderName).toBe('Explicit');
   });
 
   it('includes replyToMsgId when message is a reply', () => {
@@ -676,5 +702,57 @@ describe('detectMedia - poll', () => {
   it('returns mediaType "poll" for MessageMediaPoll', () => {
     const media = new MockMediaPoll();
     expect(detectMedia(media).mediaType).toBe('poll');
+  });
+});
+
+describe('markedPeerId', () => {
+  it('marks channels with -100 prefix', () => {
+    expect(markedPeerId({ id: 123456, className: 'Channel' })).toBe('-100123456');
+  });
+
+  it('marks basic chats with a leading minus', () => {
+    expect(markedPeerId({ id: 99, className: 'Chat' })).toBe('-99');
+  });
+
+  it('marks Forbidden chat and channel classes', () => {
+    expect(markedPeerId({ id: 8, className: 'ChatForbidden' })).toBe('-8');
+    expect(markedPeerId({ id: 9, className: 'ChannelForbidden' })).toBe('-1009');
+  });
+
+  it('leaves users unmarked', () => {
+    expect(markedPeerId({ id: 42, className: 'User' })).toBe('42');
+  });
+
+  it('does not double-mark an already negative id', () => {
+    expect(markedPeerId({ id: '-100123', className: 'Channel' })).toBe('-100123');
+  });
+});
+
+describe('messagePeerMarkedId', () => {
+  it('marks channel, chat, and user peers', () => {
+    expect(messagePeerMarkedId({ peerId: { channelId: 5 } })).toBe('-1005');
+    expect(messagePeerMarkedId({ peerId: { chatId: 9 } })).toBe('-9');
+    expect(messagePeerMarkedId({ peerId: { userId: 3 } })).toBe('3');
+  });
+
+  it('returns empty when the update has no peer', () => {
+    expect(messagePeerMarkedId({ id: 1, message: 'x' })).toBe('');
+  });
+});
+
+describe('serializeChatPhoto / serializeBannedRights', () => {
+  it('returns hasPhoto for a real photo object', () => {
+    expect(serializeChatPhoto({ className: 'ChatPhoto' })).toEqual({ hasPhoto: true });
+  });
+
+  it('returns null for empty photos', () => {
+    expect(serializeChatPhoto({ className: 'ChatPhotoEmpty' })).toBeNull();
+    expect(serializeChatPhoto(null)).toBeNull();
+  });
+
+  it('keeps only boolean permission flags', () => {
+    expect(serializeBannedRights({ sendMessages: true, className: 'X', flags: 3 })).toEqual({
+      sendMessages: true,
+    });
   });
 });

@@ -109,7 +109,7 @@ describe('chatResolveAction', () => {
     expect(mockResolveEntity).toHaveBeenCalledWith(mockClientInstance, 'mychan');
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data.id).toBe('100');
+    expect(data.id).toBe('-100100');
     expect(data.type).toBe('channel');
     expect(data.title).toBe('My Channel');
     expect(data.username).toBe('mychan');

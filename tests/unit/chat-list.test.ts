@@ -66,14 +66,18 @@ vi.mock('../../src/lib/client.js', () => ({
 
 // Helper to create mock dialog objects matching gramjs Dialog shape
 function createMockDialog(overrides: Record<string, any> = {}) {
+  const id = overrides.id ?? BigInt(123);
   const defaults = {
-    id: BigInt(123),
+    id,
     title: 'Test Chat',
     name: 'Test Chat',
     isUser: false,
     isChannel: false,
     isGroup: true,
     unreadCount: 0,
+    date: 1_700_000_000,
+    message: { id: Number(id), date: 1_700_000_000 },
+    inputEntity: { className: 'InputPeerChat', chatId: id },
     entity: { username: null, megagroup: false },
   };
   return { ...defaults, ...overrides };
@@ -143,6 +147,71 @@ describe('chatListAction', () => {
     expect(data.chats).toHaveLength(1);
     expect(data.chats[0].type).toBe('group');
     expect(data.chats[0].title).toBe('Group One');
+    expect(data.total).toBe(1);
+  });
+
+  it('keeps fetching until --type page is full', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => {
+      if (i === 0) {
+        return createMockDialog({ id: BigInt(1), title: 'Group One', isGroup: true });
+      }
+      return createMockDialog({
+        id: BigInt(i + 1),
+        title: `User ${i + 1}`,
+        isUser: true,
+        isGroup: false,
+      });
+    });
+    const second = [
+      createMockDialog({ id: BigInt(201), title: 'Group Two', isGroup: true }),
+      createMockDialog({ id: BigInt(202), title: 'Group Three', isGroup: true }),
+      createMockDialog({ id: BigInt(203), title: 'User Extra', isUser: true, isGroup: false }),
+    ];
+    mockGetDialogs
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second);
+
+    const ctx = createMockCommandContext({ type: 'group', limit: '2' });
+    await chatListAction.call(ctx as any);
+
+    expect(mockGetDialogs).toHaveBeenCalledTimes(2);
+    expect(mockGetDialogs).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 100 }));
+    expect(mockGetDialogs).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        limit: 100,
+        offsetId: first[99].message.id,
+        offsetPeer: first[99].inputEntity,
+      }),
+    );
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.hasMore).toBe(true);
+    expect(data.chats).toHaveLength(2);
+    expect(data.chats.map((c: { title: string }) => c.title)).toEqual(['Group One', 'Group Two']);
+    expect(data.chats.every((c: { type: string }) => c.type === 'group')).toBe(true);
+  });
+
+  it('hasMore is false when MAX_DIALOGS is hit without filling the typed page', async () => {
+    let n = 0;
+    mockGetDialogs.mockImplementation(async () => {
+      return Array.from({ length: 100 }, () => {
+        n += 1;
+        return createMockDialog({
+          id: BigInt(n),
+          title: `User ${n}`,
+          isUser: true,
+          isGroup: false,
+        });
+      });
+    });
+
+    const ctx = createMockCommandContext({ type: 'group', limit: '2' });
+    await chatListAction.call(ctx as any);
+
+    expect(mockGetDialogs).toHaveBeenCalledTimes(50);
+    const data = mockOutputSuccess.mock.calls[0][0];
+    expect(data.chats).toEqual([]);
+    expect(data.hasMore).toBe(false);
   });
 
   it('filters by --type channel', async () => {

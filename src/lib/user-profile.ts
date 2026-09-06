@@ -48,9 +48,10 @@ export async function buildUserProfile(
   user: Api.User,
   fullUser: any,
   userFromResult: Api.User,
+  onPhotoError?: (err: unknown) => void,
 ): Promise<UserProfile> {
   // Fetch photo count
-  let photoCount = 0;
+  let photoCount: number | null = null;
   try {
     const photosResult = await client.invoke(
       new Api.photos.GetUserPhotos({
@@ -63,12 +64,9 @@ export async function buildUserProfile(
     photoCount = (photosResult as any).count
       ?? (photosResult as any).photos?.length
       ?? 0;
-  } catch {
-    // Fall back: if user has a profile photo, report 1
-    const photo = userFromResult.photo;
-    if (photo && (photo as any).className !== 'UserProfilePhotoEmpty') {
-      photoCount = 1;
-    }
+  } catch (err: unknown) {
+    // The presence of a profile picture does not reveal the photo count.
+    onPhotoError?.(err);
   }
 
   const isBot = !!userFromResult.bot;

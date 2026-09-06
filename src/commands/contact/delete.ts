@@ -6,6 +6,7 @@ import { resolveEntity } from '../../lib/peer.js';
 import { bigIntToString } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions, ContactDeleteResult } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Action handler for `tg contact delete <user>`.
@@ -24,7 +25,7 @@ export async function contactDeleteAction(this: Command, userInput: string): Pro
 
     // Validate entity is a User (not Channel/Chat)
     if (!(entity instanceof Api.User)) {
-      outputError('Not a user: this is a group/channel', 'NOT_A_USER');
+      outputError('Not a user: this is a group/channel', ErrorCode.NOT_A_USER);
       return;
     }
 

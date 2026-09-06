@@ -137,7 +137,7 @@ describe('chatEditAction', () => {
     expect(MockEditTitle).toHaveBeenCalledWith(
       expect.objectContaining({ channel: entity, title: 'New Title' }),
     );
-    expect(MockEditAbout).not.toHaveBeenCalled();
+    expect(MockEditChatAbout).not.toHaveBeenCalled();
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.updated).toBe(true);
@@ -145,15 +145,15 @@ describe('chatEditAction', () => {
     expect(data.description).toBeNull();
   });
 
-  it('calls EditAbout for Channel entity when --description provided', async () => {
+  it('calls EditChatAbout for Channel entity when --description provided', async () => {
     const entity = new MockChannel({ id: BigInt(100) });
     mockResolveEntity.mockResolvedValueOnce(entity);
 
     const ctx = createMockCommandContext({ description: 'New about text' });
     await chatEditAction.call(ctx as any, '@mychannel');
 
-    expect(MockEditAbout).toHaveBeenCalledWith(
-      expect.objectContaining({ channel: entity, about: 'New about text' }),
+    expect(MockEditChatAbout).toHaveBeenCalledWith(
+      expect.objectContaining({ peer: entity, about: 'New about text' }),
     );
     expect(MockEditTitle).not.toHaveBeenCalled();
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
@@ -162,7 +162,7 @@ describe('chatEditAction', () => {
     expect(data.title).toBeNull();
   });
 
-  it('calls both EditTitle and EditAbout for Channel when both options provided', async () => {
+  it('calls both EditTitle and EditChatAbout for Channel when both options provided', async () => {
     const entity = new MockChannel({ id: BigInt(100) });
     mockResolveEntity.mockResolvedValueOnce(entity);
 
@@ -170,7 +170,7 @@ describe('chatEditAction', () => {
     await chatEditAction.call(ctx as any, '@mychannel');
 
     expect(MockEditTitle).toHaveBeenCalledOnce();
-    expect(MockEditAbout).toHaveBeenCalledOnce();
+    expect(MockEditChatAbout).toHaveBeenCalledOnce();
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
   });
 
@@ -186,7 +186,7 @@ describe('chatEditAction', () => {
     );
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
-    expect(data.chatId).toBe('200');
+    expect(data.chatId).toBe('-200');
   });
 
   it('calls EditChatAbout for basic Chat entity', async () => {

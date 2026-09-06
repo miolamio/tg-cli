@@ -1,18 +1,21 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
-import { outputSuccess, outputError } from '../../lib/output.js';
+import { outputError } from '../../lib/output.js';
 import { translateTelegramError } from '../../lib/errors.js';
-import { resolveEntity } from '../../lib/peer.js';
+import { resolveEntity, isPhoneNumber } from '../../lib/peer.js';
 import { buildUserProfile } from '../../lib/user-profile.js';
 import { withAuth } from '../../lib/with-auth.js';
-import type { GlobalOptions } from '../../lib/types.js';
+import { batchError, outputBatchResult } from '../../lib/batch-results.js';
+import { bigIntToString } from '../../lib/serialize.js';
+import type { BatchItemError, GlobalOptions } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Detect whether input is a phone number.
  * Phone numbers start with '+' or are all digits.
  */
 function isPhoneInput(input: string): boolean {
-  return /^\+?\d+$/.test(input);
+  return isPhoneNumber(input);
 }
 
 /**
@@ -39,7 +42,7 @@ export async function contactAddAction(this: Command, input: string): Promise<vo
       if (isPhoneInput(input)) {
         // Phone route: ImportContacts
         if (!firstName) {
-          outputError('--first-name is required when adding by phone number', 'MISSING_FIRST_NAME');
+          outputError('--first-name is required when adding by phone number', ErrorCode.MISSING_FIRST_NAME);
           return;
         }
 
@@ -59,7 +62,7 @@ export async function contactAddAction(this: Command, input: string): Promise<vo
         );
 
         if (importResult.users.length === 0) {
-          outputError('Phone number not found on Telegram', 'PHONE_NOT_FOUND');
+          outputError('Phone number not found on Telegram', ErrorCode.PHONE_NOT_FOUND);
           return;
         }
 
@@ -69,7 +72,7 @@ export async function contactAddAction(this: Command, input: string): Promise<vo
         const entity = await resolveEntity(client, input);
 
         if (!(entity instanceof Api.User)) {
-          outputError('Not a user: this is a group/channel', 'NOT_A_USER');
+          outputError('Not a user: this is a group/channel', ErrorCode.NOT_A_USER);
           return;
         }
 
@@ -85,16 +88,30 @@ export async function contactAddAction(this: Command, input: string): Promise<vo
         );
       }
 
-      // Fetch full profile for the response
-      const fullResult = await client.invoke(
-        new Api.users.GetFullUser({ id: targetUser }),
-      );
+      // The contact has already been added. Keep that fact in the response even
+      // when the subsequent read fails, so callers need not repeat the mutation.
+      let fullResult;
+      try {
+        fullResult = await client.invoke(new Api.users.GetFullUser({ id: targetUser }));
+      } catch (err: unknown) {
+        outputBatchResult({
+          added: true,
+          id: bigIntToString(targetUser.id),
+          firstName: targetUser.firstName ?? null,
+          lastName: targetUser.lastName ?? null,
+          username: targetUser.username ?? null,
+        }, [batchError(input, err, 'Could not fetch added contact profile')]);
+        return;
+      }
 
       const fullUser = fullResult.fullUser;
-      const userFromResult = (fullResult.users?.[0] ?? targetUser) as Api.User;
+      const userFromResult = (fullResult.users?.find(candidate => bigIntToString(candidate.id) === bigIntToString(targetUser.id)) ?? targetUser) as Api.User;
 
-      const profileData = await buildUserProfile(client, targetUser, fullUser, userFromResult);
-      outputSuccess(profileData);
+      const errors: BatchItemError[] = [];
+      const profileData = await buildUserProfile(client, targetUser, fullUser, userFromResult, err => {
+        errors.push(batchError(input, err, 'Could not fetch profile photos'));
+      });
+      outputBatchResult({ ...profileData, added: true }, errors);
     } catch (err: unknown) {
       const { message, code } = translateTelegramError(err);
       outputError(message, code);

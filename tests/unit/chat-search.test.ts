@@ -58,9 +58,10 @@ vi.mock('../../src/lib/client.js', () => ({
   withClient: vi.fn(async (_opts: any, fn: any) => fn(mockClientInstance)),
 }));
 
-vi.mock('../../src/lib/serialize.js', () => ({
-  bigIntToString: (val: any) => val?.toString() ?? '',
-}));
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/serialize.js')>();
+  return { ...actual, bigIntToString: (val: any) => val?.toString() ?? '' };
+});
 
 import { chatSearchAction } from '../../src/commands/chat/search.js';
 
@@ -99,7 +100,7 @@ describe('chatSearchAction', () => {
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.chats).toHaveLength(3);
     expect(data.chats[0]).toEqual({
-      id: '100', title: 'AI News', type: 'channel', username: 'ainews', membersCount: 5000,
+      id: '-100100', title: 'AI News', type: 'channel', username: 'ainews', membersCount: 5000,
     });
     expect(data.chats[1].type).toBe('supergroup');
     expect(data.chats[2].type).toBe('group');

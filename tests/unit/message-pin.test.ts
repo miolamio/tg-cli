@@ -70,9 +70,10 @@ vi.mock('../../src/lib/peer.js', () => ({
 }));
 
 // Mock serialize (for bigIntToString)
-vi.mock('../../src/lib/serialize.js', () => ({
-  bigIntToString: (v: bigint) => String(v),
-}));
+vi.mock('../../src/lib/serialize.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/serialize.js')>();
+  return { ...actual, bigIntToString: (v: bigint) => String(v) };
+});
 
 // Mock errors (use actual translateTelegramError)
 vi.mock('../../src/lib/errors.js', async (importOriginal) => {
@@ -135,7 +136,7 @@ describe('messagePinAction', () => {
 
     expect(mockOutputSuccess).toHaveBeenCalledWith({
       messageId: 42,
-      chatId: '456',
+      chatId: '-100456',
       action: 'pinned',
       silent: true,
     });
@@ -147,7 +148,7 @@ describe('messagePinAction', () => {
 
     expect(mockOutputSuccess).toHaveBeenCalledWith({
       messageId: 42,
-      chatId: '456',
+      chatId: '-100456',
       action: 'pinned',
       silent: false,
     });

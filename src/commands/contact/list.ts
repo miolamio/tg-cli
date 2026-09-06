@@ -1,10 +1,14 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
-import { outputSuccess, outputError } from '../../lib/output.js';
+import { outputError } from '../../lib/output.js';
 import { bigIntToString } from '../../lib/serialize.js';
 import { buildUserProfile } from '../../lib/user-profile.js';
 import { withAuth } from '../../lib/with-auth.js';
-import type { GlobalOptions, UserProfile } from '../../lib/types.js';
+import { validatePagination } from '../../lib/validate.js';
+import { formatError, TgError } from '../../lib/errors.js';
+import { batchError, outputBatchResult } from '../../lib/batch-results.js';
+import { ErrorCode } from '../../lib/error-codes.js';
+import type { BatchItemError, GlobalOptions, UserProfile } from '../../lib/types.js';
 
 /**
  * Action handler for `tg contact list`.
@@ -19,11 +23,13 @@ import type { GlobalOptions, UserProfile } from '../../lib/types.js';
 export async function contactListAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions & { limit?: string; offset?: string };
 
-  const limit = parseInt(opts.limit ?? '50', 10);
-  const offset = parseInt(opts.offset ?? '0', 10);
-
-  if (isNaN(limit) || isNaN(offset)) {
-    outputError('Invalid limit or offset: must be a number', 'INVALID_INPUT');
+  let limit: number;
+  let offset: number;
+  try {
+    ({ limit, offset } = validatePagination({ limit: opts.limit, offset: opts.offset }));
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
     return;
   }
 
@@ -34,7 +40,7 @@ export async function contactListAction(this: Command): Promise<void> {
 
     // Handle ContactsNotModified
     if ((result as any).className === 'contacts.ContactsNotModified') {
-      outputSuccess({ contacts: [], total: 0 });
+      outputBatchResult({ contacts: [], total: 0 }, []);
       return;
     }
 
@@ -66,6 +72,7 @@ export async function contactListAction(this: Command): Promise<void> {
 
     // Enrich with GetFullUser in batches of 5
     const profiles: UserProfile[] = [];
+    const errors: BatchItemError[] = [];
     const BATCH_SIZE = 5;
 
     for (let i = 0; i < page.length; i += BATCH_SIZE) {
@@ -73,26 +80,30 @@ export async function contactListAction(this: Command): Promise<void> {
       const results = await Promise.allSettled(
         batch.map(async (userId) => {
           const user = userMap.get(userId);
-          if (!user) return null;
+          if (!user) throw new TgError('Contact user was absent from the Telegram response', ErrorCode.PEER_NOT_FOUND);
 
           const fullResult = await client.invoke(
             new Api.users.GetFullUser({ id: user }),
           );
 
           const fullUser = fullResult.fullUser;
-          const userFromResult = (fullResult.users?.[0] ?? user) as Api.User;
+          const userFromResult = (fullResult.users?.find(candidate => bigIntToString(candidate.id) === bigIntToString(user.id)) ?? user) as Api.User;
 
-          return buildUserProfile(client, user, fullUser, userFromResult);
+          return buildUserProfile(client, user, fullUser, userFromResult, err => {
+            errors.push(batchError(userId, err, 'Could not fetch profile photos'));
+          });
         }),
       );
 
-      for (const r of results) {
+      for (const [index, r] of results.entries()) {
         if (r.status === 'fulfilled' && r.value != null) {
           profiles.push(r.value);
+        } else if (r.status === 'rejected') {
+          errors.push(batchError(batch[index], r.reason));
         }
       }
     }
 
-    outputSuccess({ contacts: profiles, total });
+    outputBatchResult({ contacts: profiles, total }, errors);
   });
 }

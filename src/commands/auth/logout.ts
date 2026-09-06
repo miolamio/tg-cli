@@ -6,6 +6,7 @@ import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
 import { ErrorCode } from '../../lib/error-codes.js';
+import { refuseDirectConnectIfDaemon } from '../../lib/daemon/guard.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -17,33 +18,34 @@ import type { GlobalOptions } from '../../lib/types.js';
 export async function logoutAction(this: Command): Promise<void> {
   const opts = this.optsWithGlobals() as GlobalOptions;
   const { profile, quiet } = opts;
+  if (await refuseDirectConnectIfDaemon(opts)) return;
 
   const config = createConfig(opts.config);
   const store = new SessionStore(config.path.replace(/[/\\][^/\\]+$/, ''));
 
   try {
-    await store.withLock(profile, async (sessionString) => {
+    await store.withLock(profile, async (sessionString, holdUntil) => {
       if (!sessionString) {
         outputError('Not logged in', ErrorCode.NOT_LOGGED_IN);
         return;
       }
 
-      const { apiId, apiHash } = await getCredentialsOrThrow(config);
+      const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
 
       await withClient({ apiId, apiHash, sessionString }, async (client) => {
         logStatus('Logging out...', quiet);
         await client.invoke(new Api.auth.LogOut());
-      });
+      }, { holdUntil });
 
       // Delete file without re-acquiring lock (we're already inside withLock)
       store.deleteUnlocked(profile);
-      config.delete(`profiles.${profile}` as keyof Record<string, unknown>);
+      config.delete(`profiles.${profile}` as never);
 
       logStatus('Logged out successfully.', quiet);
       outputSuccess({ loggedOut: true });
     });
   } catch (err: unknown) {
     const { message, code } = formatError(err);
-    outputError(message, code);
+    outputError(message, code ?? ErrorCode.UNKNOWN_ERROR);
   }
 }

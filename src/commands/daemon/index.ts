@@ -10,7 +10,7 @@ export function createDaemonCommand(): Command {
   daemon
     .command('start')
     .description('Start the daemon for persistent connection')
-    .option('--idle-timeout <seconds>', 'Auto-stop after N seconds of inactivity', '300')
+    .option('--idle-timeout <seconds>', 'Auto-stop after N seconds of inactivity (0 = keep running)', '300')
     .option('--foreground', 'Run in foreground (do not fork)')
     .action(daemonStartAction);
 

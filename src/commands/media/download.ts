@@ -1,12 +1,19 @@
 import type { Command } from 'commander';
-import { resolve, basename, sep } from 'node:path';
+import { existsSync } from 'node:fs';
+import { resolve, basename, sep, isAbsolute } from 'node:path';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { TgError } from '../../lib/errors.js';
 import { resolveEntity } from '../../lib/peer.js';
 import { extractMediaInfo, detectMedia } from '../../lib/serialize.js';
 import { generateFilename, formatBytes } from '../../lib/media-utils.js';
 import { withAuth } from '../../lib/with-auth.js';
+import { parseMessageIds } from '../../lib/validate.js';
+import { formatError } from '../../lib/errors.js';
 import type { GlobalOptions, DownloadResult } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
+import { getDaemonContext } from '../../lib/daemon/execution-context.js';
+
+const DOWNLOADABLE = new Set(['photo', 'video', 'voice', 'document', 'audio']);
 
 /**
  * Action handler for `tg media download <chat> <msg-ids>`.
@@ -18,23 +25,27 @@ import type { GlobalOptions, DownloadResult } from '../../lib/types.js';
  * - Auto-naming from Telegram metadata or generateFilename fallback
  * - Progress output on stderr (suppressed with --quiet)
  *
- * Returns DownloadResult for single, { files, downloaded } for batch.
+ * Returns DownloadResult for single, { files, downloaded, failed } for batch.
  */
 export async function mediaDownloadAction(this: Command): Promise<void> {
   const chat = this.args[0];
   const rawIds = this.args[1];
-  const opts = this.optsWithGlobals() as GlobalOptions & { output?: string };
+  const opts = this.optsWithGlobals() as GlobalOptions & { output?: string; force?: boolean };
   const { quiet } = opts;
+  const context = getDaemonContext();
+  if (context && (!context.cwd || !isAbsolute(context.cwd))) {
+    outputError('Media commands through the daemon require an absolute cwd', ErrorCode.INVALID_OPTIONS);
+    return;
+  }
+  const cwd = context?.cwd ?? process.cwd();
 
-  // Parse comma-separated message IDs
-  const messageIds: number[] = [];
-  for (const s of rawIds.split(',')) {
-    const id = parseInt(s.trim(), 10);
-    if (isNaN(id)) {
-      outputError(`Invalid message ID: ${s.trim()}`, 'INVALID_ID');
-      return;
-    }
-    messageIds.push(id);
+  let messageIds: number[];
+  try {
+    messageIds = parseMessageIds(rawIds);
+  } catch (err: unknown) {
+    const { message, code } = formatError(err);
+    outputError(message, code);
+    return;
   }
 
   const isBatch = messageIds.length > 1;
@@ -42,23 +53,24 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
   await withAuth(opts, async (client) => {
     const entity = await resolveEntity(client, chat);
     const results: DownloadResult[] = [];
+    const failed: { messageId: number; error: string; code: string }[] = [];
 
-    for (const msgId of messageIds) {
+    const downloadOne = async (msgId: number): Promise<DownloadResult> => {
       const messages = await client.getMessages(entity, { ids: [msgId] });
       const msg = messages[0];
 
       if (!msg || !msg.media) {
         throw new TgError(
           `Message ${msgId} has no downloadable media`,
-          'NO_MEDIA',
+          ErrorCode.NO_MEDIA,
         );
       }
 
       const { mediaType } = detectMedia((msg as any).media);
-      if (!mediaType) {
+      if (!mediaType || !DOWNLOADABLE.has(mediaType)) {
         throw new TgError(
           `Message ${msgId} has no downloadable media`,
-          'NO_MEDIA',
+          ErrorCode.NO_MEDIA,
         );
       }
 
@@ -68,31 +80,33 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
         ? basename(rawFilename)
         : generateFilename(mediaType, msgId, mediaInfo?.mimeType ?? null);
 
-      // Determine target path
       let targetPath: string;
       if (opts.output) {
         if (isBatch) {
-          // Batch: -o is directory, auto-name inside
-          targetPath = resolve(opts.output, filename);
+          targetPath = resolve(cwd, opts.output, filename);
         } else {
-          // Single: -o is the file path
-          targetPath = resolve(opts.output);
+          targetPath = resolve(cwd, opts.output);
         }
       } else {
-        targetPath = resolve(process.cwd(), filename);
+        targetPath = resolve(cwd, filename);
       }
 
-      // Path traversal guard: ensure target stays within expected directory
-      const allowedDir = opts.output ? resolve(opts.output) : resolve(process.cwd());
+      const allowedDir = opts.output ? resolve(cwd, opts.output) : cwd;
       const baseDir = isBatch || !opts.output ? allowedDir : resolve(allowedDir, '..');
       if (targetPath !== baseDir && !targetPath.startsWith(baseDir + sep)) {
         throw new TgError(
           `Path traversal detected: ${targetPath} is outside ${baseDir}`,
-          'PATH_TRAVERSAL',
+          ErrorCode.PATH_TRAVERSAL,
         );
       }
 
-      // Download with progress
+      if (existsSync(targetPath) && !opts.force) {
+        throw new TgError(
+          `File exists: ${targetPath} (use --force to overwrite)`,
+          ErrorCode.FILE_EXISTS,
+        );
+      }
+
       let lastProgressTime = 0;
       await client.downloadMedia(msg as any, {
         outputFile: targetPath,
@@ -112,22 +126,35 @@ export async function mediaDownloadAction(this: Command): Promise<void> {
         },
       });
 
-      // For single -o, filename should match the actual saved path
       const savedFilename = (!isBatch && opts.output)
         ? basename(targetPath)
         : filename;
 
-      results.push({
+      return {
         path: targetPath,
         filename: savedFilename,
         size: mediaInfo?.fileSize ?? 0,
         mediaType,
         messageId: msgId,
-      });
+      };
+    };
+
+    for (const msgId of messageIds) {
+      try {
+        results.push(await downloadOne(msgId));
+      } catch (err: unknown) {
+        if (!isBatch) throw err;
+        const { message, code } = formatError(err);
+        failed.push({
+          messageId: msgId,
+          error: message,
+          code: code ?? ErrorCode.UNKNOWN_ERROR,
+        });
+      }
     }
 
     if (isBatch) {
-      outputSuccess({ files: results, downloaded: results.length });
+      outputSuccess({ files: results, downloaded: results.length, failed });
     } else {
       outputSuccess(results[0]);
     }

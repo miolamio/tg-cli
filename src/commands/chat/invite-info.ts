@@ -3,8 +3,9 @@ import { Api } from 'telegram';
 import { withAuth } from '../../lib/with-auth.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { extractInviteHash } from '../../lib/peer.js';
-import { bigIntToString } from '../../lib/serialize.js';
+import { markedPeerId } from '../../lib/serialize.js';
 import type { GlobalOptions } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
 
 /**
  * Action handler for `tg chat invite-info <link>`.
@@ -29,7 +30,7 @@ export async function chatInviteInfoAction(this: Command, link: string): Promise
       outputSuccess({
         alreadyMember: true,
         chat: {
-          id: bigIntToString(chat?.id),
+          id: markedPeerId(chat),
           title: chat?.title ?? '',
         },
       });
@@ -38,7 +39,7 @@ export async function chatInviteInfoAction(this: Command, link: string): Promise
       outputSuccess({
         alreadyMember: false,
         chat: {
-          id: bigIntToString(chat?.id),
+          id: markedPeerId(chat),
           title: chat?.title ?? '',
         },
         expires: new Date((result as any).expires * 1000).toISOString(),
@@ -53,7 +54,7 @@ export async function chatInviteInfoAction(this: Command, link: string): Promise
         broadcast: !!(result as any).broadcast,
       });
     } else {
-      outputError('Unknown invite result type', 'UNKNOWN_INVITE_TYPE');
+      outputError('Unknown invite result type', ErrorCode.UNKNOWN_INVITE_TYPE);
       return;
     }
   });

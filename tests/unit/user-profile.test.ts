@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- Mocks ----
 
@@ -113,6 +113,8 @@ vi.mock('../../src/lib/errors.js', async (importOriginal) => {
   };
 });
 
+import { TgError } from '../../src/lib/errors.js';
+
 import { userProfileAction } from '../../src/commands/user/profile.js';
 
 // Create a mock Command context
@@ -166,6 +168,8 @@ function createMockFullUserResult(user: any, overrides: Record<string, any> = {}
 }
 
 describe('userProfileAction', () => {
+  const originalExitCode = process.exitCode;
+  afterEach(() => { process.exitCode = originalExitCode; });
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -228,7 +232,7 @@ describe('userProfileAction', () => {
     mockInvoke.mockResolvedValueOnce(createMockFullUserResult(user1));
     mockInvoke.mockResolvedValueOnce({ count: 0, photos: [] });
 
-    mockResolveEntity.mockRejectedValueOnce(new Error('Peer not found'));
+    mockResolveEntity.mockRejectedValueOnce(new TgError('Peer not found', 'PEER_NOT_FOUND'));
 
     const ctx = createMockCommandContext();
     await userProfileAction.call(ctx as any, '@alice,@nonexistent');
@@ -248,18 +252,20 @@ describe('userProfileAction', () => {
     const ctx = createMockCommandContext();
     await userProfileAction.call(ctx as any, '@somechannel');
 
-    expect(mockOutputError).toHaveBeenCalledWith('No users found', 'NO_USERS_FOUND');
+    expect(mockOutputSuccess).toHaveBeenCalledWith(expect.objectContaining({ profiles: [], partial: true, errors: expect.any(Array) }));
+    expect(process.exitCode).toBe(1);
   });
 
   it('outputs NO_USERS_FOUND error when all inputs fail', async () => {
-    mockResolveEntity.mockRejectedValueOnce(new Error('Peer not found'));
-    mockResolveEntity.mockRejectedValueOnce(new Error('Peer not found'));
+    mockResolveEntity.mockRejectedValueOnce(new TgError('Peer not found', 'PEER_NOT_FOUND'));
+    mockResolveEntity.mockRejectedValueOnce(new TgError('Peer not found', 'PEER_NOT_FOUND'));
 
     const ctx = createMockCommandContext();
     await userProfileAction.call(ctx as any, '@bad1,@bad2');
 
-    expect(mockOutputError).toHaveBeenCalledWith('No users found', 'NO_USERS_FOUND');
-    expect(mockOutputSuccess).not.toHaveBeenCalled();
+    expect(mockOutputSuccess).toHaveBeenCalledWith(expect.objectContaining({ profiles: [], partial: true, errors: expect.any(Array) }));
+    expect(process.exitCode).toBe(1);
+    expect(mockOutputError).not.toHaveBeenCalled();
   });
 
   it('maps UserStatusOnline to "online"', async () => {
@@ -446,8 +452,11 @@ describe('userProfileAction', () => {
     await userProfileAction.call(ctx as any, '@alice');
 
     const profile = mockOutputSuccess.mock.calls[0][0].profiles[0];
-    // Should fall back to 1 because user.photo is not empty
-    expect(profile.photoCount).toBe(1);
+    expect(profile.photoCount).toBeNull();
+    const result = mockOutputSuccess.mock.calls[0][0];
+    expect(result.partial).toBe(true);
+    expect(result.errors).toEqual([{ input: '@alice', error: 'Could not fetch profile photos: Photos API error', code: 'UNKNOWN_ERROR' }]);
+    expect(process.exitCode).toBe(1);
   });
 
   it('handles NOT_AUTHENTICATED when no session', async () => {

@@ -137,7 +137,7 @@ describe('chatKickAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.kicked).toBe(true);
-    expect(data.chatId).toBe('100');
+    expect(data.chatId).toBe('-100100');
     expect(data.userId).toBe('42');
   });
 
@@ -157,7 +157,7 @@ describe('chatKickAction', () => {
     expect(mockOutputSuccess).toHaveBeenCalledOnce();
     const data = mockOutputSuccess.mock.calls[0][0];
     expect(data.kicked).toBe(true);
-    expect(data.chatId).toBe('200');
+    expect(data.chatId).toBe('-200');
   });
 
   it('errors when target entity is not a User', async () => {

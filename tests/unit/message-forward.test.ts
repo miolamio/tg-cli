@@ -196,7 +196,7 @@ describe('messageForwardAction', () => {
 
     expect(mockOutputError).toHaveBeenCalledWith(
       expect.stringContaining('Invalid message IDs'),
-      'INVALID_MESSAGE_IDS',
+      'INVALID_MESSAGE_ID',
     );
     expect(mockForwardMessages).not.toHaveBeenCalled();
   });

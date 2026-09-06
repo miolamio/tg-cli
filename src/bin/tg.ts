@@ -1,6 +1,7 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { createAuthCommand } from '../commands/auth/index.js';
 import { createSessionCommand } from '../commands/session/index.js';
@@ -12,7 +13,14 @@ import { createContactCommand } from '../commands/contact/index.js';
 import { createDaemonCommand } from '../commands/daemon/index.js';
 import { createCompletionCommand } from '../commands/completion/index.js';
 import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputError } from '../lib/output.js';
+import { setQuietMode, setVerboseMode } from '../lib/cli-mode.js';
 import { ErrorCode } from '../lib/error-codes.js';
+import { validateProfile } from '../lib/validate.js';
+import { formatError, TgError } from '../lib/errors.js';
+import { installCliConsoleGuard } from '../lib/cli-console.js';
+import { DaemonCommandHandled, routeThroughDaemon } from '../lib/daemon/route.js';
+
+installCliConsoleGuard();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +37,7 @@ try {
 try {
   const gramjsPkg = JSON.parse(
     readFileSync(
-      join(__dirname, '..', '..', 'node_modules', 'telegram', 'package.json'),
+      createRequire(import.meta.url).resolve('telegram/package.json'),
       'utf-8',
     ),
   );
@@ -60,30 +68,39 @@ program
 // Global options are parsed at any position in the command line
 
 // Set output mode before any action runs based on --human or --no-json flags
-program.hook('preAction', (thisCommand) => {
-  const opts = thisCommand.optsWithGlobals();
+function configureOutput(): void {
+  const opts = program.optsWithGlobals();
   const isHuman = opts.human === true || opts.json === false;
   setOutputMode(isHuman);
+  setQuietMode(!!opts.quiet);
+  setVerboseMode(!!opts.verbose);
+  // Invalid combinations use a deterministic error format.
+  setToonMode(!!opts.toon && !isHuman && !opts.jsonl);
+  setJsonlMode(!!opts.jsonl && !isHuman && !opts.toon);
+  if (opts.fields) setFieldSelection(opts.fields.split(',').map((f: string) => f.trim()));
+}
+
+program.hook('preAction', async (thisCommand, actionCommand) => {
+  configureOutput();
+  const opts = thisCommand.optsWithGlobals();
+  validateProfile(opts.profile);
+  const isHuman = opts.human === true || opts.json === false;
 
   // --toon mutual exclusion checks
   if (opts.toon && isHuman) {
-    outputError('--toon and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
-    process.exit(1);
+    throw new TgError('--toon and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
   }
   if (opts.toon && opts.jsonl) {
-    outputError('--toon and --jsonl are mutually exclusive', ErrorCode.INVALID_OPTIONS);
-    process.exit(1);
+    throw new TgError('--toon and --jsonl are mutually exclusive', ErrorCode.INVALID_OPTIONS);
   }
-  if (opts.toon) setToonMode(true);
 
   // --jsonl and --human are mutually exclusive
   if (opts.jsonl && isHuman) {
-    outputError('--jsonl and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
-    process.exit(1);
+    throw new TgError('--jsonl and --human are mutually exclusive', ErrorCode.INVALID_OPTIONS);
   }
 
-  if (opts.jsonl) setJsonlMode(true);
-  if (opts.fields) setFieldSelection(opts.fields.split(',').map((f: string) => f.trim()));
+  if (await routeThroughDaemon(actionCommand)) throw new DaemonCommandHandled();
+
 });
 
 // Wire command groups with help group headings
@@ -123,12 +140,26 @@ const completionCmd = createCompletionCommand();
 completionCmd.helpGroup('Utility');
 program.addCommand(completionCmd);
 
-// Aliases (Phase 2+): tg ls -> chat list, tg s -> message search
+// Groups are constructed separately, so install the exit hook on every level.
+// Commander parse errors must use the same output contract as async actions.
+function configureCommandErrors(command: Command): void {
+  command.exitOverride();
+  command.configureOutput({ outputError: () => {} });
+  for (const child of command.commands) configureCommandErrors(child);
+}
+configureCommandErrors(program);
 
-// Handle unknown commands: show help
-program.on('command:*', () => {
-  program.outputHelp();
-  process.exit(1);
-});
-
-program.parse();
+try {
+  await program.parseAsync();
+} catch (err: unknown) {
+  if (err instanceof DaemonCommandHandled) {
+    // The daemon result has already been rendered, including its exit status.
+  } else if (err instanceof CommanderError && err.exitCode === 0) {
+    // Explicit --help and --version have already rendered their normal output.
+    process.exitCode = 0;
+  } else {
+    configureOutput();
+    const { message, code } = formatError(err);
+    outputError(message, err instanceof CommanderError ? ErrorCode.INVALID_OPTIONS : code ?? ErrorCode.UNKNOWN_ERROR);
+  }
+}

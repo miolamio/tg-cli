@@ -4,6 +4,9 @@ import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
 import type { GlobalOptions } from '../../lib/types.js';
+import { ErrorCode } from '../../lib/error-codes.js';
+import { getDaemonContext } from '../../lib/daemon/execution-context.js';
+import { parseTopicId, parseMessageId } from '../../lib/validate.js';
 
 /**
  * Read all data from stdin as a UTF-8 string.
@@ -32,54 +35,75 @@ export async function messageSendAction(this: Command, chat: string, text: strin
 
   // Handle stdin pipe via dash placeholder
   if (text === '-') {
-    if (process.stdin.isTTY) {
-      outputError('"-" requires piped input. Example: echo "msg" | tg message send @user -', 'STDIN_REQUIRED');
+    const context = getDaemonContext();
+    if (context ? context.stdin === undefined : process.stdin.isTTY) {
+      outputError('"-" requires piped input. Example: echo "msg" | tg message send @user -', ErrorCode.STDIN_REQUIRED);
       return;
     }
-    text = await readStdin();
+    text = context ? context.stdin!.trimEnd() : await readStdin();
   }
 
   // Validate non-empty text
   if (!text) {
-    outputError('Message text is required', 'EMPTY_MESSAGE');
+    outputError('Message text is required', ErrorCode.EMPTY_MESSAGE);
     return;
   }
 
   // Telegram message length limit
   if (text.length > 4096) {
-    outputError('Message too long (max 4096 chars)', 'MESSAGE_TOO_LONG');
+    outputError('Message too long (max 4096 chars)', ErrorCode.MESSAGE_TOO_LONG);
     return;
   }
 
-  // Parse --topic as integer
-  const topicId = opts.topic ? parseInt(opts.topic, 10) : undefined;
-  if (opts.topic && (topicId === undefined || isNaN(topicId))) {
-    outputError('Invalid topic ID: must be a number', 'INVALID_TOPIC_ID');
-    return;
+  let topicId: number | undefined;
+  if (opts.topic !== undefined) {
+    try {
+      topicId = parseTopicId(opts.topic);
+    } catch (err: unknown) {
+      outputError(
+        err instanceof Error ? err.message : 'Invalid topic ID: must be a number',
+        ErrorCode.INVALID_TOPIC_ID,
+      );
+      return;
+    }
   }
 
   // Parse replyTo as integer
-  const replyTo = opts.replyTo ? parseInt(opts.replyTo, 10) : undefined;
-  if (opts.replyTo && (replyTo === undefined || isNaN(replyTo))) {
-    outputError('Invalid reply-to message ID: must be a number', 'INVALID_REPLY_TO');
+  let replyTo: number | undefined;
+  try {
+    if (opts.replyTo !== undefined) replyTo = parseMessageId(opts.replyTo);
+  } catch {
+    outputError('Invalid reply-to message ID: must be a positive integer', ErrorCode.INVALID_REPLY_TO);
     return;
   }
 
   // Parse commentTo as integer (for channel post comments)
-  const commentTo = opts.commentTo ? parseInt(opts.commentTo, 10) : undefined;
-  if (opts.commentTo && (commentTo === undefined || isNaN(commentTo))) {
-    outputError('Invalid comment-to message ID: must be a number', 'INVALID_COMMENT_TO');
+  let commentTo: number | undefined;
+  try {
+    if (opts.commentTo !== undefined) commentTo = parseMessageId(opts.commentTo);
+  } catch {
+    outputError('Invalid comment-to message ID: must be a positive integer', ErrorCode.INVALID_COMMENT_TO);
     return;
   }
+
+  if (topicId !== undefined && replyTo !== undefined) {
+    outputError(
+      '--topic and --reply-to cannot be combined yet. Use --reply-to to reply in-topic, or --topic to post to the topic root.',
+      ErrorCode.INVALID_OPTIONS,
+    );
+    return;
+  }
+  if (commentTo !== undefined && (topicId !== undefined || replyTo !== undefined)) {
+    outputError('--comment-to cannot be combined with --topic or --reply-to', ErrorCode.INVALID_OPTIONS);
+    return;
+  }
+  const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
 
   await withAuth(opts, async (client) => {
     const entity = await resolveEntity(client, chat);
 
     // Forum guard: reject --topic on non-forum chats
     await assertForum(entity, topicId);
-
-    // --topic overrides --reply-to since topic scoping IS the replyTo in gramjs
-    const effectiveReplyTo = topicId !== undefined ? topicId : replyTo;
 
     // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
     const sentMsg = await client.sendMessage(entity, {
@@ -88,6 +112,10 @@ export async function messageSendAction(this: Command, chat: string, text: strin
       ...(commentTo !== undefined && { commentTo }),
     });
 
+    if (!sentMsg) {
+      outputError('Telegram did not return the sent message result; retrying may create a duplicate.', ErrorCode.MESSAGE_RESULT_UNAVAILABLE);
+      return;
+    }
     const serialized = serializeMessage(sentMsg as any);
     outputSuccess(serialized);
   });

@@ -19,6 +19,7 @@ export function createMediaCommand(): Command {
     .argument('<msg-ids>', 'Message ID(s), comma-separated for batch')
     .description('Download media from messages')
     .option('-o, --output <path>', 'Output path (file for single, directory for batch)')
+    .option('--force', 'Overwrite existing files')
     .action(mediaDownloadAction);
 
   media
