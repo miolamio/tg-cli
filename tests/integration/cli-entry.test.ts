@@ -132,6 +132,18 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('logout');
   });
 
+  it('login help documents --phone', () => {
+    expect(runFixture(['auth', 'login', '--help']).stdout).toContain('--phone <number>');
+  });
+
+  it('rejects invalid --phone in a terminal before connecting', () => {
+    const result = runTerminal(['--config', fixtureConfig, '--profile', 'review', 'auth', 'login', '--phone', '@username']);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_INPUT' });
+    expect(result.stderr).not.toContain('Starting authentication');
+    expect(result.stderr).not.toContain('Phone number (international format):');
+  });
+
   it('session --help shows export, import subcommands', () => {
     const output = execSync(`node ${BINARY} session --help`, {
       cwd: ROOT,

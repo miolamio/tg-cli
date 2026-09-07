@@ -31,6 +31,17 @@ The fastest way to get started — use a built-in client preset (no API credenti
 tg auth login --client desktop
 ```
 
+The phone prompt appears before connecting to Telegram. You can also provide
+the number explicitly; the verification code and optional 2FA password are
+still requested interactively:
+
+```bash
+tg --transport wss auth login --client desktop --phone "+15551234567"
+```
+
+SDK diagnostics pause while you enter the verification code or password, even
+with `--verbose`, so the prompt stays visible.
+
 Or bring your own credentials from [my.telegram.org](https://my.telegram.org):
 
 ```bash

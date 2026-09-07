@@ -39,6 +39,15 @@ export function validateProfile(profile: string): string {
   return result.data;
 }
 
+/** Normalize readable international phone numbers without echoing input errors. */
+export function validatePhone(input: string): string {
+  const phone = input.trim().replace(/[\s()-]/g, '');
+  if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
+    throw new TgError('Phone number must start with + and contain 7–15 digits including the country code', ErrorCode.INVALID_INPUT);
+  }
+  return phone;
+}
+
 /**
  * Validate and parse pagination options with defaults.
  *

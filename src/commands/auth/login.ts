@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { LogLevel } from 'telegram/extensions/Logger.js';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { resolveTransport } from '../../lib/transport.js';
 import { createPrompt } from '../../lib/prompt.js';
@@ -10,6 +11,7 @@ import { formatError } from '../../lib/errors.js';
 import { ErrorCode } from '../../lib/error-codes.js';
 import { refuseDirectConnectIfDaemon } from '../../lib/daemon/guard.js';
 import { showLoginBanner } from '../../lib/branding.js';
+import { validatePhone } from '../../lib/validate.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -23,7 +25,7 @@ import type { GlobalOptions } from '../../lib/types.js';
  * Saves the resulting session string to disk on success.
  */
 export async function loginAction(this: Command): Promise<void> {
-  const opts = this.optsWithGlobals() as GlobalOptions & { client?: string };
+  const opts = this.optsWithGlobals() as GlobalOptions & { client?: string; phone?: string };
   const { profile, quiet } = opts;
 
   if (await refuseDirectConnectIfDaemon(opts)) return;
@@ -44,32 +46,47 @@ export async function loginAction(this: Command): Promise<void> {
       const prompt = createPrompt();
       let client: Awaited<ReturnType<typeof createClientForAuth>> | undefined;
       let phone = '';
+      const ask = async (question: string, secret = false): Promise<string> => {
+        // Only this client's SDK logger is paused; restore it even on rejection.
+        const logger = client?.logger;
+        const previousLevel = logger?.logLevel;
+        logger?.setLevel(LogLevel.NONE);
+        try { return await (secret ? prompt.askSecret(question) : prompt.ask(question)); }
+        finally { if (logger && previousLevel !== undefined) logger.setLevel(previousLevel); }
+      };
       try {
+        showLoginBanner(quiet);
+        // Collect the phone before credential fetching, connect(), or the SDK's
+        // authorization check can block or fill the terminal with diagnostics.
+        phone = validatePhone(opts.phone ?? await ask('Phone number (international format): '));
         const { apiId, apiHash } = await getCredentialsOrThrow(config, opts.client, profile);
         const transport = resolveTransport(config, profile, opts.transport);
         client = await createClientForAuth(apiId, apiHash, transport);
 
-        showLoginBanner(quiet);
         logStatus('Starting authentication...', quiet);
 
         await connectOrThrow(client);
+        logStatus('Connected. Starting sign-in...', quiet);
+        let phoneRequests = 0;
         await client.start({
-          phoneNumber: async () => {
-            const p = await prompt.ask('Phone number (international format): ');
-            phone = p;
-            return p;
+          // A literal --phone makes gramjs propagate sendCode failures instead
+          // of repeatedly submitting the same invalid phone via a callback.
+          phoneNumber: opts.phone !== undefined ? phone : async () => {
+            if (phoneRequests++ > 0) phone = validatePhone(await ask('Phone number (international format): '));
+            logStatus('Requesting login code...', quiet);
+            return phone;
           },
           phoneCode: async (isCodeViaApp?: boolean) => {
             const msg = isCodeViaApp
               ? 'Code (from Telegram app): '
               : 'Code (from SMS): ';
-            return prompt.ask(msg);
+            return ask(msg);
           },
           password: async (hint?: string) => {
             const msg = hint
               ? `2FA password (hint: ${hint}): `
               : '2FA password: ';
-            return prompt.askSecret(msg);
+            return ask(msg, true);
           },
           onError: (err: Error) => {
             logStatus(`Auth error: ${err.message}`, quiet);

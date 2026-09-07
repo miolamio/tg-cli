@@ -67,7 +67,7 @@ async function main() {
     await importAction.call(context, 'synthetic-imported-session');
   } else if (role === 'login') {
     Object.defineProperty(process.stdin, 'isTTY', { value: true });
-    await loginAction.call(context);
+    await loginAction.call({ optsWithGlobals: () => ({ ...context.optsWithGlobals(), phone: '+10000000000' }) } as any);
   } else if (role === 'probe') {
     const store = new SessionStore(configDir);
     try {

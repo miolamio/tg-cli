@@ -59,7 +59,7 @@ describe('login preset persistence and session ownership', () => {
     });
     await loginAction.call({ optsWithGlobals: () => ({ profile: 'work', config: configPath, client: 'desktop' }) } as any);
     expect(mocks.error).not.toHaveBeenCalled();
-    expect(mocks.success).toHaveBeenCalledWith({ loggedIn: true, profile: 'work', phone: '' });
+    expect(mocks.success).toHaveBeenCalledWith({ loggedIn: true, profile: 'work', phone: '+10000000000' });
     const fresh = createConfig(configPath);
     expect(fresh.get('profiles.work.client')).toBe('desktop');
     await expect(getCredentialsOrThrow(fresh, undefined, 'work')).resolves.toEqual({ apiId: 1, apiHash: 'synthetic-api-hash' });

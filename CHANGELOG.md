@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-09-07
+
+- Ask for the phone number before networking during login and accept it through
+  `auth login --phone` in international format.
+- Pause the client's diagnostics while reading login input, restoring them
+  afterward so verbose keepalive logs cannot overwrite the code/2FA prompt.
+
 ## 0.5.0 — 2026-09-07
 
 - Add `--transport tcp|wss` for login, direct commands, session verification,

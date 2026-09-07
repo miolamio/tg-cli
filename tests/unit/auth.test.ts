@@ -245,6 +245,78 @@ describe('loginAction', () => {
     expect(mockStoreSave).toHaveBeenCalledWith('default', 'saved-session-string');
   });
 
+  it('asks for the phone before fetching credentials or opening a connection', async () => {
+    await loginAction.call(createMockCommandContext() as any);
+    const { getCredentialsOrThrow } = await import('../../src/lib/config.js');
+    expect(mockAsk.mock.calls[0][0]).toBe('Phone number (international format): ');
+    expect(mockAsk.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(getCredentialsOrThrow).mock.invocationCallOrder[0]);
+    expect(mockAsk.mock.invocationCallOrder[0]).toBeLessThan(mockConnect.mock.invocationCallOrder[0]);
+    const params = mockStart.mock.calls[0][0];
+    expect(await params.phoneNumber()).toBe('+15551234567');
+    expect(mockAsk).toHaveBeenCalledOnce();
+  });
+
+  it('passes a normalized --phone literally to gramjs without asking for it', async () => {
+    await loginAction.call(createMockCommandContext({ phone: '+1 (555) 123-4567' }) as any);
+    expect(mockAsk).not.toHaveBeenCalled();
+    expect(mockStart.mock.calls[0][0].phoneNumber).toBe('+15551234567');
+    expect(mockConfigSet).toHaveBeenCalledWith('profiles.default', expect.objectContaining({ phone: '+15551234567' }));
+  });
+
+  it.each(['', '@username', '+012345678', '+123', '+1234567890123456'])('rejects invalid --phone %s before connecting', async phone => {
+    await loginAction.call(createMockCommandContext({ phone }) as any);
+    expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockStoreSave).not.toHaveBeenCalled();
+    expect(mockOutputError).toHaveBeenCalledWith(expect.stringContaining('Phone number must'), 'INVALID_INPUT');
+    expect(mockClose).toHaveBeenCalledOnce();
+  });
+
+  it('asks for a corrected phone when the interactive SDK flow retries it', async () => {
+    mockAsk.mockResolvedValueOnce('+15551234567').mockResolvedValueOnce('+15557654321');
+    mockStart.mockImplementationOnce(async params => {
+      expect(await params.phoneNumber()).toBe('+15551234567');
+      expect(await params.phoneNumber()).toBe('+15557654321');
+    });
+    await loginAction.call(createMockCommandContext() as any);
+    expect(mockConfigSet).toHaveBeenCalledWith('profiles.default', expect.objectContaining({ phone: '+15557654321' }));
+  });
+
+  it.each([false, true])('pauses SDK diagnostics during code/2FA input and restores them (reject=%s)', async reject => {
+    const { createGramjsLogger } = await import('../../src/lib/gramjs-logger.js');
+    const { setVerboseMode } = await import('../../src/lib/cli-mode.js');
+    const logger = createGramjsLogger();
+    (mockClientInstance as any).logger = logger;
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    setVerboseMode(true);
+    const answer = async () => {
+      logger.debug('hidden ping during input');
+      logger.error('hidden diagnostic during input');
+      if (reject) throw new Error('prompt cancelled');
+      return 'synthetic-code';
+    };
+    mockAsk.mockImplementationOnce(answer);
+    mockAskSecret.mockImplementationOnce(answer);
+    mockStart.mockImplementationOnce(async params => {
+      await params.phoneCode(true);
+      await params.password();
+    });
+    try {
+      await loginAction.call(createMockCommandContext({ phone: '+15551234567' }) as any);
+      logger.debug('diagnostics restored');
+      const output = stderr.mock.calls.map(([chunk]) => String(chunk)).join('');
+      expect(output).not.toContain('hidden ping');
+      expect(output).not.toContain('hidden diagnostic');
+      expect(output).toContain('diagnostics restored');
+    } finally {
+      delete (mockClientInstance as any).logger;
+      setVerboseMode(false);
+      stderr.mockRestore();
+      mockAsk.mockReset();
+      mockAskSecret.mockReset();
+    }
+  });
+
   it('stops after exhausted connection retries without starting auth or saving a session', async () => {
     mockConnect.mockResolvedValueOnce(false);
     await loginAction.call(createMockCommandContext() as any);
