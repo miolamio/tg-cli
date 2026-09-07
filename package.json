@@ -1,6 +1,6 @@
 {
   "name": "@miolamio/tg-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Telegram CLI client for Claude Code agents and power users",
   "main": "./dist/index.js",
@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepack": "npm run build",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
