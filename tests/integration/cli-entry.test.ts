@@ -31,6 +31,64 @@ describe('CLI entry point (built binary)', () => {
     });
   }
 
+  function runTerminal(args: string[], env: NodeJS.ProcessEnv = {}) {
+    // Model a terminal in an isolated child while capturing its two streams separately.
+    const bootstrap = `
+      for (const stream of [process.stdin, process.stdout, process.stderr]) {
+        Object.defineProperty(stream, 'isTTY', { value: true });
+      }
+    `;
+    return spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(bootstrap)}`, BINARY, ...args], {
+      cwd: ROOT, encoding: 'utf-8', timeout: 5000,
+      env: { ...process.env, TERM: 'xterm-256color', NO_COLOR: '1', FORCE_COLOR: '0', ...env },
+    });
+  }
+
+  it.each([
+    { args: ['--help'], banner: true },
+    { args: ['help'], banner: true },
+    { args: ['--quiet', '--help'], banner: false },
+    { args: ['--help', '--quiet'], banner: false },
+    { args: ['help', '--quiet'], banner: false },
+    { args: ['auth', '--help'], banner: false },
+    { args: ['help', 'message'], banner: false },
+    { args: ['--version'], banner: false },
+  ])('terminal branding for $args: $banner', ({ args, banner }) => {
+    const result = runTerminal(args);
+    expect(result.status).toBe(0);
+    expect(result.stdout.includes('(. .)')).toBe(banner);
+    expect(result.stderr).toBe('');
+  });
+
+  it('keeps the piped help output undecorated', () => {
+    const result = runFixture(['--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^Usage: tg /);
+    expect(result.stdout).not.toContain('(. .)');
+    expect(result.stderr).toBe('');
+  });
+
+  it('honors NO_COLOR even when FORCE_COLOR is set', () => {
+    const result = runTerminal(['--help'], { NO_COLOR: '', FORCE_COLOR: '1' });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('(. .)');
+    expect(result.stdout).not.toContain('\x1b[');
+  });
+
+  it('omits branding in a dumb terminal', () => {
+    const result = runTerminal(['--help'], { TERM: 'dumb' });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^Usage: tg /);
+  });
+
+  it('keeps terminal command results as JSON without a mascot', () => {
+    const result = runTerminal(['--config', fixtureConfig, '--profile', 'review', '--json', 'session', 'export']);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: true });
+    expect(result.stdout + result.stderr).not.toContain('(. .)');
+    expect(result.stdout + result.stderr).not.toContain('.------.');
+  });
+
   it('--help exits 0 and shows Auth and Session group headings', () => {
     const output = execSync(`node ${BINARY} --help`, {
       cwd: ROOT,

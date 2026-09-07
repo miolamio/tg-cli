@@ -1,5 +1,16 @@
 # @miolamio/tg-cli
 
+```text
+      .------.
+     /  o  o  \
+    |   \__/   |
+    |          |
+    |  /\  /\  |
+     \/  \/  \/
+
+  tg / Telegram, from your terminal.
+```
+
 Agent-first Telegram CLI client built on MTProto via gramjs. Designed for Claude Code agents and power users who need structured, scriptable access to Telegram.
 
 ## Install
@@ -29,6 +40,9 @@ tg auth login
 ```
 
 Available presets: `desktop`, `android`, `ios`, `macos`, `web-z`, `web-k`.
+
+The little daemon greets you during interactive login and appears in compact form
+in `tg --help`. Use `--quiet` to hide it or `NO_COLOR=1` for plain text.
 
 ## Commands
 

@@ -19,6 +19,7 @@ import { validateProfile } from '../lib/validate.js';
 import { formatError, TgError } from '../lib/errors.js';
 import { installCliConsoleGuard } from '../lib/cli-console.js';
 import { DaemonCommandHandled, routeThroughDaemon } from '../lib/daemon/route.js';
+import { formatHelpBanner } from '../lib/branding.js';
 
 installCliConsoleGuard();
 
@@ -64,6 +65,8 @@ program
   .option('--jsonl', 'Output one JSON object per line (list commands only)')
   .option('--toon', 'Token-efficient TOON output (LLM-optimized)')
   .option('--daemon', 'Route command through persistent daemon connection');
+
+program.addHelpText('before', ({ error }) => error ? '' : formatHelpBanner(!!program.opts().quiet));
 
 // Global options are parsed at any position in the command line
 

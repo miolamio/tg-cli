@@ -164,6 +164,29 @@ describe('auth --daemon', () => {
 describe('loginAction', () => {
   const originalIsTTY = process.stdin.isTTY;
 
+  async function captureLoginBanner(opts: Record<string, unknown> = {}, tty = { stdout: true, stderr: true }) {
+    const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+    const stderrTTY = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY');
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: tty.stdout });
+    Object.defineProperty(process.stderr, 'isTTY', { configurable: true, value: tty.stderr });
+    const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    try {
+      await loginAction.call(createMockCommandContext(opts) as any);
+      return {
+        stdout: stdout.mock.calls.map(([chunk]) => String(chunk)).join(''),
+        stderr: stderr.mock.calls.map(([chunk]) => String(chunk)).join(''),
+      };
+    } finally {
+      stdout.mockRestore();
+      stderr.mockRestore();
+      if (stdoutTTY) Object.defineProperty(process.stdout, 'isTTY', stdoutTTY);
+      else Reflect.deleteProperty(process.stdout, 'isTTY');
+      if (stderrTTY) Object.defineProperty(process.stderr, 'isTTY', stderrTTY);
+      else Reflect.deleteProperty(process.stderr, 'isTTY');
+    }
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockAsk.mockResolvedValue('+15551234567');
@@ -174,6 +197,30 @@ describe('loginAction', () => {
 
   afterEach(() => {
     Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, writable: true, configurable: true });
+    vi.unstubAllEnvs();
+  });
+
+  it('writes the login mascot only to terminal stderr', async () => {
+    vi.stubEnv('TERM', 'xterm-256color');
+    vi.stubEnv('NO_COLOR', '1');
+    const captured = await captureLoginBanner();
+    expect(captured.stdout).toBe('');
+    expect(captured.stderr).toContain('.------.');
+    expect(captured.stderr).toContain('Telegram, from your terminal.');
+    expect(captured.stderr).not.toContain('\x1b[');
+    expect(mockOutputSuccess).toHaveBeenCalledWith(expect.objectContaining({ loggedIn: true }));
+  });
+
+  it.each([
+    { label: 'quiet', opts: { quiet: true }, tty: { stdout: true, stderr: true }, term: 'xterm-256color' },
+    { label: 'redirected stdout', opts: {}, tty: { stdout: false, stderr: true }, term: 'xterm-256color' },
+    { label: 'redirected stderr', opts: {}, tty: { stdout: true, stderr: false }, term: 'xterm-256color' },
+    { label: 'dumb terminal', opts: {}, tty: { stdout: true, stderr: true }, term: 'dumb' },
+  ])('omits the login mascot for $label', async ({ opts, tty, term }) => {
+    vi.stubEnv('TERM', term);
+    const captured = await captureLoginBanner(opts, tty);
+    expect(captured).toEqual({ stdout: '', stderr: '' });
+    expect(mockStart).toHaveBeenCalledOnce();
   });
 
   it('calls client.start() with phone, code, and password callbacks', async () => {

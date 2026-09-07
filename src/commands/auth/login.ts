@@ -7,6 +7,7 @@ import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
 import { ErrorCode } from '../../lib/error-codes.js';
 import { refuseDirectConnectIfDaemon } from '../../lib/daemon/guard.js';
+import { showLoginBanner } from '../../lib/branding.js';
 import type { GlobalOptions } from '../../lib/types.js';
 
 /**
@@ -45,6 +46,7 @@ export async function loginAction(this: Command): Promise<void> {
         const { apiId, apiHash } = await getCredentialsOrThrow(config, opts.client, profile);
         client = await createClientForAuth(apiId, apiHash);
 
+        showLoginBanner(quiet);
         logStatus('Starting authentication...', quiet);
 
         await client.start({
