@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
+import { resolveTransport } from '../../lib/transport.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
@@ -33,7 +34,7 @@ export async function statusAction(this: Command): Promise<void> {
 
       const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
 
-      await withClient({ apiId, apiHash, sessionString }, async (client, signal) => {
+      await withClient({ apiId, apiHash, sessionString, transport: resolveTransport(config, opts.profile, opts.transport) }, async (client, signal) => {
         const authorized = await client.checkAuthorization();
         signal.throwIfAborted();
 

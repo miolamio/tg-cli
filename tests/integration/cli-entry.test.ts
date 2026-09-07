@@ -31,6 +31,16 @@ describe('CLI entry point (built binary)', () => {
     });
   }
 
+  it.each([
+    ['--transport', 'https', 'auth', 'login'],
+    ['--transport', 'wss', '--daemon', 'chat', 'list'],
+    ['message', 'watch', '--transport', 'wss'],
+  ])('rejects invalid transport usage before network access: %s', (...args) => {
+    const result = runFixture(args);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_OPTIONS' });
+  });
+
   function runTerminal(args: string[], env: NodeJS.ProcessEnv = {}) {
     // Model a terminal in an isolated child while capturing its two streams separately.
     const bootstrap = `

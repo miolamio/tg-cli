@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { fork } from 'node:child_process';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
+import { resolveTransport } from '../../lib/transport.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { DaemonPaths } from '../../lib/daemon/pid.js';
@@ -68,11 +69,13 @@ export async function daemonStartAction(this: Command): Promise<void> {
 
   const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
 
+  const transport = resolveTransport(config, profile, opts.transport);
+
   if (opts.foreground) {
     logStatus('Starting daemon in foreground...', quiet);
     const server = new DaemonServer(
       paths,
-      { apiId, apiHash },
+      { apiId, apiHash, transport },
       { idleTimeout, onIdle: () => process.exit(0) },
     );
     const uninstallSignals = installDaemonSignals(() => server.stop());
@@ -100,6 +103,7 @@ export async function daemonStartAction(this: Command): Promise<void> {
         profile,
         idleTimeout,
         configPath: opts.config,
+        transport,
       }),
     });
 

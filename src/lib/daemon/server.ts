@@ -13,7 +13,9 @@ import { messageMatchesTopic } from './topic-filter.js';
 import { SessionStore } from '../session-store.js';
 import { JsonLineDecoder, MAX_FRAME_BYTES } from './frames.js';
 import { createGramjsLogger } from '../gramjs-logger.js';
-import { DiagnosticTCPFull, installClientErrorDiagnostics } from '../transport-diagnostics.js';
+import { installClientErrorDiagnostics } from '../transport-diagnostics.js';
+import { connectionOptions } from '../connection-options.js';
+import type { Transport } from '../types.js';
 import { connectOrThrow } from '../connect.js';
 import { createRequestClient } from './request-client.js';
 import { executeDaemonCommand } from './execute.js';
@@ -32,6 +34,7 @@ interface ActiveRequest {
 interface DaemonClientOpts {
   apiId: number;
   apiHash: string;
+  transport?: Transport;
   /** Optional in-memory session for library callers; CLI always reads under lock. */
   sessionString?: string;
 }
@@ -137,7 +140,7 @@ export class DaemonServer {
         retryDelay: 1000,
         floodSleepThreshold: 60,
         baseLogger: logger,
-        connection: DiagnosticTCPFull,
+        ...connectionOptions(this.clientOpts.transport),
       });
       installClientErrorDiagnostics(this.client, logger);
       await connectOrThrow(this.client);
@@ -323,6 +326,7 @@ export class DaemonServer {
           uptime: Math.round((Date.now() - this.startTime) / 1000),
           idleTimeout: this.idleTimeout / 1000,
           connected: this.client != null && (this.client.connected ?? true),
+          transport: this.clientOpts.transport ?? 'tcp',
           activeRequests: this.activeRequests.size,
           apiVersion: 1,
           capabilities: ['execute', 'subscribe'],

@@ -16,6 +16,7 @@ import { setOutputMode, setJsonlMode, setToonMode, setFieldSelection, outputErro
 import { setQuietMode, setVerboseMode } from '../lib/cli-mode.js';
 import { ErrorCode } from '../lib/error-codes.js';
 import { validateProfile } from '../lib/validate.js';
+import { validateTransport } from '../lib/transport.js';
 import { formatError, TgError } from '../lib/errors.js';
 import { installCliConsoleGuard } from '../lib/cli-console.js';
 import { DaemonCommandHandled, routeThroughDaemon } from '../lib/daemon/route.js';
@@ -61,6 +62,7 @@ program
   .option('-q, --quiet', 'Suppress stderr output')
   .option('--profile <name>', 'Named profile', 'default')
   .option('--config <path>', 'Config file path')
+  .option('--transport <mode>', 'Telegram transport: tcp or wss (default: saved profile or tcp)')
   .option('--fields <fields>', 'Select output fields (comma-separated, dot notation for nested)')
   .option('--jsonl', 'Output one JSON object per line (list commands only)')
   .option('--toon', 'Token-efficient TOON output (LLM-optimized)')
@@ -87,6 +89,12 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
   configureOutput();
   const opts = thisCommand.optsWithGlobals();
   validateProfile(opts.profile);
+  if (opts.transport !== undefined) {
+    validateTransport(opts.transport);
+    if (opts.daemon || (actionCommand.name() === 'watch' && actionCommand.parent?.name() === 'message')) {
+      throw new TgError('Choose --transport when starting the daemon; commands use its existing connection', ErrorCode.INVALID_OPTIONS);
+    }
+  }
   const isHuman = opts.human === true || opts.json === false;
 
   // --toon mutual exclusion checks

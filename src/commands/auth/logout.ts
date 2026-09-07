@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { Api } from 'telegram';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
+import { resolveTransport } from '../../lib/transport.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
@@ -32,7 +33,7 @@ export async function logoutAction(this: Command): Promise<void> {
 
       const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
+      await withClient({ apiId, apiHash, sessionString, transport: resolveTransport(config, opts.profile, opts.transport) }, async (client) => {
         logStatus('Logging out...', quiet);
         await client.invoke(new Api.auth.LogOut());
       }, { holdUntil });

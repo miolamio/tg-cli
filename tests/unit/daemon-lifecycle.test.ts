@@ -30,6 +30,16 @@ describe('isProcessAlive', () => {
 });
 
 describe('daemonChildEnv', () => {
+  it('passes the resolved transport and removes an inherited stale choice', () => {
+    vi.stubEnv('TG_DAEMON_TRANSPORT', 'wss');
+    try {
+      const opts = { configDir: '/tmp/cfg', profile: 'work', idleTimeout: 0 };
+      expect(daemonChildEnv({ ...opts, transport: 'tcp' }).TG_DAEMON_TRANSPORT).toBe('tcp');
+      expect(daemonChildEnv({ ...opts, transport: 'wss' }).TG_DAEMON_TRANSPORT).toBe('wss');
+      expect(daemonChildEnv(opts).TG_DAEMON_TRANSPORT).toBeUndefined();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it('does not pass session string or api hash', () => {
     const prevSession = process.env.TG_DAEMON_SESSION;
     process.env.TG_DAEMON_SESSION = 'should-not-leak';

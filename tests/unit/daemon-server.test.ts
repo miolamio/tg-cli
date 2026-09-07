@@ -71,10 +71,12 @@ describe('DaemonServer', () => {
     await release();
   });
 
-  it('starts and accepts connections on Unix socket', async () => {
-    server = new DaemonServer(paths, { apiId: 1, apiHash: 'h', sessionString: 's' });
+  it.each(['tcp', 'wss'] as const)('starts with %s and accepts connections on Unix socket', async transport => {
+    server = new DaemonServer(paths, { apiId: 1, apiHash: 'h', sessionString: 's', transport });
     await server.start();
     expect(paths.socketExists()).toBe(true);
+    const { TelegramClient } = await import('telegram');
+    expect(TelegramClient).toHaveBeenLastCalledWith(expect.anything(), 1, 'h', expect.objectContaining({ useWSS: transport === 'wss' }));
 
     // Connect and send ping
     const sock = createConnection(paths.socketPath);

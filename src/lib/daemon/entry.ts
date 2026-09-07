@@ -4,6 +4,7 @@ import { installDaemonSignals } from './lifecycle.js';
 import { createConfig, getCredentialsOrThrow } from '../config.js';
 import { parseIntegerOption, validateProfile } from '../validate.js';
 import { installCliConsoleGuard } from '../cli-console.js';
+import { resolveTransport, validateTransport } from '../transport.js';
 
 installCliConsoleGuard();
 
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
   const profile = process.env.TG_DAEMON_PROFILE;
   const idleInput = process.env.TG_DAEMON_IDLE_TIMEOUT;
   const configPath = process.env.TG_DAEMON_CONFIG;
+  const transportInput = process.env.TG_DAEMON_TRANSPORT;
   const pidPreclaimed = process.env.TG_DAEMON_PID_PRECLAIMED === '1';
 
   delete process.env.TG_DAEMON_SESSION;
@@ -21,6 +23,7 @@ async function main(): Promise<void> {
   delete process.env.TG_DAEMON_PROFILE;
   delete process.env.TG_DAEMON_IDLE_TIMEOUT;
   delete process.env.TG_DAEMON_CONFIG;
+  delete process.env.TG_DAEMON_TRANSPORT;
   delete process.env.TG_DAEMON_PID_PRECLAIMED;
 
   if (!configDir || !profile || idleInput == null) {
@@ -32,10 +35,11 @@ async function main(): Promise<void> {
 
   const config = createConfig(configPath);
   const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, profile);
+  const transport = resolveTransport(config, profile, transportInput === undefined ? undefined : validateTransport(transportInput));
   const paths = new DaemonPaths(configDir, profile);
   const server = new DaemonServer(
     paths,
-    { apiId, apiHash },
+    { apiId, apiHash, transport },
     { idleTimeout, onIdle: () => process.exit(0), pidPreclaimed },
   );
 

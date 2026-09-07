@@ -1,6 +1,7 @@
 /**
  * Daemon process helpers: liveness, signals, child env without secrets.
  */
+import type { Transport } from '../types.js';
 
 export function isProcessAlive(pid: number): boolean {
   try {
@@ -18,6 +19,7 @@ export function daemonChildEnv(opts: {
   profile: string;
   idleTimeout: number;
   configPath?: string;
+  transport?: Transport;
 }): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.TG_DAEMON_SESSION;
@@ -27,6 +29,8 @@ export function daemonChildEnv(opts: {
   env.TG_DAEMON_PROFILE = opts.profile;
   env.TG_DAEMON_IDLE_TIMEOUT = String(opts.idleTimeout);
   env.TG_DAEMON_PID_PRECLAIMED = '1';
+  delete env.TG_DAEMON_TRANSPORT;
+  if (opts.transport) env.TG_DAEMON_TRANSPORT = opts.transport;
   if (opts.configPath) env.TG_DAEMON_CONFIG = opts.configPath;
   return env;
 }

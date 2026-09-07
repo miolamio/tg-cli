@@ -1,5 +1,7 @@
 import type { TelegramClient } from 'telegram';
 import { createConfig, getCredentialsOrThrow } from './config.js';
+import type { Transport } from './types.js';
+import { resolveTransport } from './transport.js';
 import { withClient } from './client.js';
 import { SessionStore } from './session-store.js';
 import { outputError, logVerbose } from './output.js';
@@ -20,6 +22,7 @@ export interface WithAuthOptions {
   profile: string;
   config?: string;
   daemon?: boolean;
+  transport?: Transport;
 }
 
 /**
@@ -115,7 +118,7 @@ export async function withAuth(
 
       const { apiId, apiHash } = await getCredentialsOrThrow(config, undefined, opts.profile);
 
-      await withClient({ apiId, apiHash, sessionString }, async (client) => {
+      await withClient({ apiId, apiHash, sessionString, transport: resolveTransport(config, opts.profile, opts.transport) }, async (client) => {
         await fn(client);
       }, { holdUntil });
     });

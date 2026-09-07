@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
+import { resolveTransport } from '../../lib/transport.js';
 import { createPrompt } from '../../lib/prompt.js';
 import { createClientForAuth } from '../../lib/client.js';
 import { connectOrThrow } from '../../lib/connect.js';
@@ -45,7 +46,8 @@ export async function loginAction(this: Command): Promise<void> {
       let phone = '';
       try {
         const { apiId, apiHash } = await getCredentialsOrThrow(config, opts.client, profile);
-        client = await createClientForAuth(apiId, apiHash);
+        const transport = resolveTransport(config, profile, opts.transport);
+        client = await createClientForAuth(apiId, apiHash, transport);
 
         showLoginBanner(quiet);
         logStatus('Starting authentication...', quiet);
@@ -82,6 +84,7 @@ export async function loginAction(this: Command): Promise<void> {
         const clientName = opts.client ?? config.get(`profiles.${profile}.client`);
         config.set(`profiles.${profile}`, {
           ...(clientName ? { client: clientName } : {}),
+          transport,
           phone,
           created: new Date().toISOString(),
         });

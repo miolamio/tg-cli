@@ -447,11 +447,12 @@ describe('session import', () => {
       saveUnlocked: vi.fn(() => { expect(locked).toBe(true); }),
     };
     SessionStore.mockImplementation(() => mockStore);
-    const mockConfig = { path: '/tmp/tg-cli/config.json', get: vi.fn().mockReturnValue('desktop'), set: vi.fn() };
+    const mockConfig = { path: '/tmp/tg-cli/config.json', get: vi.fn(key => key.endsWith('.client') ? 'desktop' : 'wss'), set: vi.fn() };
     createConfig.mockReturnValue(mockConfig);
     resolveCredentials.mockReturnValue(null);
     withClient.mockImplementation(async (_opts, fn) => {
       expect(locked).toBe(true);
+      expect(_opts.transport).toBe('wss');
       return fn({ checkAuthorization: vi.fn().mockResolvedValue(true) });
     });
     await importAction.call(makeContext({ skipVerify: false }) as any, 'synthetic-import');
@@ -459,7 +460,7 @@ describe('session import', () => {
     expect(configModule.getCredentialsOrThrow).toHaveBeenCalledWith(mockConfig, undefined, 'default');
     expect(mockStore.withLock).toHaveBeenCalledOnce();
     expect(mockStore.saveUnlocked).toHaveBeenCalledWith('default', 'synthetic-import');
-    expect(mockConfig.set).toHaveBeenCalledWith('profiles.default', expect.objectContaining({ client: 'desktop' }));
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles.default', expect.objectContaining({ client: 'desktop', transport: 'wss' }));
     expect(locked).toBe(false);
     expect(outputSuccess).toHaveBeenCalledWith({ imported: true, profile: 'default', verified: true });
   });

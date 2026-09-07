@@ -9,7 +9,7 @@ vi.mock('../../src/lib/output.js', () => ({
 }));
 
 vi.mock('../../src/lib/config.js', () => ({
-  createConfig: vi.fn(() => ({ path: '/tmp/mock-config.json' })),
+  createConfig: vi.fn(() => ({ path: '/tmp/mock-config.json', get: vi.fn() })),
   getCredentialsOrThrow: vi.fn(() => ({ apiId: 1, apiHash: 'h' })),
 }));
 
@@ -94,7 +94,7 @@ describe('daemonStartAction', () => {
     );
   });
 
-  it('reports success only after the child answers ping', async () => {
+  it.each(['tcp', 'wss'])('passes %s to the child and reports success only after ping', async transport => {
     mockSocketExists
       .mockReturnValueOnce(false)
       .mockReturnValue(true);
@@ -103,7 +103,10 @@ describe('daemonStartAction', () => {
     const child = { pid: 99, connected: true, disconnect: vi.fn(), unref: vi.fn() };
     mockFork.mockReturnValue(child);
 
-    await daemonStartAction.call(ctx() as any);
+    await daemonStartAction.call(ctx({ transport }) as any);
+
+    const { daemonChildEnv } = await import('../../src/lib/daemon/lifecycle.js');
+    expect(daemonChildEnv).toHaveBeenCalledWith(expect.objectContaining({ transport }));
 
     expect(mockWritePidExclusive).toHaveBeenCalledWith(99);
     expect(child.disconnect).toHaveBeenCalledOnce();

@@ -30,7 +30,7 @@ export function describeTransportError(error: unknown): string {
     const code = ownValue(error, 'code');
     if (typeof code === 'string' && NETWORK_CODES.has(code)) return code;
     const message = ownValue(error, 'message');
-    if (message === 'NetSocket was closed' || message === 'Not connected' || message === 'no data received') {
+    if (message === 'NetSocket was closed' || message === 'WebSocket was closed' || message === 'Not connected' || message === 'no data received') {
       return 'CONNECTION_CLOSED';
     }
     if (message === 'TIMEOUT' || message === 'Timeout') return 'TIMEOUT';

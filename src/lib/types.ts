@@ -1,3 +1,6 @@
+/** Telegram network transport; independent of the daemon's local Unix socket. */
+export type Transport = 'tcp' | 'wss';
+
 /**
  * Global CLI options available on all commands via optsWithGlobals().
  */
@@ -12,6 +15,7 @@ export interface GlobalOptions {
   jsonl?: boolean;
   toon?: boolean;
   daemon?: boolean;
+  transport?: Transport;
 }
 
 /**
@@ -23,6 +27,7 @@ export interface ProfileData {
   phone?: string;
   created?: string;
   client?: string;
+  transport?: Transport;
 }
 
 /** Failure associated with one input of a batch operation. */

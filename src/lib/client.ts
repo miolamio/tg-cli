@@ -2,7 +2,9 @@ import { TelegramClient, sessions } from 'telegram';
 import { TgError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
 import { createGramjsLogger } from './gramjs-logger.js';
-import { DiagnosticTCPFull, installClientErrorDiagnostics } from './transport-diagnostics.js';
+import { installClientErrorDiagnostics } from './transport-diagnostics.js';
+import { connectionOptions } from './connection-options.js';
+import type { Transport } from './types.js';
 import { connectOrThrow } from './connect.js';
 
 const { StringSession } = sessions;
@@ -14,6 +16,7 @@ export interface ClientOptions {
   apiId: number;
   apiHash: string;
   sessionString: string;
+  transport?: Transport;
 }
 
 /**
@@ -103,7 +106,7 @@ export async function withClient<T>(
     retryDelay: 1000,
     floodSleepThreshold: 60,
     baseLogger: logger,
-    connection: DiagnosticTCPFull,
+    ...connectionOptions(opts.transport),
   });
   installClientErrorDiagnostics(client, logger);
 
@@ -182,6 +185,7 @@ export async function withClient<T>(
 export async function createClientForAuth(
   apiId: number,
   apiHash: string,
+  transport: Transport = 'tcp',
 ): Promise<TelegramClient> {
   const session = new StringSession('');
   const logger = createGramjsLogger([apiHash]);
@@ -190,7 +194,7 @@ export async function createClientForAuth(
     retryDelay: 1000,
     floodSleepThreshold: 60,
     baseLogger: logger,
-    connection: DiagnosticTCPFull,
+    ...connectionOptions(transport),
   });
   installClientErrorDiagnostics(client, logger);
 

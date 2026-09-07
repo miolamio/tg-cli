@@ -20,6 +20,7 @@ export type { DaemonCommandOptions, DaemonCommandRequest, DaemonExecutionResult 
 
 export type {
   GlobalOptions,
+  Transport,
   TgConfig,
   ProfileData,
   OutputEnvelope,

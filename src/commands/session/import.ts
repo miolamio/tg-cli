@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { createConfig, resolveCredentials, getCredentialsOrThrow } from '../../lib/config.js';
+import { resolveTransport } from '../../lib/transport.js';
 import { withClient } from '../../lib/client.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
@@ -74,6 +75,7 @@ export async function importAction(
 
   const importedSession = session;
   await store.withLock(profile, async (_previousSession, holdUntil) => {
+    const transport = resolveTransport(config, profile, opts.transport);
     // Validate session unless --skip-verify is set
     let wasVerified = false;
 
@@ -89,7 +91,7 @@ export async function importAction(
         try {
           let authorized = false;
           await withClient(
-            { apiId: creds.apiId, apiHash: creds.apiHash, sessionString: importedSession },
+            { apiId: creds.apiId, apiHash: creds.apiHash, sessionString: importedSession, transport },
             async (client) => {
               authorized = await client.checkAuthorization();
             },
@@ -124,6 +126,7 @@ export async function importAction(
     const clientName = config.get(`profiles.${profile}.client`);
     config.set(`profiles.${profile}`, {
       ...(clientName ? { client: clientName } : {}),
+      transport,
       created: new Date().toISOString(),
     });
 

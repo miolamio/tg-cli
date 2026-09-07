@@ -60,6 +60,31 @@ returns `CONNECTION_FAILED` instead of continuing into authorization on a
 disconnected client. This improves diagnosis; it does not bypass network
 restrictions. Login still requires an interactive terminal.
 
+Since 0.5.0, if raw TCP is blocked but HTTPS/WebSocket works, select WSS:
+
+```bash
+tg --transport wss auth login --client desktop
+tg auth status
+tg daemon start --idle-timeout 0
+tg daemon status
+tg --daemon chat list --limit 5
+```
+
+A successful login saves the transport in the selected profile. Direct commands
+and subsequent daemon starts reuse it. WSS uses TLS on port 443, the official
+Telegram DC hostnames, and obfuscated MTProto framing, including when login
+migrates to another DC or media needs a separate connection. Certificate
+verification remains enabled.
+
+Existing profiles default to `tcp`. `--transport tcp` or `--transport wss`
+overrides the profile for one invocation; login and session import save the
+chosen transport after success. For an existing session, start a WSS daemon
+with `tg --transport wss daemon start --idle-timeout 0` after stopping any
+running daemon. Its `status` includes `transport`. Commands using `--daemon`
+and `message watch` use that daemon's transport; choose it at daemon startup.
+There is no automatic fallback to TCP. WSS does not use `HTTP_PROXY` or
+`HTTPS_PROXY` environment variables.
+
 See [CHANGELOG.md](CHANGELOG.md) for release notes. When updating an installation
 with a running daemon, stop it before the update and restart it afterwards so
 the process uses the new code:

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(), error: vi.fn(),
 }));
 vi.mock('../../src/lib/client.js', () => ({
+  withClient: vi.fn(async (_opts, fn) => fn({})),
   createClientForAuth: vi.fn(async () => ({
     connect: vi.fn().mockResolvedValue(true),
     start: mocks.start, destroy: mocks.destroy,
@@ -24,6 +25,8 @@ vi.mock('../../src/lib/output.js', () => ({
 }));
 
 import { loginAction } from '../../src/commands/auth/login.js';
+import { createClientForAuth, withClient } from '../../src/lib/client.js';
+import { withAuth } from '../../src/lib/with-auth.js';
 
 describe('login preset persistence and session ownership', () => {
   let dir: string;
@@ -75,5 +78,35 @@ describe('login preset persistence and session ownership', () => {
     expect(mocks.success).not.toHaveBeenCalled();
     const release = await new SessionStore(dir).acquireLock('work');
     await release();
+  });
+
+  it('persists WSS on successful login and uses it on the next direct command', async () => {
+    const configPath = join(dir, 'config.json');
+    const config = createConfig(configPath);
+    config.set('apiId', 1);
+    config.set('apiHash', 'synthetic-api-hash');
+    await loginAction.call({ optsWithGlobals: () => ({ profile: 'work', config: configPath, transport: 'wss' }) } as any);
+    expect(mocks.error).not.toHaveBeenCalled();
+    expect(createClientForAuth).toHaveBeenCalledWith(1, 'synthetic-api-hash', 'wss');
+    expect(createConfig(configPath).get('profiles.work.transport')).toBe('wss');
+    await withAuth({ profile: 'work', config: configPath }, async () => {});
+    expect(withClient).toHaveBeenLastCalledWith(expect.objectContaining({ transport: 'wss' }), expect.any(Function), expect.any(Object));
+    await withAuth({ profile: 'work', config: configPath, transport: 'tcp' }, async () => {});
+    expect(withClient).toHaveBeenLastCalledWith(expect.objectContaining({ transport: 'tcp' }), expect.any(Function), expect.any(Object));
+    expect(createConfig(configPath).get('profiles.work.transport')).toBe('wss');
+  });
+
+  it('keeps the saved transport and session when a new login fails', async () => {
+    const configPath = join(dir, 'config.json');
+    const config = createConfig(configPath);
+    config.set('apiId', 1);
+    config.set('apiHash', 'synthetic-api-hash');
+    config.set('profiles.work', { transport: 'tcp' });
+    const store = new SessionStore(dir);
+    await store.withLock('work', async () => store.saveUnlocked('work', 'previous-session'));
+    mocks.start.mockRejectedValueOnce(new Error('offline failure'));
+    await loginAction.call({ optsWithGlobals: () => ({ profile: 'work', config: configPath, transport: 'wss' }) } as any);
+    expect(createConfig(configPath).get('profiles.work.transport')).toBe('tcp');
+    expect(await store.load('work')).toBe('previous-session');
   });
 });

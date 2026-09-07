@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-09-07
+
+- Add `--transport tcp|wss` for login, direct commands, session verification,
+  and the daemon. Successful login/import remembers the choice per profile;
+  existing profiles keep TCP by default.
+- Route WSS through official Telegram DC domains over TLS, including DC
+  migration and media connections, without rewriting saved session addresses.
+- Bound and cancel pending WSS upgrades, retain safe transport diagnostics,
+  and report the active transport in daemon status.
+
 ## 0.4.0 — 2026-09-07
 
 - Add the little daemon mascot to interactive login, root help and the README.
