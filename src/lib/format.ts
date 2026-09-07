@@ -471,6 +471,10 @@ export function formatData(data: unknown): string {
 
   const obj = data as Record<string, any>;
 
+  if (typeof obj.scheduledAt === 'string' && 'text' in obj && 'date' in obj) {
+    return `Scheduled for ${obj.scheduledAt}\n${formatMessages([obj as MessageItem])}`;
+  }
+
   if (Array.isArray(obj.errors)) {
     const { errors, partial: _partial, ...successfulData } = obj;
     const formatted = formatData(successfulData);
@@ -513,6 +517,13 @@ export function formatData(data: unknown): string {
   if ('userId' in obj && 'action' in obj && (obj.action === 'blocked' || obj.action === 'unblocked')) {
     const name = (obj as any).firstName || (obj as any).username || (obj as any).userId;
     return `${obj.action === 'blocked' ? 'Blocked' : 'Unblocked'} ${name}`;
+  }
+
+  if (obj.personal === true && 'photoId' in obj && 'userId' in obj) {
+    return `Set personal photo ${obj.photoId} for ${obj.userId} (visible only to you)`;
+  }
+  if (obj.profilePhoto === true && 'path' in obj && 'userId' in obj) {
+    return `Downloaded profile photo for ${obj.userId}: ${obj.path} (${obj.size} bytes)`;
   }
 
   // Check for DownloadResult shape (has path + filename + size + mediaType + messageId)

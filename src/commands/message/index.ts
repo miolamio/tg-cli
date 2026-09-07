@@ -91,6 +91,7 @@ Public hashtag search (gramjs layer 198; full-text query needs a newer telegram 
     .option('--reply-to <msgId>', 'Reply to message ID')
     .option('--topic <topicId>', 'Forum topic ID')
     .option('--comment-to <postId>', 'Comment on a channel post')
+    .option('--schedule <iso>', 'Schedule on Telegram (ISO timestamp with timezone)')
     .action(messageSendAction);
 
   message

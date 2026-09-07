@@ -41,6 +41,25 @@ describe('CLI entry point (built binary)', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_OPTIONS' });
   });
 
+  it('exposes scheduled send and photo command options in help', () => {
+    expect(runFixture(['message', 'send', '--help']).stdout).toContain('--schedule');
+    expect(runFixture(['contact', 'set-photo', '--help']).stdout).toContain('visible only to you');
+    expect(runFixture(['user', 'download-photo', '--help']).stdout).toContain('--force');
+  });
+
+  it('returns a structured invalid schedule before authenticating', () => {
+    const result = runFixture(['message', 'send', 'me', 'Synthetic', '--schedule', '2030-01-01T01:00:00']);
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'INVALID_SCHEDULE' });
+  });
+
+  it('retains schedule errors with TOON and field selection', () => {
+    const result = runFixture(['--toon', '--fields', 'id', 'message', 'send', 'me', 'Synthetic', '--schedule', 'invalid']);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('ok: false');
+    expect(result.stdout).toContain('INVALID_SCHEDULE');
+  });
+
   function runTerminal(args: string[], env: NodeJS.ProcessEnv = {}) {
     // Model a terminal in an isolated child while capturing its two streams separately.
     const bootstrap = `

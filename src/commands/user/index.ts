@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { userDownloadPhotoAction } from './download-photo.js';
 import { userProfileAction } from './profile.js';
 import { userBlockAction } from './block.js';
 import { userUnblockAction } from './unblock.js';
@@ -37,6 +38,13 @@ export function createUserCommand(): Command {
     .option('--limit <n>', 'Max results', '50')
     .option('--offset <n>', 'Skip results', '0')
     .action(userBlockedAction);
+
+  user.command('download-photo')
+    .argument('<user>', 'User ID or username')
+    .requiredOption('-o, --output <file>', 'Destination file')
+    .option('--force', 'Overwrite an existing file')
+    .description('Download the current visible user profile photo')
+    .action(userDownloadPhotoAction);
 
   return user;
 }

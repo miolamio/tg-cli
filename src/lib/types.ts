@@ -438,3 +438,24 @@ export interface ContactSearchResult extends Partial<PartialResultMetadata> {
   results: ContactSearchItem[];
   total: number;
 }
+
+/** Result of setting an account-local personal contact photo. */
+export interface ContactPhotoResult {
+  userId: string;
+  photoId: string;
+  personal: true;
+  size: number;
+}
+
+/** Result of downloading the currently visible profile photo. */
+export interface UserPhotoDownloadResult {
+  userId: string;
+  path: string;
+  size: number;
+  profilePhoto: true;
+}
+
+/** Scheduled send acknowledgement; scheduledAt is the requested delivery time. */
+export interface ScheduledMessageResult extends MessageItem {
+  scheduledAt: string;
+}
