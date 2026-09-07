@@ -9,8 +9,8 @@ export const DAEMON_COMMANDS: Readonly<Record<string, readonly string[]>> = Obje
   chat: Object.freeze(['list', 'info', 'join', 'leave', 'resolve', 'invite-info', 'members', 'topics', 'search', 'create', 'edit', 'kick']),
   message: Object.freeze(['history', 'search', 'get', 'pinned', 'send', 'forward', 'react', 'replies', 'edit', 'delete', 'pin', 'unpin', 'poll']),
   media: Object.freeze(['download', 'send']),
-  user: Object.freeze(['profile', 'block', 'unblock', 'blocked']),
-  contact: Object.freeze(['list', 'add', 'delete', 'search']),
+  user: Object.freeze(['profile', 'block', 'unblock', 'blocked', 'download-photo']),
+  contact: Object.freeze(['list', 'add', 'delete', 'search', 'set-photo']),
 });
 
 export interface DaemonCommandOptions {
@@ -59,6 +59,9 @@ export function validateDaemonCommand(params: Record<string, unknown>): DaemonCo
     invalid('execute cwd must be an absolute path');
   }
   if (argv[0] === 'media' && params.cwd === undefined) invalid('Media commands require an absolute cwd');
+  const photoCommand = (argv[0] === 'user' && argv[1] === 'download-photo')
+    || (argv[0] === 'contact' && argv[1] === 'set-photo');
+  if (photoCommand && params.cwd === undefined) invalid('Photo commands require an absolute cwd');
   if (params.timeoutMs !== undefined && (!Number.isInteger(params.timeoutMs) || (params.timeoutMs as number) < 1 || (params.timeoutMs as number) > 120_000)) {
     invalid('execute timeoutMs must be an integer from 1 to 120000');
   }

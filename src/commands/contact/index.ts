@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { contactSetPhotoAction } from './set-photo.js';
 import { contactListAction } from './list.js';
 import { contactAddAction } from './add.js';
 import { contactDeleteAction } from './delete.js';
@@ -41,6 +42,12 @@ export function createContactCommand(): Command {
     .option('--global', 'Include non-contact Telegram users')
     .option('--limit <n>', 'Max results', '20')
     .action(contactSearchAction);
+
+  contact.command('set-photo')
+    .argument('<user>', 'Contact username or user ID')
+    .argument('<file>', 'JPEG or PNG file')
+    .description('Set a personal contact photo visible only to you (no suggestion sent)')
+    .action(contactSetPhotoAction);
 
   return contact;
 }

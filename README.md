@@ -149,7 +149,7 @@ tg message pinned <chat>
 tg message replies <channel> <msg-ids>
 
 # Write
-tg message send <chat> <text> [--reply-to ID] [--topic ID]
+tg message send <chat> <text> [--reply-to ID] [--topic ID] [--schedule ISO]
 tg message edit <chat> <msg-id> <text>
 tg message delete <chat> <ids> --revoke|--for-me
 tg message forward <from-chat> <msg-ids> <to-chat>
@@ -162,6 +162,24 @@ tg message poll <chat> --question <q> --option <o1> --option <o2> [--quiz --corr
 tg message watch <chat> [--topic ID]     # Stream new messages in real-time
 ```
 
+### Scheduled messages
+
+`--schedule` stores the message on Telegram for later delivery; the CLI and
+computer can be offline when it is delivered. Use a full ISO timestamp with an
+explicit timezone, at least 10 seconds in the future:
+
+```bash
+tg message send me "Reminder" --schedule "2030-01-01T09:00:00+03:00"
+echo "Reminder" | tg --daemon message send me - --schedule "2030-01-01T09:00:00+03:00"
+```
+
+The response retains the normal message fields and adds `scheduledAt` (UTC).
+An invalid or expired timestamp fails without sending immediately. Scheduling
+also works with `--reply-to` and `--topic` under their normal validation rules.
+Telegram may reject scheduling for unsupported peers or dates; those errors are
+returned normally. After a timeout, verify the scheduled queue in Telegram before
+retrying, as the first request may have succeeded.
+
 ### Media
 
 ```bash
@@ -173,6 +191,7 @@ tg media send <chat> <files...> [--caption TEXT] [--album] [--voice]
 
 ```bash
 tg user profile <users>      # Bio, photos, last seen, common chats
+tg user download-photo <user> --output avatar.jpg [--force]
 tg user block <user>
 tg user unblock <user>
 tg user blocked [--limit N]  # List blocked users
@@ -184,10 +203,33 @@ tg user blocked [--limit N]  # List blocked users
 tg contact list [--limit N]
 tg contact add <username-or-phone> [--first-name NAME] [--last-name NAME]
 tg contact delete <user>
+tg contact set-photo <user> photo.jpg    # Personal photo, visible only to you
 tg contact search <query> [--limit N] [--global]
 ```
 
 Contact search matches saved names and usernames without case sensitivity. Use `@username` to search usernames only. `--global` fills remaining result slots with remote username matches; the limit applies before profile enrichment.
+
+### Contact and profile photos
+
+`contact set-photo` uploads a JPEG or PNG as a personal contact photo, visible
+only to the current account. It does **not** suggest a photo to the other person
+or change their public profile. Telegram requires the target to be a contact.
+
+`user download-photo` downloads the user's current visible profile photo. It
+returns `NO_PROFILE_PHOTO` without creating a file if no photo is available.
+Existing destination files are preserved unless `--force` is supplied.
+The destination's parent directory must already exist. The visible photo may be
+a personal override set by your account; this command does not enumerate historical photos.
+
+Both commands support `--daemon`, `--fields`, JSON, JSONL, TOON and human output.
+For direct `DaemonClient.execute` calls, pass an absolute `cwd` for these file
+operations; relative file arguments are resolved against it, never the daemon's
+startup directory. Normal CLI calls supply `cwd` automatically.
+
+```bash
+tg --daemon contact set-photo some_contact ./photo.png
+tg --daemon user download-photo some_contact --output ./avatar.jpg --fields userId,path,size
+```
 
 ### Daemon
 

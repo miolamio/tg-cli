@@ -1,9 +1,10 @@
 import type { Command } from 'commander';
+import { parseSchedule } from '../../lib/schedule.js';
 import { outputSuccess, outputError } from '../../lib/output.js';
 import { resolveEntity, assertForum } from '../../lib/peer.js';
 import { serializeMessage } from '../../lib/serialize.js';
 import { withAuth } from '../../lib/with-auth.js';
-import type { GlobalOptions } from '../../lib/types.js';
+import type { GlobalOptions, ScheduledMessageResult } from '../../lib/types.js';
 import { ErrorCode } from '../../lib/error-codes.js';
 import { getDaemonContext } from '../../lib/daemon/execution-context.js';
 import { parseTopicId, parseMessageId } from '../../lib/validate.js';
@@ -24,6 +25,7 @@ async function readStdin(): Promise<string> {
  * Action handler for `tg message send <chat> <text>`.
  *
  * Sends a text message to any chat. Supports:
+ * - Server-side scheduled delivery via --schedule <zoned ISO timestamp>
  * - Reply to a specific message via --reply-to <msgId>
  * - Piped stdin input via dash placeholder: echo "msg" | tg message send <chat> -
  * - gramjs built-in markdown parsing for **bold**, __italic__, `code`, [links](url)
@@ -31,7 +33,16 @@ async function readStdin(): Promise<string> {
  * Returns the sent message as a serialized MessageItem.
  */
 export async function messageSendAction(this: Command, chat: string, text: string): Promise<void> {
-  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string; commentTo?: string };
+  const opts = this.optsWithGlobals() as GlobalOptions & { replyTo?: string; topic?: string; commentTo?: string; schedule?: string };
+
+  let schedule: number | undefined;
+  if (opts.schedule !== undefined) {
+    try { schedule = parseSchedule(opts.schedule); }
+    catch (err) {
+      outputError((err as Error).message, ErrorCode.INVALID_SCHEDULE);
+      return;
+    }
+  }
 
   // Handle stdin pipe via dash placeholder
   if (text === '-') {
@@ -105,11 +116,15 @@ export async function messageSendAction(this: Command, chat: string, text: strin
     // Forum guard: reject --topic on non-forum chats
     await assertForum(entity, topicId);
 
+    // Auth/peer resolution may have taken long enough to expire the requested time.
+    if (opts.schedule !== undefined) schedule = parseSchedule(opts.schedule);
+
     // gramjs built-in MarkdownParser handles **bold**, __italic__, `code`, [links](url) automatically
     const sentMsg = await client.sendMessage(entity, {
       message: text,
       replyTo: effectiveReplyTo,
       ...(commentTo !== undefined && { commentTo }),
+      ...(schedule !== undefined && { schedule }),
     });
 
     if (!sentMsg) {
@@ -117,6 +132,10 @@ export async function messageSendAction(this: Command, chat: string, text: strin
       return;
     }
     const serialized = serializeMessage(sentMsg as any);
-    outputSuccess(serialized);
+    if (schedule === undefined) outputSuccess(serialized);
+    else {
+      const scheduled: ScheduledMessageResult = { ...serialized, scheduledAt: new Date(schedule * 1000).toISOString() };
+      outputSuccess(scheduled);
+    }
   });
 }
