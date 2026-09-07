@@ -44,6 +44,33 @@ Available presets: `desktop`, `android`, `ios`, `macos`, `web-z`, `web-k`.
 The little daemon greets you during interactive login and appears in compact form
 in `tg --help`. Use `--quiet` to hide it or `NO_COLOR=1` for plain text.
 
+### Troubleshooting login
+
+Run `tg --verbose auth login --client desktop` in a terminal to see connection
+stages. Starting with 0.4.0, transport failures include a safe category on stderr,
+such as `CONNECTION_CLOSED`, `ECONNRESET`, `INVALID_CHECKSUM`, or
+`INVALID_BUFFER (code=429)`. These diagnostics do not print error objects,
+session strings, or raw protocol payloads; `--quiet` suppresses them.
+
+If TCP connects but the first authorization-key exchange fails, an open port
+alone does not establish that MTProto traffic can pass. Check access from the
+same machine and network. The SDK's `WebSocket connection failed` message can
+also describe a TCP failure. After unsuccessful connection retries, the CLI
+returns `CONNECTION_FAILED` instead of continuing into authorization on a
+disconnected client. This improves diagnosis; it does not bypass network
+restrictions. Login still requires an interactive terminal.
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes. When updating an installation
+with a running daemon, stop it before the update and restart it afterwards so
+the process uses the new code:
+
+```bash
+tg daemon stop
+npm install -g @miolamio/tg-cli@latest
+tg daemon start --idle-timeout 0
+tg daemon status
+```
+
 ## Commands
 
 ### Auth & Session
@@ -269,7 +296,7 @@ npm run typecheck
 npm test
 ```
 
-CI checks Node 20 and 22. Dependency overrides keep Vite on its patched 6.x line
+CI checks Node 20, 22 and 24. Dependency overrides keep Vite on its patched 6.x line
 for earlier Node 20 releases and use patched esbuild 0.28.x in the build tools.
 
 ## License

@@ -245,6 +245,17 @@ describe('loginAction', () => {
     expect(mockStoreSave).toHaveBeenCalledWith('default', 'saved-session-string');
   });
 
+  it('stops after exhausted connection retries without starting auth or saving a session', async () => {
+    mockConnect.mockResolvedValueOnce(false);
+    await loginAction.call(createMockCommandContext() as any);
+    expect(mockOutputError).toHaveBeenCalledWith(expect.any(String), 'CONNECTION_FAILED');
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockStoreSave).not.toHaveBeenCalled();
+    expect(mockConfigSet).not.toHaveBeenCalled();
+    expect(mockDestroy).toHaveBeenCalledOnce();
+    expect(mockClose).toHaveBeenCalledOnce();
+  });
+
   it('outputs login metadata without disclosing the session string', async () => {
     const ctx = createMockCommandContext();
     await loginAction.call(ctx as any);

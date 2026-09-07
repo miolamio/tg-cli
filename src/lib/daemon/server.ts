@@ -13,6 +13,8 @@ import { messageMatchesTopic } from './topic-filter.js';
 import { SessionStore } from '../session-store.js';
 import { JsonLineDecoder, MAX_FRAME_BYTES } from './frames.js';
 import { createGramjsLogger } from '../gramjs-logger.js';
+import { DiagnosticTCPFull, installClientErrorDiagnostics } from '../transport-diagnostics.js';
+import { connectOrThrow } from '../connect.js';
 import { createRequestClient } from './request-client.js';
 import { executeDaemonCommand } from './execute.js';
 import { TgError } from '../errors.js';
@@ -129,13 +131,16 @@ export class DaemonServer {
       const { TelegramClient, sessions } = await import('telegram');
       this.throwIfStopping();
       const session = new sessions.StringSession(sessionString);
+      const logger = createGramjsLogger([this.clientOpts.apiHash, sessionString]);
       this.client = new TelegramClient(session, this.clientOpts.apiId, this.clientOpts.apiHash, {
         connectionRetries: 3,
         retryDelay: 1000,
         floodSleepThreshold: 60,
-        baseLogger: createGramjsLogger([this.clientOpts.apiHash, sessionString]),
+        baseLogger: logger,
+        connection: DiagnosticTCPFull,
       });
-      await this.client.connect();
+      installClientErrorDiagnostics(this.client, logger);
+      await connectOrThrow(this.client);
       this.throwIfStopping();
 
       this.server = createServer((socket) => this.handleConnection(socket));

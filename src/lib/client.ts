@@ -2,6 +2,8 @@ import { TelegramClient, sessions } from 'telegram';
 import { TgError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
 import { createGramjsLogger } from './gramjs-logger.js';
+import { DiagnosticTCPFull, installClientErrorDiagnostics } from './transport-diagnostics.js';
+import { connectOrThrow } from './connect.js';
 
 const { StringSession } = sessions;
 
@@ -95,12 +97,15 @@ export async function withClient<T>(
   }
 
   const session = new StringSession(opts.sessionString);
+  const logger = createGramjsLogger([opts.apiHash, opts.sessionString]);
   const client = new TelegramClient(session, opts.apiId, opts.apiHash, {
     connectionRetries: 3,
     retryDelay: 1000,
     floodSleepThreshold: 60,
-    baseLogger: createGramjsLogger([opts.apiHash, opts.sessionString]),
+    baseLogger: logger,
+    connection: DiagnosticTCPFull,
   });
+  installClientErrorDiagnostics(client, logger);
 
   const cancellation = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -119,7 +124,7 @@ export async function withClient<T>(
   // Defer execution to a microtask so the ownership hook is registered before
   // connect or user work starts. Operation failure does not mean cleanup failed.
   const operation = Promise.resolve().then(async () => {
-    await client.connect();
+    await connectOrThrow(client);
     for (let attempt = 0; ; attempt++) {
       cancellation.signal.throwIfAborted();
       try {
@@ -179,12 +184,15 @@ export async function createClientForAuth(
   apiHash: string,
 ): Promise<TelegramClient> {
   const session = new StringSession('');
+  const logger = createGramjsLogger([apiHash]);
   const client = new TelegramClient(session, apiId, apiHash, {
     connectionRetries: 3,
     retryDelay: 1000,
     floodSleepThreshold: 60,
-    baseLogger: createGramjsLogger([apiHash]),
+    baseLogger: logger,
+    connection: DiagnosticTCPFull,
   });
+  installClientErrorDiagnostics(client, logger);
 
   return client;
 }

@@ -4,6 +4,7 @@
  * instead of string literals to prevent typos and ease refactoring.
  */
 export const ErrorCode = Object.freeze({
+  CONNECTION_FAILED: 'CONNECTION_FAILED',
   // Auth
   NOT_AUTHENTICATED: 'NOT_AUTHENTICATED',
   NOT_LOGGED_IN: 'NOT_LOGGED_IN',

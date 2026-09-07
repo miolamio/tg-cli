@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../../src/lib/client.js', () => ({
   createClientForAuth: vi.fn(async () => ({
+    connect: vi.fn().mockResolvedValue(true),
     start: mocks.start, destroy: mocks.destroy,
     session: { save: () => 'synthetic-test-session' },
   })),

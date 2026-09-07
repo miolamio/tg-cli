@@ -56,6 +56,14 @@ describe('withClient', () => {
     expect(mockDestroy).toHaveBeenCalledOnce();
   });
 
+  it('does not execute the action when the SDK exhausts connection retries', async () => {
+    mockConnect.mockResolvedValueOnce(false);
+    const action = vi.fn();
+    await expect(withClient(opts, action)).rejects.toMatchObject({ code: 'CONNECTION_FAILED' });
+    expect(action).not.toHaveBeenCalled();
+    expect(mockDestroy).toHaveBeenCalledOnce();
+  });
+
   it('sets a safety timeout that defaults to 120_000 and is cleared on success', async () => {
     const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
     const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');

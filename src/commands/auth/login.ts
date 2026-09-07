@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { createConfig, getCredentialsOrThrow } from '../../lib/config.js';
 import { createPrompt } from '../../lib/prompt.js';
 import { createClientForAuth } from '../../lib/client.js';
+import { connectOrThrow } from '../../lib/connect.js';
 import { SessionStore } from '../../lib/session-store.js';
 import { outputSuccess, outputError, logStatus } from '../../lib/output.js';
 import { formatError } from '../../lib/errors.js';
@@ -49,6 +50,7 @@ export async function loginAction(this: Command): Promise<void> {
         showLoginBanner(quiet);
         logStatus('Starting authentication...', quiet);
 
+        await connectOrThrow(client);
         await client.start({
           phoneNumber: async () => {
             const p = await prompt.ask('Phone number (international format): ');

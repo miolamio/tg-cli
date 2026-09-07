@@ -36,6 +36,7 @@ vi.mock('telegram/events/NewMessage.js', () => ({
 import { NewMessage } from 'telegram/events/NewMessage.js';
 import { DaemonServer } from '../../src/lib/daemon/server.js';
 import { DaemonPaths } from '../../src/lib/daemon/pid.js';
+import { SessionStore } from '../../src/lib/session-store.js';
 import { encodeRequest, parseMessage } from '../../src/lib/daemon/protocol.js';
 
 describe('DaemonServer', () => {
@@ -57,6 +58,17 @@ describe('DaemonServer', () => {
   afterEach(async () => {
     if (server) await server.stop();
     rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('does not announce readiness and releases ownership after failed connection retries', async () => {
+    mockConnect.mockResolvedValueOnce(false);
+    server = new DaemonServer(paths, { apiId: 1, apiHash: 'h', sessionString: 's' });
+    await expect(server.start()).rejects.toMatchObject({ code: 'CONNECTION_FAILED' });
+    expect(paths.socketExists()).toBe(false);
+    expect(paths.readPid()).toBeNull();
+    expect(mockDestroy).toHaveBeenCalledOnce();
+    const release = await new SessionStore(tempDir).acquireLock('test');
+    await release();
   });
 
   it('starts and accepts connections on Unix socket', async () => {
