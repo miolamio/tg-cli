@@ -1,0 +1,579 @@
+{
+  "version": 1,
+  "stories": [
+    {
+      "issue": "TG-55",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-55",
+      "userStory": "Как владелец проекта, я хочу видеть проверенные результаты каждой user story, чтобы не принимать число тестов за готовность фичи.",
+      "scenarios": [
+        {
+          "id": "TG-55/pending",
+          "given": "Автоматические тесты прошли",
+          "when": "Живой сценарий ещё не выполнен",
+          "then": "Приёмка остаётся незавершённой",
+          "tests": [
+            {
+              "file": "tests/unit/story-results.test.ts",
+              "name": "keeps live acceptance pending when automated tests pass"
+            }
+          ]
+        },
+        {
+          "id": "TG-55/named-tests",
+          "given": "У сценария указано имя теста",
+          "when": "Тест отсутствует, пропущен, упал или неоднозначен",
+          "then": "Сценарий не получает PASS",
+          "tests": [
+            {
+              "file": "tests/unit/story-results.test.ts",
+              "name": "rejects missing, skipped, failed and ambiguous named tests"
+            }
+          ]
+        },
+        {
+          "id": "TG-55/evidence",
+          "given": "Сохранён ручной результат для другой сборки или без доказательств",
+          "when": "Проверяется текущий кандидат",
+          "then": "Старый результат не закрывает приёмку",
+          "tests": [
+            {
+              "file": "tests/unit/story-results.test.ts",
+              "name": "rejects stale or incomplete manual evidence"
+            },
+            {
+              "file": "tests/unit/story-results.test.ts",
+              "name": "does not hide a failed suite behind passing scenario assertions"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "issue": "TG-53",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-53",
+      "userStory": "Как пользователь Telegram, я хочу выполнять команды через одну постоянную сессию, чтобы не подключаться заново для каждого запроса.",
+      "scenarios": [
+        {
+          "id": "TG-53/reuse",
+          "given": "Демон запущен с синтетическим MTProto",
+          "when": "CLI и API выполняют серию команд",
+          "then": "Все команды используют один constructor/connect",
+          "tests": [
+            {
+              "file": "tests/unit/daemon-api-process.test.ts",
+              "name": "routes sequential list, history and send through the same daemon session"
+            },
+            {
+              "file": "tests/unit/daemon-api-process.test.ts",
+              "name": "constructs and connects exactly once for every CLI and API request"
+            }
+          ]
+        },
+        {
+          "id": "TG-53/isolation",
+          "given": "Несколько запросов выполняются одновременно",
+          "when": "Один ошибается, другие используют разные форматы",
+          "then": "Вывод и ошибки не смешиваются",
+          "tests": [
+            {
+              "file": "tests/unit/daemon-api-process.test.ts",
+              "name": "isolates concurrent success, failure, field projection and JSONL output"
+            }
+          ]
+        },
+        {
+          "id": "TG-53/synthetic-watch",
+          "given": "Подписка активна в настоящих процессах с синтетическим MTProto",
+          "when": "При execute поступает синтетическое событие",
+          "then": "Событие приходит в watch, а не в ответ команды",
+          "tests": [
+            {
+              "file": "tests/unit/daemon-api-process.test.ts",
+              "name": "delivers watch events during execute without capturing them in the command response"
+            }
+          ]
+        },
+        {
+          "id": "TG-53/live-watch",
+          "given": "Работает демон с живой сохранённой сессией",
+          "when": "В согласованный чат реально поступает новое сообщение",
+          "then": "Подписчик получает соответствующее событие без перезапуска и смешивания ответа execute",
+          "manual": "NOT RUN: subscribe ack был получен, но живое входящее событие не наблюдалось. Нужен согласованный источник события; ничего не отправлять без разрешения. Сохранить только факт совпадения и длительность, без текста и ID."
+        }
+      ]
+    },
+    {
+      "issue": "TG-54",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-54",
+      "userStory": "Как пользователь с обрывом соединения, я хочу понятную безопасную причину сбоя, чтобы диагностировать его без раскрытия сессии.",
+      "scenarios": [
+        {
+          "id": "TG-54/safe-errors",
+          "given": "Транспорт возвращает ошибку с payload",
+          "when": "CLI классифицирует сбой",
+          "then": "Показан безопасный код без содержимого ошибки",
+          "tests": [
+            {
+              "file": "tests/unit/transport-diagnostics.test.ts",
+              "name": "classifies SDK errors without exposing their payloads or messages"
+            },
+            {
+              "file": "tests/unit/transport-diagnostics.test.ts",
+              "name": "does not evaluate getters, custom inspection or arbitrary strings"
+            }
+          ]
+        },
+        {
+          "id": "TG-54/failed-connect",
+          "given": "SDK исчерпал попытки подключения",
+          "when": "Login получает неуспех",
+          "then": "Возвращена ошибка, авторизация не запущена и сессия не сохранена",
+          "tests": [
+            {
+              "file": "tests/unit/transport-diagnostics.test.ts",
+              "name": "detects the real SDK false return and allows destroy to clean up its loop"
+            },
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "stops after exhausted connection retries without starting auth or saving a session"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "issue": "TG-56",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-56",
+      "userStory": "Как пользователь сети с закрытым TCP, я хочу войти через WSS и продолжить работу через демон без смены сети.",
+      "scenarios": [
+        {
+          "id": "TG-56/routing",
+          "given": "Выбран WSS",
+          "when": "Устанавливается соединение или SDK меняет DC",
+          "then": "Применены TLS, binary WebSocket и obfuscated framing; новый DC использует WSS",
+          "tests": [
+            {
+              "file": "tests/unit/wss.test.ts",
+              "name": "uses TLS, the binary WebSocket protocol and obfuscated framing"
+            },
+            {
+              "file": "tests/unit/wss.test.ts",
+              "name": "routes a real SDK DC migration through WSS and clears the old DC key"
+            },
+            {
+              "file": "tests/unit/wss.test.ts",
+              "name": "does not rewrite the address or key in an existing session"
+            }
+          ]
+        },
+        {
+          "id": "TG-56/profile",
+          "given": "WSS выбран для входа",
+          "when": "Вход завершился успешно или с ошибкой",
+          "then": "Успех сохраняет выбор, ошибка сохраняет предыдущую сессию и транспорт",
+          "tests": [
+            {
+              "file": "tests/unit/auth-preset.test.ts",
+              "name": "persists WSS on successful login and uses it on the next direct command"
+            },
+            {
+              "file": "tests/unit/auth-preset.test.ts",
+              "name": "keeps the saved transport and session when a new login fails"
+            }
+          ]
+        },
+        {
+          "id": "TG-56/timeout",
+          "given": "WebSocket upgrade завис или старый socket запоздал",
+          "when": "Истёк timeout или выполнено новое подключение",
+          "then": "Операция завершается ограниченно, старые события не портят новый socket",
+          "tests": [
+            {
+              "file": "tests/unit/wss.test.ts",
+              "name": "bounds an upgrade that never completes"
+            },
+            {
+              "file": "tests/unit/wss.test.ts",
+              "name": "isolates late SDK events from a previous socket after reconnecting"
+            }
+          ]
+        },
+        {
+          "id": "TG-56/remote-login",
+          "given": "На проблемной Linux-машине TCP обрывается, WSS req_pq_multi работает",
+          "when": "Пользователь выполняет полный login, auth status и последовательные чтения через WSS daemon",
+          "then": "Сохранена авторизация, чтение успешно, PID не меняется",
+          "manual": "NOT RUN: resPQ и локальное чтение существующей сессии не доказывают полный вход на этой машине. Использовать изолированный согласованный профиль, собственные credentials без записи секретов в отчёт. Нужны номер → код → при необходимости 2FA → auth success → новый auth status → daemon read."
+        }
+      ]
+    },
+    {
+      "issue": "TG-57",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-57",
+      "userStory": "Как пользователь нового терминала, я хочу сразу ввести номер и видеть приглашения кода/2FA, чтобы завершить вход самостоятельно.",
+      "scenarios": [
+        {
+          "id": "TG-57/real-terminal",
+          "given": "Настоящий TTY, пустой профиль, нет credentials",
+          "when": "Запущен verbose WSS login",
+          "then": "Запрос номера виден до сети; неверный ввод завершается без сессии",
+          "tests": [
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-57: a real terminal asks for the phone before credentials or networking"
+            },
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "asks for the phone before fetching credentials or opening a connection"
+            }
+          ]
+        },
+        {
+          "id": "TG-57/phone-option",
+          "given": "Номер передан явно или в неверном формате",
+          "when": "Запущен auth login --phone",
+          "then": "Корректный номер нормализован без повторного запроса; неверный отвергнут до подключения",
+          "tests": [
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "passes a normalized --phone literally to gramjs without asking for it"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "rejects invalid --phone in a terminal before connecting"
+            }
+          ]
+        },
+        {
+          "id": "TG-57/input-logs",
+          "given": "Verbose включён, SDK запрашивает код/2FA",
+          "when": "Пользователь вводит ответ или ввод завершается ошибкой",
+          "then": "Диагностика приостановлена и затем восстановлена; пароль скрыт",
+          "tests": [
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "pauses SDK diagnostics during code/2FA input and restores them (reject=false)"
+            },
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "pauses SDK diagnostics during code/2FA input and restores them (reject=true)"
+            },
+            {
+              "file": "tests/unit/prompt.test.ts",
+              "name": "askSecret() writes prompt to stderr and suppresses echo"
+            },
+            {
+              "file": "tests/unit/prompt.test.ts",
+              "name": "askSecret() restores echo even on error"
+            }
+          ]
+        },
+        {
+          "id": "TG-57/complete-login",
+          "given": "На проблемной машине установлен проверяемый кандидат",
+          "when": "Пользователь проходит вход с номером, кодом и при необходимости 2FA",
+          "then": "Приглашения доступны, login успешен и авторизация подтверждается новым процессом",
+          "manual": "NOT RUN: полный пользовательский вход пока не подтверждён. Зафиксировать версию, среду и результат каждого шага, без номера/кода/пароля. Совместить с TG-56/remote-login, не запрашивать дополнительные коды ради дублирующего теста."
+        }
+      ]
+    },
+    {
+      "issue": "TG-58",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-58",
+      "userStory": "Как пользователь терминала, я хочу узнаваемый help/login, сохраняя чистый вывод для скриптов.",
+      "scenarios": [
+        {
+          "id": "TG-58/terminal-branding",
+          "given": "Терминальный help/login",
+          "when": "Показывается оформление",
+          "then": "Маскот виден, login пишет его только в stderr, NO_COLOR соблюдается",
+          "tests": [
+            {
+              "file": "tests/unit/auth.test.ts",
+              "name": "writes the login mascot only to terminal stderr"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "honors NO_COLOR even when FORCE_COLOR is set"
+            }
+          ]
+        },
+        {
+          "id": "TG-58/plain-output",
+          "given": "Справка передана в pipe или TERM=dumb",
+          "when": "CLI выводит справку",
+          "then": "Декор отсутствует",
+          "tests": [
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "keeps the piped help output undecorated"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "omits branding in a dumb terminal"
+            }
+          ]
+        },
+        {
+          "id": "TG-58/json",
+          "given": "В терминале выполнена JSON-команда",
+          "when": "Прочитан stdout",
+          "then": "Результат разбирается как JSON и не содержит маскот",
+          "tests": [
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "keeps terminal command results as JSON without a mascot"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "issue": "TG-59",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-59",
+      "userStory": "Как пользователь npm, я хочу установить именно проверенный пакет объявленной версии.",
+      "scenarios": [
+        {
+          "id": "TG-59/package",
+          "given": "Собран релизный tarball кандидата",
+          "when": "Архив установлен изолированно на Node 20/22/24",
+          "then": "Оба alias, --version, login help и library import работают; нет лишних файлов",
+          "manual": "Для каждого нового кандидата повторить npm pack и изолированную установку. Исторический PASS 0.5.1: .development/npm-release-0.5.1-2026-09-07/{package-verification,smoke}.json; этот результат не переносится на другую сборку."
+        }
+      ]
+    },
+    {
+      "issue": "TG-60",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-60",
+      "userStory": "Как сопровождающий, я хочу видеть реально выполненный CI и незавершённые сценарии до публикации.",
+      "scenarios": [
+        {
+          "id": "TG-60/ci",
+          "given": "Релизный коммит отправлен в GitHub",
+          "when": "Запущена матрица CI",
+          "then": "Node 20/22/24 завершили typecheck/build/tests и сохранён отчёт user stories",
+          "manual": "BLOCKED: run 34123858895 не стартовал из-за billing lock. Требуется действие владельца в GitHub billing, затем успешный запуск для кандидата. Локальный PASS не является CI PASS."
+        }
+      ]
+    },
+    {
+      "issue": "TG-61",
+      "url": "http://10.0.1.38:3456/TG/issues/TG-61",
+      "userStory": "Как пользователь CLI, я хочу понимать приложение, создающее сессию, и использовать корректные credentials без ложных гарантий от бана.",
+      "scenarios": [
+        {
+          "id": "TG-61/credentials",
+          "given": "Заданы собственные credentials в env/config",
+          "when": "CLI выбирает credentials",
+          "then": "Применён документированный приоритет env над config",
+          "tests": [
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "returns credentials from env vars when set"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "returns credentials from config when env vars are not set"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "prioritizes env vars over config file values"
+            }
+          ]
+        },
+        {
+          "id": "TG-61/onboarding",
+          "given": "Пользователь читает onboarding и выбирает preset",
+          "when": "Объясняется способ подключения и использование API ID",
+          "then": "Ясно, что это самостоятельный MTProto-клиент; нужен свой API ID, гарантии от бана нет",
+          "manual": "PENDING: карточка фиксирует обнаруженный пробел; onboarding ещё требуется исправить и проверить по актуальным правилам Telegram. Не менять credentials существующих профилей автоматически."
+        },
+        {
+          "id": "TG-61/live-credentials",
+          "given": "Зарегистрировано собственное приложение и согласован тестовый профиль",
+          "when": "Выполнен полный вход через WSS и чтение через daemon",
+          "then": "Использованы собственные credentials, авторизация сохранена, чтение успешно",
+          "manual": "NOT RUN: совместить с TG-56/remote-login после подготовки собственного API ID и onboarding. Не записывать credentials и не создавать дополнительные входы ради дублирующего результата."
+        }
+      ]
+    },
+    {
+      "issue": "TG-63",
+      "url": "http://10.0.1.4:3456/TG/issues/TG-63",
+      "userStory": "Как пользователь уже авторизованного официального Telegram Desktop, я хочу перенести выбранный аккаунт во встроенный CLI без нового кода, сохранив другие аккаунты и проверив авторизацию.",
+      "scenarios": [
+        {
+          "id": "TG-63/selection",
+          "given": "Официальный Desktop tdata содержит один или несколько аккаунтов",
+          "when": "Пользователь выбирает внутренний индекс аккаунта",
+          "then": "Перенесён только выбранный ключ; единственный аккаунт с ненулевым индексом выбирается корректно",
+          "tests": [
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "reads independent plain and passcoded Desktop fixtures"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "requires an explicit stored index for multiple accounts"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "selects a sparse account without touching other account files"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "automatically selects a sole nonzero account index"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "ignores multiple retired keys for the same DC"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/source-validation",
+          "given": "Исходные контейнеры повреждены, неподдерживаемы или небезопасны для чтения",
+          "when": "Выполняется разбор tdata",
+          "then": "Чтение ограничено; ошибка не раскрывает секреты; исходные файлы не меняются",
+          "tests": [
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects malformed decrypted structures"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects corrupt containers and incorrect passcodes without data disclosure"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "uses legacy backups only when the modern file is absent"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects oversized files, symlinks and nonregular files"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "does not read chat maps or change source files"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/guards",
+          "given": "Целевой профиль занят либо не подтверждено закрытие клиентов",
+          "when": "Запущен import-desktop",
+          "then": "Команда отказывает до сетевых запросов и не изменяет существующие профили",
+          "tests": [
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rejects unsafe options before reading tdata or connecting"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rejects occupied profiles including case aliases and empty session files"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "refuses duplicate keys and busy existing profiles before networking"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "refuses uppercase session extensions before reading a source"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/verification",
+          "given": "Выбран существующий ключ авторизации",
+          "when": "Telegram возвращает ожидаемый аккаунт либо ошибку",
+          "then": "Сохраняется только подтверждённая сессия после успешного cleanup; ошибки и отмена не сохраняют профиль",
+          "tests": [
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "verifies identity and teardown before saving the Desktop profile"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not save unauthorized, mismatched or failed verifications"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not save after cancellation or failed teardown"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rolls back newly created state when persistence fails"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "retains the lease after timeout until outstanding cleanup settles"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not expose a session when metadata persistence fails"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "retains matching metadata if a partial session cannot be removed"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/cli-and-privacy",
+          "given": "Пользователь запускает установленный CLI",
+          "when": "Запрашивает справку или ошибается в аргументах/вводе passcode",
+          "then": "Команда доступна; ошибки структурированы и не содержат секретного ввода",
+          "tests": [
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: import-desktop help documents account selection and acknowledgement"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: import-desktop rejects unsafe invocations without exposing argument values"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "asks for a Desktop passcode only through the secret terminal prompt"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: a real terminal accepts a hidden Desktop passcode without networking"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/credentials",
+          "given": "Профиль импортирован из Desktop",
+          "when": "Следующая команда получает credentials, а конфигурация перезаписывается",
+          "then": "Сохранён Desktop preset; env overrides явно предупреждаются; права config остаются 0600",
+          "tests": [
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "keeps config private after subsequent writes"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "warns when environment credentials override an imported Desktop profile"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "can read a config when best-effort chmod is denied"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: direct status and daemon startup warn before using overriding credentials"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/live-import",
+          "given": "На этом Mac закрыт временный официальный Desktop; исходный мигрированный профиль удерживается под lock, его daemon остановлен",
+          "when": "После финального ревью кандидат импортирует выбранный tdata в изолированный новый config через WSS, затем авторизация проверяется новым процессом",
+          "then": "ID совпадает в памяти, профиль открывается через сохранённый WSS; тестовая копия удалена локально без logout, оригинальная авторизация сохраняется",
+          "manual": "NOT RUN: использовать согласованный временный Desktop из TG-62 только после финальных исправлений. Никаких запросов кодов, сообщений или auth logout. Зафиксировать fingerprint кандидата, Node/OS, команды без приватных путей и секретов, булевы результаты import/reopen/identity/permissions/local-cleanup/original-still-authorized."
+        }
+      ]
+    }
+  ]
+}

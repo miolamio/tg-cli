@@ -28,3 +28,14 @@ jobs:
       - run: npm run build
 
       - run: npm test
+
+      - name: Verify user-story test results
+        run: npm run test:stories
+
+      - name: Upload user-story evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-stories-node-${{ matrix.node }}
+          path: .development/stories-*/
+          if-no-files-found: warn
