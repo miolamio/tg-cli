@@ -105,3 +105,12 @@ and the GitHub tag/release; these delivery checks do not prove successful login.
 | [TG-59](http://10.0.1.38:3456/TG/issues/TG-59) | Historical 0.5.1 publication verified; recheck every new package candidate. |
 | [TG-60](http://10.0.1.38:3456/TG/issues/TG-60) | CI jobs never started because of GitHub billing lock. |
 | [TG-61](http://10.0.1.38:3456/TG/issues/TG-61) | Own API-ID onboarding and a corresponding live login still need work. |
+
+## Desktop import (TG-63)
+
+The catalog also covers account selection, bounded tdata parsing, profile and
+duplicate guards, verified persistence, private terminal input and credential
+overrides for `session import-desktop`. Synthetic fixtures exercise several
+accounts, including sparse indices; they do not prove live multi-account access.
+The live scenario is separate and uses only the authorized temporary Desktop,
+with local-only cleanup and a subsequent check of the original authorization.

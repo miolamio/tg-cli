@@ -171,6 +171,9 @@ try {
   } else {
     configureOutput();
     const { message, code } = formatError(err);
-    outputError(message, err instanceof CommanderError ? ErrorCode.INVALID_OPTIONS : code ?? ErrorCode.UNKNOWN_ERROR);
+    const safeMessage = err instanceof CommanderError && process.argv.includes('import-desktop')
+      ? 'Invalid import-desktop arguments. Run tg session import-desktop --help; enter local passcodes only at the --ask-passcode prompt.'
+      : message;
+    outputError(safeMessage, err instanceof CommanderError ? ErrorCode.INVALID_OPTIONS : code ?? ErrorCode.UNKNOWN_ERROR);
   }
 }

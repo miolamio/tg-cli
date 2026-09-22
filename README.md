@@ -118,7 +118,92 @@ tg auth status                   # Check auth status
 tg auth logout                   # Log out and destroy session
 tg session export                # Export session string for portability
 tg session import <string>       # Import session string
+tg --profile desktop-import session import-desktop /path/to/tdata --desktop-closed
 ```
+
+### Import an existing Telegram Desktop account
+
+`session import-desktop` reads modern `tdata` from official Telegram Desktop
+builds from telegram.org or the stores. It reuses an existing authorization
+without requesting a code. It does not import Telegram Web, the separate native
+Telegram for macOS app, legacy storage, or third-party/distro rebuilds and forks.
+The storage cannot tell us which API credentials a custom build used.
+
+Quit the source Desktop application and stop **all** clients/daemons using that
+same authorization first. Do not log out. The required `--desktop-closed` flag
+acknowledges this; the command cannot detect every source process or other machine.
+Independent authorizations for the same account can remain open.
+
+```bash
+env -u TG_API_ID -u TG_API_HASH tg --profile desktop-import --transport wss \
+  session import-desktop "/path/to/tdata" --desktop-closed
+
+env -u TG_API_ID -u TG_API_HASH tg --profile desktop-import auth status
+```
+
+The target must be an explicit, unused, non-default profile. Import verifies the
+account with Telegram and saves only after successful client cleanup. It leaves
+the source files and other accounts unchanged, and outputs only
+`{ "ok": true, "data": { "imported": true, "profile": "desktop-import", "verified": true } }`.
+TCP is the default; `--transport wss` is saved for subsequent commands and daemon
+starts. There is no offline/skip-verification mode for this command.
+
+For **multiple accounts**, the error lists available numeric indices; run again
+with `--account 2`, for example. These are stored Desktop indices, not positions
+in the account menu: they can have gaps. A sole account is selected automatically,
+even if its index is nonzero. Use `auth status` locally to confirm the identity.
+Each selected account needs its own new CLI profile. Add `--ask-passcode` when
+Desktop has a local passcode; it is entered through a hidden terminal prompt,
+never as a command argument. This is the local app passcode, not Telegram 2FA.
+
+Common source locations (custom working directories may differ):
+
+| Official Desktop installation | `tdata` location |
+| --- | --- |
+| macOS, telegram.org | `~/Library/Application Support/Telegram Desktop/tdata` |
+| macOS, Telegram Lite from the App Store | `~/Library/Containers/org.telegram.desktop/Data/Library/Application Support/Telegram Desktop/tdata` |
+| Linux, telegram.org | `~/.local/share/TelegramDesktop/tdata` |
+| Windows | `%APPDATA%\Telegram Desktop\tdata` |
+
+On macOS, allow the terminal to access the app's data if macOS requests it.
+The parser reads only the account keys, not chat databases or media. It needs
+regular files, rejects symlinks, and does not modify or remove source backups.
+
+The imported profile remembers the `desktop` preset. Keep `TG_API_ID` and
+`TG_API_HASH` unset when using it, including at daemon startup. Environment
+credentials retain their normal precedence; overriding an imported profile
+prints a warning on stderr. Import itself refuses these overrides.
+
+The duplicate check covers session files in the **current CLI config directory**.
+Busy or unreadable profiles must be resolved before import. It cannot protect
+against other config directories, other machines, or racing simultaneous imports.
+Do not reopen the source Desktop while CLI or its daemon uses the copied
+authorization. Telegram can invalidate an authorization used concurrently;
+see [Telegram's error documentation](https://core.telegram.org/api/errors).
+`auth logout` on any copy also revokes that shared authorization for the source
+Desktop and the other copies.
+
+To remove only a local imported profile (or an incomplete reserved profile after
+a storage failure), first stop its daemon and CLI operations. **Do not use
+`auth logout`.** In a Node project with this package installed, use the library
+under its session lock; set the intended profile and the same config path used
+for import (`createConfig()` uses the default config):
+
+```js
+import { dirname } from 'node:path';
+import { createConfig, SessionStore } from '@miolamio/tg-cli';
+
+const profile = 'desktop-import';
+const config = createConfig();
+const store = new SessionStore(dirname(config.path));
+await store.withLock(profile, async () => {
+  store.deleteUnlocked(profile);
+  config.delete(`profiles.${profile}`);
+});
+```
+
+This removes local files/metadata without contacting Telegram. Removing the CLI
+copy lets you return to the source Desktop without a server-side logout.
 
 ### Chats
 

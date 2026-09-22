@@ -27,6 +27,8 @@ export interface ProfileData {
   phone?: string;
   created?: string;
   client?: string;
+  /** Existing Desktop authorization, shared with the source installation. */
+  importedFrom?: 'desktop';
   transport?: Transport;
 }
 

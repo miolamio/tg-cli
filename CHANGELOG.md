@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add `session import-desktop <tdata>` to reuse a selected official Desktop
+  authorization in a new CLI profile without requesting another login code.
+  Multiple accounts require `--account INDEX`; `--ask-passcode` reads a local
+  Desktop passcode privately. The source files remain unchanged.
+- Verify the selected identity online before saving; require closed source
+  clients and check existing CLI profiles for duplicate keys. Save the Desktop
+  preset and selected transport, and warn about later environment overrides.
+- Keep config files private across subsequent writes. Add TG-63 user-story
+  tests with synthetic Desktop storage fixtures.
 - Add the TG-55 story acceptance catalog, negative gate tests, real-terminal
   login regression and CI evidence reports. Pending manual scenarios remain
   pending; these changes do not establish completion of code-based WSS login.

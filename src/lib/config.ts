@@ -1,8 +1,10 @@
 import Conf from 'conf';
+import { chmodSync, existsSync } from 'node:fs';
 import { dirname, basename, extname } from 'node:path';
 import type { TgConfig } from './types.js';
 import { CredentialError, TgError } from './errors.js';
 import { ErrorCode } from './error-codes.js';
+import { logStatus } from './output.js';
 
 /** Telegram API IDs are positive TL int values; reject partial numeric strings. */
 function parseApiId(value: unknown, source: string): number {
@@ -21,9 +23,11 @@ function parseApiId(value: unknown, source: string): number {
  * @param configPath - Optional custom config file path from --config flag
  */
 export function createConfig(configPath?: string): Conf<TgConfig> {
+  let config: Conf<TgConfig>;
   try {
     if (configPath) {
-      return new Conf<TgConfig>({
+      config = new Conf<TgConfig>({
+        configFileMode: 0o600,
         projectName: 'tg-cli',
         configName: basename(configPath, extname(configPath)),
         cwd: dirname(configPath),
@@ -31,18 +35,23 @@ export function createConfig(configPath?: string): Conf<TgConfig> {
           profiles: {},
         },
       });
+    } else {
+      config = new Conf<TgConfig>({
+        configFileMode: 0o600,
+        projectName: 'telegram-cli',
+        configName: 'config',
+        defaults: {
+          profiles: {},
+        },
+      });
     }
-    return new Conf<TgConfig>({
-      projectName: 'telegram-cli',
-      configName: 'config',
-      defaults: {
-        profiles: {},
-      },
-    });
   } catch {
     // Do not expose malformed JSON contents: config files contain credentials.
     throw new TgError('Cannot read configuration. Check that the config file is accessible and contains valid JSON.', ErrorCode.CONFIG_ERROR);
   }
+  // Reading a root-provisioned/shared config must still work when chmod is denied.
+  try { if (existsSync(config.path)) chmodSync(config.path, 0o600); } catch { /* Best effort, as in SessionStore. */ }
+  return config;
 }
 
 /**
@@ -88,6 +97,9 @@ export async function getCredentialsOrThrow(
   // Env vars always take priority
   const envApiId = process.env.TG_API_ID;
   const envApiHash = process.env.TG_API_HASH;
+  if (profile && envApiId && envApiHash && config.get(`profiles.${profile}.importedFrom`) === 'desktop') {
+    logStatus('Warning: environment API credentials override an imported Desktop profile. To use its desktop preset, run with env -u TG_API_ID -u TG_API_HASH.');
+  }
   if (envApiId && envApiHash) {
     const apiId = parseApiId(envApiId, 'TG_API_ID');
     return { apiId, apiHash: envApiHash };

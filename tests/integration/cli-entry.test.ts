@@ -174,6 +174,54 @@ describe('CLI entry point (built binary)', () => {
     expect(output).toContain('--skip-verify');
   });
 
+  it('TG-63: import-desktop help documents account selection and acknowledgement', () => {
+    const result = runFixture(['session', 'import-desktop', '--help']);
+    expect(result.status).toBe(0);
+    for (const flag of ['<tdata>', '--account <index>', '--desktop-closed', '--ask-passcode']) expect(result.stdout).toContain(flag);
+    expect(result.stdout).not.toContain('--skip-verify');
+    for (const shell of ['bash', 'zsh', 'fish']) expect(runFixture(['completion', shell]).stdout).toContain('import-desktop');
+  });
+
+  it('TG-63: import-desktop rejects unsafe invocations without exposing argument values', () => {
+    const secret = 'SYNTHETIC_PRIVATE_PASSCODE';
+    for (const args of [
+      ['--ask-passcode=' + secret], ['--passcode=' + secret], ['--ask-passcode', secret],
+      [secret, '--account', '../5'], [secret], [secret, '--desktop-closed'],
+      ['source', '--desktop-closed', secret],
+    ]) {
+      const result = spawnSync(process.execPath, [BINARY, '--config', fixtureConfig, '--profile', 'desktop-negative', 'session', 'import-desktop', ...args], {
+        cwd: ROOT, encoding: 'utf8', timeout: 5000, env: { ...process.env, TG_API_ID: undefined, TG_API_HASH: undefined },
+      });
+      expect(result.status, result.stderr).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: expect.any(String) });
+      expect(result.stdout + result.stderr).not.toContain(secret);
+      expect(existsSync(join(fixtureDir, 'sessions', 'desktop-negative.session'))).toBe(false);
+    }
+  });
+
+  it('TG-63: direct status and daemon startup warn before using overriding credentials', () => {
+    const path = join(fixtureDir, 'desktop-config.json');
+    writeFileSync(path, JSON.stringify({ profiles: { review: { client: 'desktop', importedFrom: 'desktop' } } }));
+    for (const args of [['auth', 'status'], ['daemon', 'start']]) {
+      const result = spawnSync(process.execPath, [BINARY, '--config', path, '--profile', 'review', ...args], {
+        cwd: ROOT, encoding: 'utf8', timeout: 5000, env: { ...process.env, TG_API_ID: 'invalid-id', TG_API_HASH: 'synthetic-private-hash' },
+      });
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, code: 'CREDENTIAL_ERROR' });
+      expect(result.stderr).toContain('environment API credentials override an imported Desktop profile');
+      expect(result.stdout + result.stderr).not.toContain('synthetic-private-hash');
+    }
+  });
+
+  it('TG-63: a real terminal accepts a hidden Desktop passcode without networking', () => {
+    const result = spawnSync('python3', [join(ROOT, 'tests/fixtures/desktop-passcode-pty.py'), process.execPath, BINARY], {
+      cwd: ROOT, encoding: 'utf8', timeout: 15000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ realPTY: true, hiddenInput: true, decrypted: true, networkStarted: false, sourceUnchanged: true });
+  }, 20000);
+
   it('chat --help shows list, info, join, leave, resolve, invite-info, members subcommands', () => {
     const output = execSync(`node ${BINARY} chat --help`, {
       cwd: ROOT,

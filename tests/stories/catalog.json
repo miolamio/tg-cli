@@ -396,6 +396,184 @@
           "manual": "NOT RUN: совместить с TG-56/remote-login после подготовки собственного API ID и onboarding. Не записывать credentials и не создавать дополнительные входы ради дублирующего результата."
         }
       ]
+    },
+    {
+      "issue": "TG-63",
+      "url": "http://10.0.1.4:3456/TG/issues/TG-63",
+      "userStory": "Как пользователь уже авторизованного официального Telegram Desktop, я хочу перенести выбранный аккаунт во встроенный CLI без нового кода, сохранив другие аккаунты и проверив авторизацию.",
+      "scenarios": [
+        {
+          "id": "TG-63/selection",
+          "given": "Официальный Desktop tdata содержит один или несколько аккаунтов",
+          "when": "Пользователь выбирает внутренний индекс аккаунта",
+          "then": "Перенесён только выбранный ключ; единственный аккаунт с ненулевым индексом выбирается корректно",
+          "tests": [
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "reads independent plain and passcoded Desktop fixtures"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "requires an explicit stored index for multiple accounts"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "selects a sparse account without touching other account files"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "automatically selects a sole nonzero account index"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "ignores multiple retired keys for the same DC"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/source-validation",
+          "given": "Исходные контейнеры повреждены, неподдерживаемы или небезопасны для чтения",
+          "when": "Выполняется разбор tdata",
+          "then": "Чтение ограничено; ошибка не раскрывает секреты; исходные файлы не меняются",
+          "tests": [
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects malformed decrypted structures"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects corrupt containers and incorrect passcodes without data disclosure"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "uses legacy backups only when the modern file is absent"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "rejects oversized files, symlinks and nonregular files"
+            },
+            {
+              "file": "tests/unit/desktop-session.test.ts",
+              "name": "does not read chat maps or change source files"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/guards",
+          "given": "Целевой профиль занят либо не подтверждено закрытие клиентов",
+          "when": "Запущен import-desktop",
+          "then": "Команда отказывает до сетевых запросов и не изменяет существующие профили",
+          "tests": [
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rejects unsafe options before reading tdata or connecting"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rejects occupied profiles including case aliases and empty session files"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "refuses duplicate keys and busy existing profiles before networking"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "refuses uppercase session extensions before reading a source"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/verification",
+          "given": "Выбран существующий ключ авторизации",
+          "when": "Telegram возвращает ожидаемый аккаунт либо ошибку",
+          "then": "Сохраняется только подтверждённая сессия после успешного cleanup; ошибки и отмена не сохраняют профиль",
+          "tests": [
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "verifies identity and teardown before saving the Desktop profile"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not save unauthorized, mismatched or failed verifications"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not save after cancellation or failed teardown"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "rolls back newly created state when persistence fails"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "retains the lease after timeout until outstanding cleanup settles"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "does not expose a session when metadata persistence fails"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "retains matching metadata if a partial session cannot be removed"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/cli-and-privacy",
+          "given": "Пользователь запускает установленный CLI",
+          "when": "Запрашивает справку или ошибается в аргументах/вводе passcode",
+          "then": "Команда доступна; ошибки структурированы и не содержат секретного ввода",
+          "tests": [
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: import-desktop help documents account selection and acknowledgement"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: import-desktop rejects unsafe invocations without exposing argument values"
+            },
+            {
+              "file": "tests/unit/session-import-desktop.test.ts",
+              "name": "asks for a Desktop passcode only through the secret terminal prompt"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: a real terminal accepts a hidden Desktop passcode without networking"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/credentials",
+          "given": "Профиль импортирован из Desktop",
+          "when": "Следующая команда получает credentials, а конфигурация перезаписывается",
+          "then": "Сохранён Desktop preset; env overrides явно предупреждаются; права config остаются 0600",
+          "tests": [
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "keeps config private after subsequent writes"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "warns when environment credentials override an imported Desktop profile"
+            },
+            {
+              "file": "tests/unit/config.test.ts",
+              "name": "can read a config when best-effort chmod is denied"
+            },
+            {
+              "file": "tests/integration/cli-entry.test.ts",
+              "name": "TG-63: direct status and daemon startup warn before using overriding credentials"
+            }
+          ]
+        },
+        {
+          "id": "TG-63/live-import",
+          "given": "На этом Mac закрыт временный официальный Desktop; исходный мигрированный профиль удерживается под lock, его daemon остановлен",
+          "when": "После финального ревью кандидат импортирует выбранный tdata в изолированный новый config через WSS, затем авторизация проверяется новым процессом",
+          "then": "ID совпадает в памяти, профиль открывается через сохранённый WSS; тестовая копия удалена локально без logout, оригинальная авторизация сохраняется",
+          "manual": "NOT RUN: использовать согласованный временный Desktop из TG-62 только после финальных исправлений. Никаких запросов кодов, сообщений или auth logout. Зафиксировать fingerprint кандидата, Node/OS, команды без приватных путей и секретов, булевы результаты import/reopen/identity/permissions/local-cleanup/original-still-authorized."
+        }
+      ]
     }
   ]
 }

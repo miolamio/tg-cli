@@ -2,10 +2,36 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync, chmodSync } from 'node:fs';
+import * as fs from 'node:fs';
+import * as output from '../../src/lib/output.js';
 import { resolveCredentials, createConfig, getCredentialsOrThrow } from '../../src/lib/config.js';
 
+vi.mock('node:fs', async original => {
+  const fs = await original<typeof import('node:fs')>();
+  return { ...fs, chmodSync: vi.fn(fs.chmodSync) };
+});
+
 describe('createConfig', () => {
+  it('keeps config private after subsequent writes', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tg-config-mode-'));
+    try {
+      const config = createConfig(join(dir, 'config.json'));
+      chmodSync(config.path, 0o644);
+      const reopened = createConfig(config.path);
+      expect(statSync(config.path).mode & 0o777).toBe(0o600);
+      reopened.set('profiles.example', { client: 'desktop' });
+      expect(statSync(config.path).mode & 0o777).toBe(0o600);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('can read a config when best-effort chmod is denied', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tg-config-readonly-'));
+    const config = createConfig(join(dir, 'config.json'));
+    vi.mocked(fs.chmodSync).mockImplementationOnce(() => { throw Object.assign(new Error('denied'), { code: 'EPERM' }); });
+    try { expect(createConfig(config.path).get('profiles')).toEqual({}); }
+    finally { rmSync(dir, { recursive: true, force: true }); }
+  });
   it('returns a Conf instance', () => {
     const config = createConfig();
     expect(config).toBeDefined();
@@ -39,6 +65,22 @@ describe('resolveCredentials', () => {
   afterEach(() => {
     process.env = { ...originalEnv };
     rmSync(configDir, { recursive: true, force: true });
+  });
+
+  it('warns when environment credentials override an imported Desktop profile', async () => {
+    const config = createConfig(join(configDir, 'config.json'));
+    config.set('profiles.imported', { client: 'desktop', importedFrom: 'desktop' });
+    config.set('profiles.normal', { client: 'desktop' });
+    process.env.TG_API_ID = '123'; process.env.TG_API_HASH = 'synthetic-env-secret';
+    const log = vi.spyOn(output, 'logStatus').mockImplementation(() => {});
+    try {
+      await expect(getCredentialsOrThrow(config, undefined, 'imported')).resolves.toEqual({ apiId: 123, apiHash: 'synthetic-env-secret' });
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('env -u TG_API_ID -u TG_API_HASH'));
+      expect(JSON.stringify(log.mock.calls)).not.toContain('synthetic-env-secret');
+      log.mockClear();
+      await getCredentialsOrThrow(config, undefined, 'normal');
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
   });
 
   it('returns credentials from env vars when set', () => {
