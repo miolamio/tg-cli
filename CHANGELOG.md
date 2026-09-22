@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add the TG-55 story acceptance catalog, negative gate tests, real-terminal
+  login regression and CI evidence reports. Pending manual scenarios remain
+  pending; these changes do not establish completion of code-based WSS login.
+
 ## 0.5.1 — 2026-09-07
 
 - Ask for the phone number before networking during login and accept it through

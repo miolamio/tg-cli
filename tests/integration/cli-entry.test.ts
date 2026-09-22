@@ -136,6 +136,17 @@ describe('CLI entry point (built binary)', () => {
     expect(runFixture(['auth', 'login', '--help']).stdout).toContain('--phone <number>');
   });
 
+  it('TG-57: a real terminal asks for the phone before credentials or networking', () => {
+    const result = spawnSync('python3', [join(ROOT, 'tests', 'fixtures', 'login-pty.py'), process.execPath, BINARY], {
+      cwd: ROOT, encoding: 'utf-8', timeout: 15000,
+    });
+    expect(result.error, 'The PTY acceptance test requires Python 3 on macOS/Linux').toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      realPTY: true, phoneBeforeNetwork: true, invalidInputRejected: true, sessionSaved: false,
+    });
+  }, 20000);
+
   it('rejects invalid --phone in a terminal before connecting', () => {
     const result = runTerminal(['--config', fixtureConfig, '--profile', 'review', 'auth', 'login', '--phone', '@username']);
     expect(result.status).toBe(1);

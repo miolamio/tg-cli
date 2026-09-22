@@ -22,6 +22,37 @@ npm run typecheck                             # tsc --noEmit
 
 `tests/integration/` rebuilds the binary before asserting `--help` / `--version`.
 
+## Feature cards and user-story acceptance (TG-55)
+
+Every change (feature, bugfix, docs, tooling, or release) must have a Lific `TG-*`
+card before implementation. Search existing cards first. Record the user's
+goal, Given/When/Then scenarios, verification method, and expected result.
+Use [tests/stories/README.md](tests/stories/README.md) and the scenario catalog.
+
+- Map each automated scenario to actual test names; run `npm run test:stories`.
+  Missing, failed, and skipped tests are not passes. Add a regression that
+  reproduces the reported user-visible failure before claiming it fixed.
+- Record revision/version, environment, command, result, and sanitized evidence
+  in the card. Distinguish mocks, real processes/TTY, live Telegram, and the
+  affected user's machine. A handshake or ping/pong is not a completed login;
+  subscribe acknowledgement is not proof of event delivery.
+- Keep the card active while any required scenario is failed or unverified.
+  Do not silently remove an acceptance criterion to close a card. Preserve
+  historical evidence with its original scope and date.
+- Before publishing, run `npm run test:acceptance` and complete the manual
+  acceptance record for the candidate. Also require typecheck, build, package
+  install checks, and actually executed CI. Publishing a package does not
+  prove its feature works. Report any explicit user-authorized exception in
+  the card and release notes; do not infer one from a routine publish request.
+- Live checks use only authorized accounts/actions. Never store phone numbers,
+  codes, passwords, API hashes, session strings, or private message contents in
+  acceptance artifacts. A manual check may remain pending without inventing
+  evidence or asking to expose credentials in chat.
+
+The catalog covers the recent daemon, transport, login, branding, and release
+work. Older review cards keep their historical evidence; extend their scenarios
+when touching that behavior. Test counts alone never establish user acceptance.
+
 ## Layout
 
 | Path | Role |
